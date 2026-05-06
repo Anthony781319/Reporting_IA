@@ -1,125 +1,91 @@
-@import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css');
+import { useState } from 'react'
+import Dashboard from './pages/Dashboard'
+import Saisie from './pages/Saisie'
+import Equipe from './pages/Equipe'
+import Admin from './pages/Admin'
+import Login from './pages/Login'
+import './App.css'
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+const ADMIN_PASSWORD = 'Kai'
 
-:root {
-  --color-bg: #ffffff;
-  --color-bg-secondary: #f5f4f0;
-  --color-border: rgba(0,0,0,0.1);
-  --color-text: #1a1a1a;
-  --color-text-muted: #5F5E5A;
-  --purple: #534AB7;
-  --purple-light: #EEEDFE;
-  --purple-dark: #3C3489;
-}
+export default function App() {
+  const [user, setUser] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [tab, setTab] = useState('saisie')
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #1a1a1a;
-    --color-bg-secondary: #242424;
-    --color-border: rgba(255,255,255,0.1);
-    --color-text: #f0eeea;
-    --color-text-muted: #B4B2A9;
+  const handleLogin = (ia, password) => {
+    if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
+      setUser(ia)
+      setIsAdmin(true)
+      setTab('dashboard')
+      return true
+    }
+    if (password.toLowerCase() === ia.nom.toLowerCase()) {
+      setUser(ia)
+      setIsAdmin(false)
+      setTab('saisie')
+      return true
+    }
+    return false
   }
+
+  const handleLogout = () => {
+    setUser(null)
+    setIsAdmin(false)
+    setTab('saisie')
+  }
+
+  if (!user) return <Login onLogin={handleLogin} />
+
+  const adminTabs = [
+    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
+    { id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' },
+    { id: 'equipe', icon: 'ti-users', label: 'Équipe' },
+    { id: 'admin', icon: 'ti-settings', label: 'Admin' },
+  ]
+
+  const userTabs = [
+    { id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' },
+  ]
+
+  const tabs = isAdmin ? adminTabs : userTabs
+
+  return (
+    <div className="app">
+      <div className="nav">
+        <div className="nav-title">
+          <i className="ti ti-chart-bar" aria-hidden="true"></i>
+          Reporting IA
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="nav-avatar">{user.nom.slice(0, 2).toUpperCase()}</div>
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 13 }}>
+            <i className="ti ti-logout" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      {tabs.length > 1 && (
+        <div className="tabs">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              className={`tab ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              <i className={`ti ${t.icon}`} aria-hidden="true"></i>
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="content">
+        {tab === 'dashboard' && <Dashboard />}
+        {tab === 'saisie' && <Saisie iaId={user.id} iaName={user.nom} />}
+        {tab === 'equipe' && <Equipe />}
+        {tab === 'admin' && <Admin />}
+      </div>
+    </div>
+  )
 }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--color-bg);
-  color: var(--color-text);
-  -webkit-font-smoothing: antialiased;
-  max-width: 480px;
-  margin: 0 auto;
-  min-height: 100vh;
-}
-
-.app { display: flex; flex-direction: column; min-height: 100vh; }
-
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 0.5px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  background: var(--color-bg);
-  z-index: 10;
-}
-
-.nav-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.nav-title .ti { font-size: 20px; color: var(--purple); }
-
-.nav-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: var(--purple-light);
-  color: var(--purple-dark);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 500;
-}
-
-.tabs {
-  display: flex;
-  border-bottom: 0.5px solid var(--color-border);
-  position: sticky;
-  top: 49px;
-  background: var(--color-bg);
-  z-index: 9;
-}
-
-.tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 4px;
-  font-size: 10px;
-  color: var(--color-text-muted);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.tab .ti { font-size: 18px; }
-.tab span { font-size: 10px; }
-
-.tab.active {
-  color: var(--purple);
-  border-bottom: 2px solid var(--purple);
-  font-weight: 500;
-}
-
-.content { flex: 1; padding-bottom: 24px; }
-
-input[type="number"],
-input[type="text"],
-input[type="email"],
-select {
-  background: var(--color-bg-secondary);
-  border: 0.5px solid var(--color-border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 14px;
-  color: var(--color-text);
-  outline: none;
-  -webkit-appearance: none;
-}
-
-input:focus, select:focus {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px rgba(83,74,183,0.15);
-}
-
-button { font-family: inherit; }
