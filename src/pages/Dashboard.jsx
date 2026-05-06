@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts'
 
@@ -13,34 +13,32 @@ const currentWeek = () => {
 
 const COLORS = ['#534AB7','#0F6E56','#BA7517','#993556','#888780','#185FA5','#3B6D11','#D85A30']
 
+const KpiCard = ({ label, value, color }) => (
+  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px' }}>
+    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 2 }}>{label}</div>
+    <div style={{ fontSize: 22, fontWeight: 500, color }}>{value}</div>
+  </div>
+)
+
 export default function Dashboard() {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
   const [saisies, setSaisies] = useState([])
-  const [iaList, setIaList] = useState([])
   const [weekData, setWeekData] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: ia }, { data: all }] = await Promise.all([
-        supabase.from('ia').select('*').order('nom'),
-        supabase.from('saisies').select('*, ia(nom)').eq('annee', annee)
-      ])
-      setIaList(ia || [])
+      const { data: all } = await supabase
+        .from('saisies').select('*, ia(nom)').eq('annee', annee)
       setSaisies(all || [])
-
-      const thisWeek = (all || []).filter(s => s.semaine === semaine)
-      setWeekData(thisWeek)
+      setWeekData((all || []).filter(s => s.semaine === semaine))
       setLoading(false)
     }
     load()
   }, [])
 
-  const totalRdv = weekData.reduce((s, d) => s + (d.total_rdv || 0), 0)
-  const totalCv = weekData.reduce((s, d) => s + (d.cv_envoyes || 0), 0)
-  const totalBesoins = weekData.reduce((s, d) => s + (d.besoins_detectes || 0), 0)
-  const totalSignatures = weekData.reduce((s, d) => s + (d.signatures || 0), 0)
+  const sum = (key) => weekData.reduce((s, d) => s + (d[key] || 0), 0)
 
   const weekTrend = Array.from({ length: 6 }, (_, i) => {
     const w = semaine - 5 + i
@@ -48,7 +46,7 @@ export default function Dashboard() {
     return {
       name: `S${w}`,
       RDV: ws.reduce((s, d) => s + (d.total_rdv || 0), 0),
-      CV: ws.reduce((s, d) => s + (d.cv_envoyes || 0), 0),
+      Solutions: ws.reduce((s, d) => s + (d.cv_envoyes || 0), 0),
     }
   })
 
@@ -58,9 +56,9 @@ export default function Dashboard() {
     .map(d => ({ name: d.ia?.nom || '?', rdv: d.total_rdv || 0 }))
 
   const pipeData = [
-    { name: 'Pipe total', value: weekData.reduce((s, d) => s + (d.total_rdv || 0), 0) },
-    { name: 'Besoins', value: totalBesoins },
-    { name: 'Présentations', value: weekData.reduce((s, d) => s + (d.presentations || 0), 0) },
+    { name: 'Pipe total', value: sum('total_rdv') },
+    { name: 'Besoins', value: sum('besoins_detectes') },
+    { name: 'Présentations', value: sum('presentations') },
   ]
 
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
@@ -73,23 +71,19 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 14 }}>
-        {[
-          { label: 'RDV semaine', value: totalRdv, color: '#534AB7' },
-          { label: 'CV envoyés', value: totalCv, color: '#0F6E56' },
-          { label: 'Besoins détectés', value: totalBesoins, color: '#BA7517' },
-          { label: 'Signatures', value: totalSignatures, color: '#993556' },
-        ].map(s => (
-          <div key={s.label} style={{ background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 2 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 500, color: s.color }}>{s.value}</div>
-          </div>
-        ))}
+        <KpiCard label="RDV semaine" value={sum('total_rdv')} color="#534AB7" />
+        <KpiCard label="Présentations" value={sum('presentations')} color="#185FA5" />
+        <KpiCard label="Signatures" value={sum('signatures')} color="#993556" />
+        <KpiCard label="Démarrages" value={sum('demarrages')} color="#0F6E56" />
+        <KpiCard label="Fins de mission" value={sum('fins_de_mission')} color="#BA7517" />
+        <KpiCard label="Solutions envoyées" value={sum('cv_envoyes')} color="#3B6D11" />
+        <KpiCard label="Besoins détectés" value={sum('besoins_detectes')} color="#D85A30" />
       </div>
 
       <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>RDV & CV — 6 dernières semaines</div>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>RDV & Solutions — 6 dernières semaines</div>
         <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-          {[['#534AB7','RDV'],['#0F6E56','CV envoyés']].map(([c,l]) => (
+          {[['#534AB7','RDV'],['#0F6E56','Solutions']].map(([c,l]) => (
             <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--color-text-secondary)' }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: c }}></div>{l}
             </div>
@@ -102,7 +96,7 @@ export default function Dashboard() {
             <YAxis tick={{ fontSize: 11, fill: '#888780' }} />
             <Tooltip />
             <Line type="monotone" dataKey="RDV" stroke="#534AB7" strokeWidth={2} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="CV" stroke="#0F6E56" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 3" />
+            <Line type="monotone" dataKey="Solutions" stroke="#0F6E56" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 3" />
           </LineChart>
         </ResponsiveContainer>
       </div>
