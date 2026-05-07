@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
+  Tooltip, ResponsiveContainer
 } from 'recharts'
 
 const currentWeek = () => {
@@ -17,6 +17,22 @@ const KpiCard = ({ label, value, color }) => (
   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px' }}>
     <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 2 }}>{label}</div>
     <div style={{ fontSize: 22, fontWeight: 500, color }}>{value}</div>
+  </div>
+)
+
+const PipeCard = ({ label, value, color, icon }) => (
+  <div style={{
+    background: 'var(--color-background-primary)',
+    border: `1.5px solid ${color}30`,
+    borderRadius: 12, padding: '14px 16px',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10
+  }}>
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 500, color }}>{value}</div>
+    </div>
+    <div style={{ fontSize: 28, opacity: 0.4 }}>{icon}</div>
   </div>
 )
 
@@ -40,26 +56,30 @@ export default function Dashboard() {
 
   const sum = (key) => weekData.reduce((s, d) => s + (d[key] || 0), 0)
 
+  // Courbe activité commerciale
   const weekTrend = Array.from({ length: 6 }, (_, i) => {
     const w = semaine - 5 + i
     const ws = saisies.filter(s => s.semaine === w)
     return {
       name: `S${w}`,
       RDV: ws.reduce((s, d) => s + (d.total_rdv || 0), 0),
-      Solutions: ws.reduce((s, d) => s + (d.cv_envoyes || 0), 0),
+      Présentations: ws.reduce((s, d) => s + (d.presentations || 0), 0),
+      Signatures: ws.reduce((s, d) => s + (d.signatures || 0), 0),
     }
   })
 
+  // Classement pondéré
   const ranking = [...weekData]
-    .sort((a, b) => (b.total_rdv || 0) - (a.total_rdv || 0))
+    .map(d => ({
+      name: d.ia?.nom || '?',
+      score: (d.total_rdv || 0) * 1 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3,
+      rdv: d.total_rdv || 0,
+      prez: d.presentations || 0,
+      signatures: d.signatures || 0,
+    }))
+    .filter(d => d.score > 0)
+    .sort((a, b) => b.score - a.score)
     .slice(0, 6)
-    .map(d => ({ name: d.ia?.nom || '?', rdv: d.total_rdv || 0 }))
-
-  const pipeData = [
-    { name: 'Pipe total', value: sum('total_rdv') },
-    { name: 'Besoins', value: sum('besoins_detectes') },
-    { name: 'Présentations', value: sum('presentations') },
-  ]
 
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
 
@@ -70,6 +90,7 @@ export default function Dashboard() {
         <span style={{ background: '#EEEDFE', color: '#3C3489', fontSize: 12, fontWeight: 500, padding: '4px 12px', borderRadius: 20 }}>Semaine {semaine}</span>
       </div>
 
+      {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 14 }}>
         <KpiCard label="RDV semaine" value={sum('total_rdv')} color="#534AB7" />
         <KpiCard label="Présentations" value={sum('presentations')} color="#185FA5" />
@@ -80,10 +101,11 @@ export default function Dashboard() {
         <KpiCard label="Besoins détectés" value={sum('besoins_detectes')} color="#D85A30" />
       </div>
 
+      {/* Courbe activité commerciale */}
       <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>RDV & Solutions — 6 dernières semaines</div>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-          {[['#534AB7','RDV'],['#0F6E56','Solutions']].map(([c,l]) => (
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Activité commerciale — 6 semaines</div>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+          {[['#534AB7','RDV'],['#185FA5','Présentations'],['#993556','Signatures']].map(([c,l]) => (
             <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--color-text-secondary)' }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: c }}></div>{l}
             </div>
@@ -96,13 +118,16 @@ export default function Dashboard() {
             <YAxis tick={{ fontSize: 11, fill: '#888780' }} />
             <Tooltip />
             <Line type="monotone" dataKey="RDV" stroke="#534AB7" strokeWidth={2} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="Solutions" stroke="#0F6E56" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 3" />
+            <Line type="monotone" dataKey="Présentations" stroke="#185FA5" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 3" />
+            <Line type="monotone" dataKey="Signatures" stroke="#993556" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="2 2" />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
+      {/* Classement pondéré */}
       <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Top IA — RDV cette semaine</div>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Classement — Score pondéré</div>
+        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 12 }}>1 RDV = 1pt · 1 Prez = 2pts · 1 Signature = 3pts</div>
         {ranking.length === 0 ? (
           <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', textAlign: 'center', padding: '12px 0' }}>Aucune saisie cette semaine</div>
         ) : ranking.map((r, i) => (
@@ -113,24 +138,34 @@ export default function Dashboard() {
             </div>
             <span style={{ flex: 1, fontSize: 13 }}>{r.name}</span>
             <div style={{ flex: 2, height: 6, background: 'var(--color-background-secondary)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: 3, background: COLORS[i % COLORS.length], width: `${Math.round((r.rdv / (ranking[0]?.rdv || 1)) * 100)}%` }} />
+              <div style={{ height: '100%', borderRadius: 3, background: COLORS[i % COLORS.length], width: `${Math.round((r.score / (ranking[0]?.score || 1)) * 100)}%` }} />
             </div>
-            <span style={{ fontSize: 12, fontWeight: 500, width: 20, textAlign: 'right' }}>{r.rdv}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, width: 28, textAlign: 'right', color: COLORS[i % COLORS.length] }}>{r.score}pts</span>
           </div>
         ))}
       </div>
 
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Répartition du pipe</div>
-        <ResponsiveContainer width="100%" height={160}>
-          <PieChart>
-            <Pie data={pipeData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" paddingAngle={3}>
-              {pipeData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-            </Pie>
-            <Tooltip />
-            <Legend iconType="square" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-          </PieChart>
-        </ResponsiveContainer>
+      {/* Pipe — 3 cartes */}
+      <div style={{ marginBottom: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>État du pipe</div>
+        <PipeCard
+          label="Besoins totaux détectés"
+          value={sum('besoins_detectes')}
+          color="#534AB7"
+          icon="🎯"
+        />
+        <PipeCard
+          label="En attente réponse client"
+          value={sum('attente_retour')}
+          color="#BA7517"
+          icon="⏳"
+        />
+        <PipeCard
+          label="Présentations en attente retour"
+          value={sum('attente_retour_prez')}
+          color="#993556"
+          icon="📋"
+        />
       </div>
     </div>
   )
