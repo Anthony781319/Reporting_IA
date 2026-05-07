@@ -36,15 +36,18 @@ const Field = ({ label, value, onChange, readOnly, highlight }) => (
   </div>
 )
 
+const emptyForm = {
+  decouvertes: 0, prospects: 0, clients: 0, presentations: 0,
+  besoins_detectes: 0, rdv_candidats: 0, cv_envoyes: 0,
+  attente_retour: 0, attente_retour_prez: 0, besoins_sans_solution: 0,
+  signatures: 0, demarrages: 0, fins_de_mission: 0, presentations_a_monter: 0,
+}
+
 export default function Saisie({ iaId, iaName }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
-  const [form, setForm] = useState({
-    decouvertes: 0, prospects: 0, clients: 0, presentations: 0,
-    besoins_detectes: 0, rdv_candidats: 0, cv_envoyes: 0,
-    attente_retour: 0, attente_retour_prez: 0, besoins_sans_solution: 0,
-    signatures: 0, demarrages: 0, fins_de_mission: 0, presentations_a_monter: 0,
-  })
+  const [selectedWeek, setSelectedWeek] = useState(semaine)
+  const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -55,36 +58,41 @@ export default function Saisie({ iaId, iaName }) {
   useEffect(() => {
     if (!iaId) return
     const load = async () => {
+      setLoading(true)
       const { data } = await supabase
         .from('saisies').select('*')
-        .eq('ia_id', iaId).eq('semaine', semaine).eq('annee', annee).single()
-      if (data) setForm({
-        decouvertes: data.decouvertes || 0,
-        prospects: data.prospects || 0,
-        clients: data.clients || 0,
-        presentations: data.presentations || 0,
-        besoins_detectes: data.besoins_detectes || 0,
-        rdv_candidats: data.rdv_candidats || 0,
-        cv_envoyes: data.cv_envoyes || 0,
-        attente_retour: data.attente_retour || 0,
-        attente_retour_prez: data.attente_retour_prez || 0,
-        besoins_sans_solution: data.besoins_sans_solution || 0,
-        signatures: data.signatures || 0,
-        demarrages: data.demarrages || 0,
-        fins_de_mission: data.fins_de_mission || 0,
-        presentations_a_monter: data.presentations_a_monter || 0,
-      })
+        .eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).single()
+      if (data) {
+        setForm({
+          decouvertes: data.decouvertes || 0,
+          prospects: data.prospects || 0,
+          clients: data.clients || 0,
+          presentations: data.presentations || 0,
+          besoins_detectes: data.besoins_detectes || 0,
+          rdv_candidats: data.rdv_candidats || 0,
+          cv_envoyes: data.cv_envoyes || 0,
+          attente_retour: data.attente_retour || 0,
+          attente_retour_prez: data.attente_retour_prez || 0,
+          besoins_sans_solution: data.besoins_sans_solution || 0,
+          signatures: data.signatures || 0,
+          demarrages: data.demarrages || 0,
+          fins_de_mission: data.fins_de_mission || 0,
+          presentations_a_monter: data.presentations_a_monter || 0,
+        })
+      } else {
+        setForm(emptyForm)
+      }
       setLoading(false)
     }
     load()
-  }, [iaId])
+  }, [iaId, selectedWeek])
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
 
   const handleSave = async () => {
     setSaving(true)
     await supabase.from('saisies').upsert({
-      ia_id: iaId, semaine, annee,
+      ia_id: iaId, semaine: selectedWeek, annee,
       ...form,
       total_rdv: totalRdv,
       presentation_planifiee: totalPipe,
@@ -100,63 +108,77 @@ export default function Saisie({ iaId, iaName }) {
     </div>
   )
 
-  if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
-
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 500 }}>Bonjour {iaName} 👋</div>
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>Semaine {semaine} — {annee}</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{annee}</div>
         </div>
-        <div style={{ background: '#EEEDFE', color: '#3C3489', fontSize: 12, fontWeight: 500, padding: '4px 12px', borderRadius: 20 }}>S{semaine}</div>
+        <select
+          value={selectedWeek}
+          onChange={e => setSelectedWeek(parseInt(e.target.value))}
+          style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}
+        >
+          {Array.from({ length: semaine }, (_, i) => i + 1).reverse().map(w => (
+            <option key={w} value={w}>
+              {w === semaine ? `Semaine ${w} (en cours)` : `Semaine ${w}`}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <Section title="RDV Commerciaux" color="#534AB7">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-          <Field label="Découvertes" value={form.decouvertes} onChange={set('decouvertes')} />
-          <Field label="Prospects" value={form.prospects} onChange={set('prospects')} />
-          <Field label="Clients" value={form.clients} onChange={set('clients')} />
-          <Field label="Présentations" value={form.presentations} onChange={set('presentations')} />
-        </div>
-        <Field label="Total RDV (automatique)" value={totalRdv} readOnly highlight />
-      </Section>
+      {loading ? (
+        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
+      ) : (
+        <>
+          <Section title="RDV Commerciaux" color="#534AB7">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+              <Field label="Découvertes" value={form.decouvertes} onChange={set('decouvertes')} />
+              <Field label="Prospects" value={form.prospects} onChange={set('prospects')} />
+              <Field label="Clients" value={form.clients} onChange={set('clients')} />
+              <Field label="Présentations" value={form.presentations} onChange={set('presentations')} />
+            </div>
+            <Field label="Total RDV (automatique)" value={totalRdv} readOnly highlight />
+          </Section>
 
-      <Section title="Gestion du Pipe" color="#0F6E56">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-          <Field label="Besoins Détectés" value={form.besoins_detectes} onChange={set('besoins_detectes')} />
-          <Field label="RDV Candidat" value={form.rdv_candidats} onChange={set('rdv_candidats')} />
-          <Field label="Solutions Envoyées" value={form.cv_envoyes} onChange={set('cv_envoyes')} />
-          <Field label="Attente Réponse Client" value={form.attente_retour} onChange={set('attente_retour')} />
-          <Field label="Attente Retour Prez" value={form.attente_retour_prez} onChange={set('attente_retour_prez')} />
-          <Field label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} />
-        </div>
-        <Field label="Total Pipe (automatique)" value={totalPipe} readOnly highlight />
-      </Section>
+          <Section title="Gestion du Pipe" color="#0F6E56">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+              <Field label="Besoins Détectés" value={form.besoins_detectes} onChange={set('besoins_detectes')} />
+              <Field label="RDV Candidat" value={form.rdv_candidats} onChange={set('rdv_candidats')} />
+              <Field label="Solutions Envoyées" value={form.cv_envoyes} onChange={set('cv_envoyes')} />
+              <Field label="Attente Réponse Client" value={form.attente_retour} onChange={set('attente_retour')} />
+              <Field label="Attente Retour Prez" value={form.attente_retour_prez} onChange={set('attente_retour_prez')} />
+              <Field label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} />
+            </div>
+            <Field label="Total Pipe (automatique)" value={totalPipe} readOnly highlight />
+          </Section>
 
-      <Section title="Résultats" color="#993556">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-          <Field label="Signatures" value={form.signatures} onChange={set('signatures')} />
-          <Field label="Démarrages" value={form.demarrages} onChange={set('demarrages')} />
-          <Field label="Fins de mission" value={form.fins_de_mission} onChange={set('fins_de_mission')} />
-          <Field label="Présentations à monter" value={form.presentations_a_monter} onChange={set('presentations_a_monter')} />
-        </div>
-      </Section>
+          <Section title="Résultats" color="#993556">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+              <Field label="Signatures" value={form.signatures} onChange={set('signatures')} />
+              <Field label="Démarrages" value={form.demarrages} onChange={set('demarrages')} />
+              <Field label="Fins de mission" value={form.fins_de_mission} onChange={set('fins_de_mission')} />
+              <Field label="Présentations à monter" value={form.presentations_a_monter} onChange={set('presentations_a_monter')} />
+            </div>
+          </Section>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{
-          width: '100%', padding: 13,
-          background: saved ? '#0F6E56' : '#534AB7',
-          color: saved ? '#E1F5EE' : '#EEEDFE',
-          border: 'none', borderRadius: 10,
-          fontSize: 14, fontWeight: 500, cursor: 'pointer',
-          transition: 'background 0.3s'
-        }}
-      >
-        {saving ? 'Enregistrement...' : saved ? '✓ Semaine enregistrée !' : 'Enregistrer ma semaine'}
-      </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              width: '100%', padding: 13,
+              background: saved ? '#0F6E56' : '#534AB7',
+              color: saved ? '#E1F5EE' : '#EEEDFE',
+              border: 'none', borderRadius: 10,
+              fontSize: 14, fontWeight: 500, cursor: 'pointer',
+              transition: 'background 0.3s'
+            }}
+          >
+            {saving ? 'Enregistrement...' : saved ? '✓ Semaine enregistrée !' : `Enregistrer la semaine ${selectedWeek}`}
+          </button>
+        </>
+      )}
     </div>
   )
 }
