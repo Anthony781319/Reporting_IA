@@ -149,8 +149,8 @@ export default function Dashboard() {
       <div style={{ marginBottom: 4 }}>
         <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>État du pipe</div>
         <PipeCard
-          label="Besoins totaux détectés"
-          value={sum('besoins_detectes')}
+          label="Besoins sans solution"
+          value={sum('besoins_sans_solution')}
           color="#534AB7"
           icon="🎯"
         />
