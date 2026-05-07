@@ -1,9 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
+import nodemailer from 'nodemailer'
 
 const supabase = createClient(
   'https://szqsansojklzsuxirpye.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6cXNhbnNvamtsenN1eGlycHllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNzAzNzksImV4cCI6MjA5MzY0NjM3OX0.NGdkPuT8s_lk9qpNun6_fZlkdnU6Pd_ECby8ZAFqzlA'
 )
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'reporting.consort@gmail.com',
+    pass: 'ruztdlmqvxyzxroi'
+  }
+})
 
 const currentWeek = () => {
   const now = new Date()
@@ -16,10 +25,7 @@ export default async function handler(req, res) {
     const semaine = currentWeek()
     const annee = new Date().getFullYear()
 
-    // Récupérer tous les IA
     const { data: iaList } = await supabase.from('ia').select('*')
-
-    // Récupérer les saisies de la semaine en cours
     const { data: saisies } = await supabase
       .from('saisies')
       .select('ia_id')
@@ -27,24 +33,18 @@ export default async function handler(req, res) {
       .eq('annee', annee)
 
     const iaAvecSaisie = new Set((saisies || []).map(s => s.ia_id))
-    const iaSansSaisie = (iaList || []).filter(ia => !iaAvecSaisie.has(ia.id))
+    const iaSansSaisie = (iaList || []).filter(ia => !iaAvecSaisie.has(ia.id) && ia.nom !== 'Anthony')
 
     if (iaSansSaisie.length === 0) {
       return res.status(200).json({ message: 'Tout le monde a saisi cette semaine 🎉' })
     }
 
-    // Envoyer un email à chaque IA sans saisie
     const results = []
     for (const ia of iaSansSaisie) {
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer re_8mR8WtSh_L1MTPeKrBq6NetJuuebqKTST`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Reporting IA <onboarding@resend.dev>',
-          to: [ia.email],
+      try {
+        await transporter.sendMail({
+          from: '"Reporting IA" <reporting.consort@gmail.com>',
+          to: ia.email,
           subject: `📊 Rappel — Saisie semaine ${semaine} en attente`,
           html: `
             <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #ffffff;">
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
               </div>
 
               <div style="text-align: center; margin-bottom: 32px;">
-                <a href="https://reporting-ia.vercel.app" 
+                <a href="https://reporting-ia.vercel.app"
                    style="display: inline-block; background: #534AB7; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 14px; font-weight: 600;">
                   Accéder à mon reporting →
                 </a>
@@ -76,14 +76,14 @@ export default async function handler(req, res) {
             </div>
           `
         })
-      })
-
-      const data = await emailResponse.json()
-      results.push({ ia: ia.nom, status: emailResponse.ok ? 'envoyé' : 'erreur', data })
+        results.push({ ia: ia.nom, status: 'envoyé' })
+      } catch (err) {
+        results.push({ ia: ia.nom, status: 'erreur', error: err.message })
+      }
     }
 
     return res.status(200).json({
-      message: `${results.length} rappel(s) envoyé(s)`,
+      message: `${results.filter(r => r.status === 'envoyé').length} rappel(s) envoyé(s)`,
       semaine,
       results
     })
