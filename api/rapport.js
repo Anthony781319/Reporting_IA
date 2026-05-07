@@ -11,13 +11,12 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
-const trend = (curr, prev) => {
-  if (prev === undefined || prev === null) return ''
+const trendText = (curr, prev) => {
   const diff = curr - prev
-  if (diff === 0) return '<span style="color:#888780; font-size:12px;">→ stable</span>'
+  if (diff === 0) return '<span style="color:#888780;">→ stable</span>'
   return diff > 0
-    ? `<span style="color:#0F6E56; font-size:12px;">↑ +${diff} vs S préc.</span>`
-    : `<span style="color:#A32D2D; font-size:12px;">↓ ${diff} vs S préc.</span>`
+    ? `<span style="color:#0F6E56;">↑ +${diff}</span>`
+    : `<span style="color:#A32D2D;">↓ ${diff}</span>`
 }
 
 export default async function handler(req, res) {
@@ -36,18 +35,6 @@ export default async function handler(req, res) {
     const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
     const p = (key) => sum(prevData, key)
 
-    // Classement pondéré de la semaine uniquement
-    const ranking = (ia || []).map(i => {
-      const w = weekData.find(s => s.ia_id === i.id) || {}
-      const rdv = w.total_rdv || 0
-      const prez = w.presentations || 0
-      const sign = w.signatures || 0
-      const score = rdv * 1 + prez * 2 + sign * 3
-      return { nom: i.nom, rdv, prez, sign, score }
-    }).filter(i => i.score > 0).sort((a, b) => b.score - a.score)
-
-    const maxScore = ranking.length > 0 ? ranking[0].score : 1
-
     const kpis = [
       { label: 'RDV', value: sum(weekData, 'total_rdv'), prev: p('total_rdv'), color: '#534AB7' },
       { label: 'Présentations', value: sum(weekData, 'presentations'), prev: p('presentations'), color: '#185FA5' },
@@ -57,87 +44,119 @@ export default async function handler(req, res) {
       { label: 'Solutions envoyées', value: sum(weekData, 'cv_envoyes'), prev: p('cv_envoyes'), color: '#3B6D11' },
       { label: 'Besoins détectés', value: sum(weekData, 'besoins_detectes'), prev: p('besoins_detectes'), color: '#D85A30' },
       { label: 'Pipe total', value: sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez'), prev: p('besoins_sans_solution') + p('attente_retour') + p('attente_retour_prez'), color: '#534AB7' },
-      { label: 'Présentations à monter', value: sum(weekData, 'presentations_a_monter'), prev: p('presentations_a_monter'), color: '#888780' },
+      { label: 'Prés. à monter', value: sum(weekData, 'presentations_a_monter'), prev: p('presentations_a_monter'), color: '#888780' },
     ]
 
-    const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rapport Semaine ${semaine}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f4f0; padding: 24px; color: #1a1a1a; }
-  .container { max-width: 600px; margin: 0 auto; }
-  .header { background: linear-gradient(135deg, #534AB7, #3C3489); color: white; border-radius: 16px; padding: 28px 32px; margin-bottom: 20px; }
-  .header h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-  .header p { opacity: 0.8; font-size: 14px; }
-  .section { background: white; border-radius: 16px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-  .section-title { padding: 16px 20px 12px; font-size: 14px; font-weight: 600; border-bottom: 1px solid #f0eeea; display: flex; align-items: center; gap: 8px; }
-  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #f0eeea; }
-  .kpi { background: white; padding: 16px 12px; text-align: center; }
-  .kpi-label { font-size: 11px; color: #888780; margin-bottom: 6px; }
-  .kpi-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
-  .kpi-trend { font-size: 11px; min-height: 16px; }
-  .rank-item { display: flex; align-items: center; padding: 12px 20px; border-bottom: 1px solid #f5f4f0; gap: 12px; }
-  .rank-item:last-child { border-bottom: none; }
-  .rank-emoji { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
-  .rank-name { flex: 1; font-size: 14px; font-weight: 500; }
-  .rank-details { font-size: 11px; color: #888780; margin-top: 2px; }
-  .rank-bar-wrap { flex: 2; height: 6px; background: #f0eeea; border-radius: 3px; overflow: hidden; }
-  .rank-bar { height: 100%; border-radius: 3px; background: #534AB7; }
-  .rank-score { font-size: 13px; font-weight: 700; color: #534AB7; width: 45px; text-align: right; flex-shrink: 0; }
-  .footer { text-align: center; font-size: 12px; color: #888780; padding: 16px 0 8px; }
-  .footer a { color: #534AB7; text-decoration: none; }
-  .no-data { text-align: center; color: #888780; padding: 20px; font-size: 13px; }
-</style>
-</head>
-<body>
-<div class="container">
+    const ranking = (ia || []).map(i => {
+      const w = weekData.find(s => s.ia_id === i.id) || {}
+      const rdv = w.total_rdv || 0
+      const prez = w.presentations || 0
+      const sign = w.signatures || 0
+      const score = rdv * 1 + prez * 2 + sign * 3
+      return { nom: i.nom, rdv, prez, sign, score }
+    }).filter(i => i.score > 0).sort((a, b) => b.score - a.score)
 
-  <div class="header">
-    <h1>📊 Rapport Hebdomadaire</h1>
-    <p>Semaine ${semaine} — ${annee} · Équipe IS</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">📊 Indicateurs clés — Semaine ${semaine}</div>
-    <div class="kpi-grid">
-      ${kpis.map(k => `
-      <div class="kpi">
-        <div class="kpi-label">${k.label}</div>
-        <div class="kpi-value" style="color:${k.color}">${k.value}</div>
-        <div class="kpi-trend">${trend(k.value, k.prev)}</div>
-      </div>`).join('')}
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">🏆 Classement — Semaine ${semaine}<span style="font-size:11px; font-weight:400; color:#888780; margin-left:8px">RDV=1pt · Prez=2pts · Sign.=3pts</span></div>
-    ${ranking.length === 0
-      ? '<div class="no-data">Aucune saisie cette semaine</div>'
-      : ranking.map((r, i) => {
-          const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`
-          const pct = Math.round((r.score / maxScore) * 100)
-          return `<div class="rank-item">
-            <span class="rank-emoji">${emoji}</span>
-            <div style="flex:1">
-              <div class="rank-name">${r.nom}</div>
-              <div class="rank-details">${r.rdv} RDV · ${r.prez} Prez · ${r.sign} Sign.</div>
-            </div>
-            <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pct}%"></div></div>
-            <span class="rank-score">${r.score}pts</span>
-          </div>`
-        }).join('')
+    // KPIs en rangées de 3 colonnes
+    const kpiRows = []
+    for (let i = 0; i < kpis.length; i += 3) {
+      const row = kpis.slice(i, i + 3)
+      while (row.length < 3) row.push(null)
+      kpiRows.push(row)
     }
-  </div>
 
-  <div class="footer">
-    Rapport généré automatiquement · <a href="https://reporting-ia.vercel.app">Accéder au dashboard complet →</a>
-  </div>
+    const kpiHtml = kpiRows.map(row => `
+      <tr>
+        ${row.map(k => k ? `
+          <td width="33%" valign="top" style="padding:16px 8px; text-align:center; border:1px solid #f0eeea; background:#ffffff;">
+            <div style="font-size:11px; color:#888780; margin-bottom:8px; font-family:Arial,sans-serif;">${k.label}</div>
+            <div style="font-size:30px; font-weight:bold; color:${k.color}; font-family:Arial,sans-serif; line-height:1.2;">${k.value}</div>
+            <div style="font-size:11px; margin-top:6px; font-family:Arial,sans-serif;">${trendText(k.value, k.prev)}</div>
+          </td>
+        ` : `<td width="33%" style="background:#ffffff; border:1px solid #f0eeea;"></td>`).join('')}
+      </tr>
+    `).join('')
 
-</div>
+    const rankingHtml = ranking.length === 0
+      ? `<tr><td colspan="3" style="padding:20px; text-align:center; color:#888780; font-family:Arial,sans-serif;">Aucune saisie cette semaine</td></tr>`
+      : ranking.map((r, i) => {
+          const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+          const bg = i % 2 === 0 ? '#ffffff' : '#fafaf8'
+          return `<tr style="background:${bg};">
+            <td width="40" style="padding:12px 16px; font-size:18px; font-family:Arial,sans-serif;">${emoji}</td>
+            <td style="padding:12px 8px; font-family:Arial,sans-serif;">
+              <div style="font-size:14px; font-weight:bold; color:#1a1a1a;">${r.nom}</div>
+              <div style="font-size:11px; color:#888780; margin-top:2px;">${r.rdv} RDV &middot; ${r.prez} Prez &middot; ${r.sign} Sign.</div>
+            </td>
+            <td width="60" style="padding:12px 16px; text-align:right; font-size:14px; font-weight:bold; color:#534AB7; font-family:Arial,sans-serif; white-space:nowrap;">${r.score}pts</td>
+          </tr>`
+        }).join('')
+
+    const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rapport Semaine ${semaine}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f5f4f0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f4f0">
+<tr><td align="center" style="padding:24px 16px;">
+
+  <table width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
+
+    <!-- HEADER -->
+    <tr>
+      <td bgcolor="#534AB7" style="padding:28px 32px; border-radius:16px 16px 0 0;">
+        <div style="font-size:22px; font-weight:bold; color:#ffffff; font-family:Arial,sans-serif;">&#128202; Rapport Hebdomadaire</div>
+        <div style="font-size:14px; color:#ccccff; margin-top:4px; font-family:Arial,sans-serif;">Semaine ${semaine} &mdash; ${annee} &middot; Equipe IS</div>
+      </td>
+    </tr>
+
+    <!-- KPIs -->
+    <tr>
+      <td bgcolor="#ffffff" style="padding:0;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding:16px 20px 12px; font-size:14px; font-weight:bold; color:#534AB7; font-family:Arial,sans-serif; border-bottom:2px solid #f0eeea;">
+              Indicateurs cles &mdash; Semaine ${semaine}
+            </td>
+          </tr>
+        </table>
+        <table width="100%" cellpadding="0" cellspacing="2" border="0" bgcolor="#f0eeea" style="margin:0;">
+          ${kpiHtml}
+        </table>
+      </td>
+    </tr>
+
+    <!-- SPACER -->
+    <tr><td height="12" bgcolor="#f5f4f0" style="font-size:0; line-height:0;">&nbsp;</td></tr>
+
+    <!-- CLASSEMENT -->
+    <tr>
+      <td bgcolor="#ffffff" style="padding:0; border-radius:0 0 16px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding:16px 20px 12px; border-bottom:2px solid #f0eeea;">
+              <span style="font-size:14px; font-weight:bold; color:#993556; font-family:Arial,sans-serif;">&#127942; Classement &mdash; Semaine ${semaine}</span>
+              <span style="font-size:11px; color:#888780; font-family:Arial,sans-serif; margin-left:8px;">RDV=1pt &middot; Prez=2pts &middot; Sign.=3pts</span>
+            </td>
+          </tr>
+          ${rankingHtml}
+        </table>
+      </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+      <td style="padding:16px; text-align:center; font-size:12px; color:#888780; font-family:Arial,sans-serif;">
+        Rapport genere automatiquement &middot;
+        <a href="https://reporting-ia.vercel.app" style="color:#534AB7; text-decoration:none;">Acceder au dashboard complet</a>
+      </td>
+    </tr>
+
+  </table>
+</td></tr>
+</table>
 </body>
 </html>`
 
@@ -145,7 +164,7 @@ export default async function handler(req, res) {
       semaine,
       annee,
       html,
-      subject: `📊 Rapport Semaine ${semaine} — Équipe IS`
+      subject: `Rapport Semaine ${semaine} - Equipe IS`
     })
 
   } catch (error) {
