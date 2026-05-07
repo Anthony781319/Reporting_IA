@@ -165,6 +165,8 @@ export default function Dashboard() {
           <KpiCard label="Fins de mission" value={sum(weekData, 'fins_de_mission')} color="#BA7517" previous={selectedWeek > 1 ? sum(prevData, 'fins_de_mission') : undefined} />
           <KpiCard label="Solutions envoyées" value={sum(weekData, 'cv_envoyes')} color="#3B6D11" previous={selectedWeek > 1 ? sum(prevData, 'cv_envoyes') : undefined} />
           <KpiCard label="Besoins détectés" value={sum(weekData, 'besoins_detectes')} color="#D85A30" previous={selectedWeek > 1 ? sum(prevData, 'besoins_detectes') : undefined} />
+          <KpiCard label="Pipe total" value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
+          <KpiCard label="Présentations à monter" value={sum(weekData, 'presentations_a_monter')} color="#888780" previous={selectedWeek > 1 ? sum(prevData, 'presentations_a_monter') : undefined} />
         </div>
       </SectionBody>
 
