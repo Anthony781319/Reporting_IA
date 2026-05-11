@@ -100,7 +100,10 @@ export default function Saisie({ iaId, iaName }) {
     const { data } = await supabase.from('p1').insert({
       ia_id: iaId, semaine: selectedWeek, annee, description: newP1.trim()
     }).select().single()
-    if (data) setP1List(l => [...l, data])
+    if (data) {
+      setP1List(l => [...l, data])
+      setHasP1(true)
+    }
     setNewP1('')
     setSavingP1(false)
   }
