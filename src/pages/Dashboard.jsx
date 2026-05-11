@@ -60,7 +60,7 @@ const WeekSelector = ({ selectedWeek, semaine, onChange }) => (
 )
 
 // Vue équipe complète
-function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee }) {
+function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1Data }) {
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
@@ -152,6 +152,33 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee }) {
           </div>
         ))}
       </SectionBody>
+
+      {/* Section P1 */}
+      {p1Data.filter(p => p.semaine === selectedWeek).length > 0 && (
+        <>
+          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#BA7517" icon="🎯" subtitle={`${p1Data.filter(p => p.semaine === selectedWeek).length} priorité(s) active(s)`} />
+          <SectionBody color="#BA7517">
+            {Object.entries(
+              p1Data.filter(p => p.semaine === selectedWeek).reduce((acc, p) => {
+                const nom = p.ia?.nom || '?'
+                if (!acc[nom]) acc[nom] = []
+                acc[nom].push(p)
+                return acc
+              }, {})
+            ).map(([nom, ps]) => (
+              <div key={nom} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#BA7517', marginBottom: 6 }}>{nom}</div>
+                {ps.map(p => (
+                  <div key={p.id} style={{ display: 'flex', gap: 8, background: '#FAEEDA', borderRadius: 8, padding: '10px 12px', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, flexShrink: 0 }}>🎯</span>
+                    <span style={{ fontSize: 13, color: '#633806', lineHeight: 1.5 }}>{p.description}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </SectionBody>
+        </>
+      )}
     </>
   )
 }
@@ -259,16 +286,19 @@ export default function Dashboard() {
   const [selectedWeek, setSelectedWeek] = useState(semaine)
   const [saisies, setSaisies] = useState([])
   const [iaList, setIaList] = useState([])
+  const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: all }, { data: ia }] = await Promise.all([
+      const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
         supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
-        supabase.from('ia').select('*').order('nom')
+        supabase.from('ia').select('*').order('nom'),
+        supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
       ])
       setSaisies(all || [])
       setIaList(ia || [])
+      setP1Data(p1 || [])
       setLoading(false)
     }
     load()
@@ -295,7 +325,7 @@ export default function Dashboard() {
       </div>
 
       {view === 'equipe' ? (
-        <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} />
+        <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} />
       ) : (
         <VueFocusIA saisies={saisies} iaList={iaList} selectedWeek={selectedWeek} semaine={semaine} />
       )}
