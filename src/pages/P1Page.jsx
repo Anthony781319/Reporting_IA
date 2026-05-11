@@ -20,8 +20,8 @@ export default function P1Page() {
     const load = async () => {
       const [{ data: ia }, { data: p1 }, { data: prevP1 }] = await Promise.all([
         supabase.from('ia').select('*').order('nom'),
-        supabase.from('p1').select('*, ia(nom)').eq('semaine', selectedWeek).eq('annee', annee),
         supabase.from('p1').select('*, ia(nom)').eq('semaine', selectedWeek - 1).eq('annee', annee),
+        supabase.from('p1').select('*, ia(nom)').eq('semaine', selectedWeek - 2).eq('annee', annee),
       ])
       setIaList((ia || []).filter(i => i.nom !== 'P1 of the week'))
       setP1Data(p1 || [])
@@ -67,7 +67,7 @@ export default function P1Page() {
 
       {/* P1 de la semaine */}
       <div style={{ background: '#BA751712', borderLeft: '3px solid #BA7517', borderRadius: '8px 8px 0 0', padding: '10px 14px', marginBottom: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#BA7517' }}>📋 P1 — Semaine {selectedWeek}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#BA7517' }}>📋 P1 de la semaine — Priorités S{selectedWeek - 1}</div>
         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{p1Data.length} priorité{p1Data.length > 1 ? 's' : ''} active{p1Data.length > 1 ? 's' : ''}</div>
       </div>
 
@@ -101,7 +101,7 @@ export default function P1Page() {
       {iaWithPrevP1.length > 0 && (
         <>
           <div style={{ background: '#88878012', borderLeft: '3px solid #888780', borderRadius: '8px 8px 0 0', padding: '10px 14px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#888780' }}>🕐 P1 — Semaine {selectedWeek - 1} (pour suivi)</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#888780' }}>🕐 P1 semaine précédente — S{selectedWeek - 2}</div>
             <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{prevP1Data.length} priorité{prevP1Data.length > 1 ? 's' : ''}</div>
           </div>
           <div style={{ border: '1px solid #88878025', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
