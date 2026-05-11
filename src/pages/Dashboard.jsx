@@ -89,6 +89,7 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
           <KpiCard label="Besoins détectés" value={sum(weekData, 'besoins_detectes')} color="#D85A30" previous={p('besoins_detectes')} />
           <KpiCard label="Pipe total" value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
           <KpiCard label="Présentations à monter" value={sum(weekData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
+          <KpiCard label="P1 actifs" value={p1Data.filter(p => p.semaine === selectedWeek).length} color="#BA7517" previous={p1Data.filter(p => p.semaine === selectedWeek - 1).length} />
         </div>
       </SectionBody>
 
