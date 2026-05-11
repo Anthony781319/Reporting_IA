@@ -46,7 +46,6 @@ export default function Saisie({ iaId, iaName }) {
   const [saved, setSaved] = useState(false)
 
   // P1
-  const [hasP1, setHasP1] = useState(false)
   const [p1List, setP1List] = useState([])
   const [newP1, setNewP1] = useState('')
   const [savingP1, setSavingP1] = useState(false)
@@ -75,7 +74,6 @@ export default function Saisie({ iaId, iaName }) {
       } else { setForm(emptyForm) }
       const p1s = p1Data || []
       setP1List(p1s)
-      setHasP1(p1s.length > 0)
       setLoading(false)
     }
     load()
@@ -100,10 +98,7 @@ export default function Saisie({ iaId, iaName }) {
     const { data } = await supabase.from('p1').insert({
       ia_id: iaId, semaine: selectedWeek, annee, description: newP1.trim()
     }).select().single()
-    if (data) {
-      setP1List(l => [...l, data])
-      setHasP1(true)
-    }
+    if (data) setP1List(l => [...l, data])
     setNewP1('')
     setSavingP1(false)
   }
@@ -174,56 +169,31 @@ export default function Saisie({ iaId, iaName }) {
               Priorités P1
             </div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
-
-              {/* Toggle Oui/Non */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasP1 ? 14 : 0 }}>
-                <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>Avez-vous des P1 cette semaine ?</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() => setHasP1(true)}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, background: hasP1 ? '#BA7517' : 'var(--color-background-secondary)', color: hasP1 ? '#ffffff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}
-                  >Oui</button>
-                  <button
-                    onClick={() => setHasP1(false)}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, background: !hasP1 ? '#534AB7' : 'var(--color-background-secondary)', color: !hasP1 ? '#ffffff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}
-                  >Non</button>
+              {p1List.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#FAEEDA', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                  <span style={{ fontSize: 14 }}>🎯</span>
+                  <span style={{ flex: 1, fontSize: 13, color: '#633806', lineHeight: 1.5 }}>{p.description}</span>
+                  <button onClick={() => removeP1(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16, flexShrink: 0, padding: 2 }}>×</button>
                 </div>
-              </div>
-
-              {/* Liste des P1 */}
-              {hasP1 && (
-                <>
-                  {p1List.map(p => (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#FAEEDA', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
-                      <span style={{ fontSize: 14 }}>🎯</span>
-                      <span style={{ flex: 1, fontSize: 13, color: '#633806', lineHeight: 1.5 }}>{p.description}</span>
-                      <button onClick={() => removeP1(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16, flexShrink: 0, padding: 2 }}>×</button>
-                    </div>
-                  ))}
-
-                  {/* Ajouter un P1 */}
-                  <div style={{ marginTop: 10 }}>
-                    <textarea
-                      value={newP1}
-                      onChange={e => setNewP1(e.target.value)}
-                      placeholder="Ex: Ingénieur production, compétences Ansible, anglais courant, dispo immédiate..."
-                      rows={3}
-                      style={{ width: '100%', borderRadius: 8, padding: '10px 12px', fontSize: 13, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', resize: 'vertical', fontFamily: 'inherit' }}
-                    />
-                    <button
-                      onClick={addP1}
-                      disabled={savingP1 || !newP1.trim()}
-                      style={{ marginTop: 8, width: '100%', padding: '10px', background: newP1.trim() ? '#BA7517' : 'var(--color-background-secondary)', color: newP1.trim() ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: newP1.trim() ? 'pointer' : 'default' }}
-                    >
-                      {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
-                    </button>
-                  </div>
-                </>
-              )}
+              ))}
+              <textarea
+                value={newP1}
+                onChange={e => setNewP1(e.target.value)}
+                placeholder="Ex: Ingénieur production, compétences Ansible, anglais courant..."
+                rows={3}
+                style={{ width: '100%', borderRadius: 8, padding: '10px 12px', fontSize: 13, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', resize: 'vertical', fontFamily: 'inherit', marginTop: p1List.length > 0 ? 8 : 0 }}
+              />
+              <button
+                onClick={addP1}
+                disabled={savingP1 || !newP1.trim()}
+                style={{ marginTop: 8, width: '100%', padding: '10px', background: newP1.trim() ? '#BA7517' : 'var(--color-background-secondary)', color: newP1.trim() ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: newP1.trim() ? 'pointer' : 'default' }}
+              >
+                {savingP1 ? 'Ajout...' : '+ Ajouter un P1'}
+              </button>
             </div>
           </div>
 
-          <button
+                    <button
             onClick={handleSave}
             disabled={saving}
             style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}
