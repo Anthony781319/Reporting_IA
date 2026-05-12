@@ -4,6 +4,7 @@ import Saisie from './pages/Saisie'
 import Equipe from './pages/Equipe'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
+import LoginCR from './pages/LoginCR'
 import P1Page from './pages/P1Page'
 import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
@@ -20,6 +21,7 @@ export default function App() {
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
   const [tab, setTab] = useState('saisie')
+  const [loginMode, setLoginMode] = useState('ia')
 
   const resetRoles = () => {
     setIsAdmin(false)
@@ -55,10 +57,16 @@ export default function App() {
   const handleLogout = () => {
     setUser(null)
     resetRoles()
+    setLoginMode('ia')
     setTab('saisie')
   }
 
-  if (!user) return <Login onLogin={handleLogin} />
+  if (!user) {
+    if (loginMode === 'cr') {
+      return <LoginCR onLogin={handleLogin} onBack={() => setLoginMode('ia')} />
+    }
+    return <Login onLogin={handleLogin} onSwitchCR={() => setLoginMode('cr')} />
+  }
 
   const adminTabs = [
     { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
@@ -66,10 +74,10 @@ export default function App() {
     { id: 'equipe', icon: 'ti-users', label: 'Équipe' },
     { id: 'admin', icon: 'ti-settings', label: 'Admin' },
   ]
-  const userTabs  = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
-  const p1Tabs    = [{ id: 'p1', icon: 'ti-target', label: 'P1 of the week' }]
-  const crTabs    = [{ id: 'saisie-cr', icon: 'ti-edit', label: 'Mon reporting' }]
-  const rhTabs    = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
+  const userTabs = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
+  const p1Tabs   = [{ id: 'p1', icon: 'ti-target', label: 'P1 of the week' }]
+  const crTabs   = [{ id: 'saisie-cr', icon: 'ti-edit', label: 'Mon reporting' }]
+  const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
 
   const tabs = isAdmin ? adminTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
 
@@ -94,4 +102,32 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="nav-avatar">{getAvatar()}</div>
-          <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 13 }}>
+            <i className="ti ti-logout" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      {tabs.length > 1 && (
+        <div className="tabs">
+          {tabs.map(t => (
+            <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+              <i className={`ti ${t.icon}`} aria-hidden="true"></i>
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="content">
+        {tab === 'dashboard'    && <Dashboard />}
+        {tab === 'saisie'       && <Saisie iaId={user.id} iaName={user.nom} />}
+        {tab === 'equipe'       && <Equipe />}
+        {tab === 'admin'        && <Admin />}
+        {tab === 'p1'           && <P1Page />}
+        {tab === 'saisie-cr'    && <SaisieCR crNom={user.nom} />}
+        {tab === 'dashboard-rh' && <DashboardRH />}
+      </div>
+    </div>
+  )
+}
