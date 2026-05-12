@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, onSwitchCR }) {
   const [iaList, setIaList] = useState([])
   const [selected, setSelected] = useState(null)
   const [password, setPassword] = useState('')
@@ -41,68 +41,4 @@ export default function Login({ onLogin }) {
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 20 }}>Chargement...</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
-            {iaList.map((ia, i) => {
-              const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
-              const isSelected = selected?.id === ia.id
-              return (
-                <div
-                  key={ia.id}
-                  onClick={() => { setSelected(ia); setError('') }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                    border: isSelected ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)',
-                    background: isSelected ? '#EEEDFE' : 'var(--color-background-primary)',
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
-                    {ia.nom.slice(0, 2).toUpperCase()}
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{ia.nom}</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {selected && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 500 }}>Mot de passe</div>
-            <input
-              type="password"
-              value={password}
-              onChange={e => { setPassword(e.target.value); setError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder="Entre ton mot de passe"
-              style={{ width: '100%' }}
-              autoFocus
-            />
-          </div>
-        )}
-
-        {error && (
-          <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>
-            {error}
-          </div>
-        )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={!selected}
-          style={{
-            width: '100%', padding: 13,
-            background: selected ? '#534AB7' : 'var(--color-background-secondary)',
-            color: selected ? '#EEEDFE' : 'var(--color-text-secondary)',
-            border: 'none', borderRadius: 10,
-            fontSize: 14, fontWeight: 500, cursor: selected ? 'pointer' : 'default',
-            transition: 'all 0.2s'
-          }}
-        >
-          Se connecter
-        </button>
-      </div>
-    </div>
-  )
-}
+          <div style={{ display: 'grid', gridTemplateColumn
