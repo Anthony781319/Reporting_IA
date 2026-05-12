@@ -54,7 +54,12 @@ export default function SaisieCR({ crNom }) {
 
   const addRdv = async () => {
     if (!rdvForm.identite_candidat) return
-    const { data } = await supabase.from('cr_rendez_vous').insert({ cr_nom: crNom, semaine, annee, ...rdvForm }).select().single()
+    const { data, error } = await supabase
+      .from('cr_rendez_vous')
+      .insert({ cr_nom: crNom, semaine, annee, ...rdvForm })
+      .select()
+      .single()
+    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setRdvList([...rdvList, data])
     setRdvForm({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
     setShowRdvForm(false)
@@ -68,7 +73,12 @@ export default function SaisieCR({ crNom }) {
 
   const addPres = async () => {
     if (!presForm.identite_candidat) return
-    const { data } = await supabase.from('cr_presentations').insert({ cr_nom: crNom, semaine, annee, ...presForm }).select().single()
+    const { data, error } = await supabase
+      .from('cr_presentations')
+      .insert({ cr_nom: crNom, semaine, annee, ...presForm })
+      .select()
+      .single()
+    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setPresList([...presList, data])
     setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
     setShowPresForm(false)
@@ -82,7 +92,12 @@ export default function SaisieCR({ crNom }) {
 
   const addSig = async () => {
     if (!sigForm.identite_candidat) return
-    const { data } = await supabase.from('cr_signatures').insert({ cr_nom: crNom, semaine, annee, ...sigForm }).select().single()
+    const { data, error } = await supabase
+      .from('cr_signatures')
+      .insert({ cr_nom: crNom, semaine, annee, ...sigForm })
+      .select()
+      .single()
+    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setSigList([...sigList, data])
     setSigForm({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
     setShowSigForm(false)
