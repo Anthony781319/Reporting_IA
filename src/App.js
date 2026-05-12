@@ -4,7 +4,6 @@ import Saisie from './pages/Saisie'
 import Equipe from './pages/Equipe'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
-import LoginCR from './pages/LoginCR'
 import P1Page from './pages/P1Page'
 import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
@@ -21,7 +20,6 @@ export default function App() {
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
   const [tab, setTab] = useState('saisie')
-  const [loginMode, setLoginMode] = useState('ia')
 
   const resetRoles = () => {
     setIsAdmin(false)
@@ -57,16 +55,10 @@ export default function App() {
   const handleLogout = () => {
     setUser(null)
     resetRoles()
-    setLoginMode('ia')
     setTab('saisie')
   }
 
-  if (!user) {
-    if (loginMode === 'cr') {
-      return <LoginCR onLogin={handleLogin} onBack={() => setLoginMode('ia')} />
-    }
-    return <Login onLogin={handleLogin} onSwitchCR={() => setLoginMode('cr')} />
-  }
+  if (!user) return <Login onLogin={handleLogin} />
 
   const adminTabs = [
     { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
