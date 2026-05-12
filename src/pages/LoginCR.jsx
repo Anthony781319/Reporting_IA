@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
 
 export default function LoginCR({ onLogin, onBack }) {
@@ -12,44 +14,85 @@ export default function LoginCR({ onLogin, onBack }) {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>👥 Espace Recrutement</h2>
-        <p style={styles.subtitle}>Connecte-toi pour accéder à ton reporting</p>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <i className="ti ti-users" aria-hidden="true" style={{ fontSize: 36, color: '#534AB7' }}></i>
+        <div style={{ fontSize: 20, fontWeight: 500, marginTop: 8 }}>Espace Recrutement</div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>Connecte-toi pour accéder à ton reporting</div>
+      </div>
 
-        <label style={styles.label}>Ton prénom</label>
-        <select style={styles.input} value={nom} onChange={e => setNom(e.target.value)}>
-          <option value=''>-- Sélectionne ton prénom --</option>
-          {CR_LIST.map(cr => <option key={cr} value={cr}>{cr}</option>)}
-        </select>
+      <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }}>Je suis...</div>
 
-        <label style={styles.label}>Mot de passe</label>
-        <input
-          style={styles.input}
-          type='password'
-          placeholder='Ton mot de passe'
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLogin()}
-        />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
+          {CR_LIST.map((cr, i) => {
+            const isSelected = nom === cr
+            return (
+              <div
+                key={cr}
+                onClick={() => { setNom(cr); setError('') }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                  border: isSelected ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)',
+                  background: isSelected ? '#EEEDFE' : 'var(--color-background-primary)',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
+                  {cr.slice(0, 2).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{cr}</span>
+              </div>
+            )
+          })}
+        </div>
 
-        {error && <p style={styles.error}>{error}</p>}
+        {nom && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 500 }}>Mot de passe</div>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="Entre ton mot de passe"
+              style={{ width: '100%' }}
+              autoFocus
+            />
+          </div>
+        )}
 
-        <button style={styles.button} onClick={handleLogin}>Se connecter</button>
-        <button style={styles.backButton} onClick={onBack}>← Retour Espace IA</button>
+        {error && (
+          <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleLogin}
+          disabled={!nom}
+          style={{
+            width: '100%', padding: 13,
+            background: nom ? '#534AB7' : 'var(--color-background-secondary)',
+            color: nom ? '#EEEDFE' : 'var(--color-text-secondary)',
+            border: 'none', borderRadius: 10,
+            fontSize: 14, fontWeight: 500, cursor: nom ? 'pointer' : 'default',
+            transition: 'all 0.2s'
+          }}
+        >
+          Se connecter
+        </button>
+
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <button
+            onClick={onBack}
+            style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+          >
+            ← Retour Espace IA
+          </button>
+        </div>
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' },
-  card: { background: '#fff', borderRadius: 16, padding: '40px 36px', width: '100%', maxWidth: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', display: 'flex', flexDirection: 'column', gap: 12 },
-  title: { margin: 0, fontSize: 22, fontWeight: 700, color: '#1a1a2e', textAlign: 'center' },
-  subtitle: { margin: '0 0 8px', fontSize: 14, color: '#888', textAlign: 'center' },
-  label: { fontSize: 13, fontWeight: 600, color: '#444', marginBottom: -4 },
-  input: { padding: '10px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, width: '100%', boxSizing: 'border-box' },
-  error: { color: '#e74c3c', fontSize: 13, margin: 0 },
-  button: { marginTop: 8, padding: 12, borderRadius: 8, border: 'none', background: '#4f46e5', color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer' },
-  backButton: { padding: 10, borderRadius: 8, border: '1px solid #ddd', background: 'none', color: '#888', fontSize: 13, cursor: 'pointer' },
 }
