@@ -60,7 +60,9 @@ export default function Login({ onLogin, onSwitchCR }) {
                   <div style={{ width: 28, height: 28, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
                     {ia.nom.slice(0, 2).toUpperCase()}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{ia.nom}</span>
+                  <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>
+                    {ia.nom}
+                  </span>
                 </div>
               )
             })}
@@ -73,4 +75,57 @@ export default function Login({ onLogin, onSwitchCR }) {
             <input
               type="password"
               value={password}
-              onChange={e => { setPassword(e.target.value); setError
+              onChange={e => { setPassword(e.target.value); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              placeholder="Entre ton mot de passe"
+              style={{ width: '100%' }}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {error && (
+          <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={!selected}
+          style={{
+            width: '100%', padding: 13,
+            background: selected ? '#534AB7' : 'var(--color-background-secondary)',
+            color: selected ? '#EEEDFE' : 'var(--color-text-secondary)',
+            border: 'none', borderRadius: 10,
+            fontSize: 14, fontWeight: 500,
+            cursor: selected ? 'pointer' : 'default',
+            transition: 'all 0.2s'
+          }}
+        >
+          Se connecter
+        </button>
+
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+            Vous êtes chargé(e) de recrutement ?
+          </div>
+          <button
+            onClick={onSwitchCR}
+            style={{
+              width: '100%', padding: 11,
+              background: 'none',
+              border: '1px solid var(--color-border-tertiary)',
+              borderRadius: 10, fontSize: 13,
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer'
+            }}
+          >
+            👥 Espace Recrutement
+          </button>
+        </div>
+
+      </div>
+    </div>
+  )
+}
