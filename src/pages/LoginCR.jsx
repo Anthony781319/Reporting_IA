@@ -5,12 +5,21 @@ const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
 export default function LoginCR({ onLogin, onBack }) {
   const [nom, setNom] = useState('')
   const [password, setPassword] = useState('')
+  const [rhPassword, setRhPassword] = useState('')
   const [error, setError] = useState('')
+  const [rhError, setRhError] = useState('')
+  const [showRH, setShowRH] = useState(false)
 
   const handleLogin = () => {
     if (!nom || !password) { setError('Merci de renseigner ton prénom et mot de passe.'); return }
     const success = onLogin({ nom, type: 'cr' }, password)
     if (!success) setError('Nom ou mot de passe incorrect.')
+  }
+
+  const handleRHLogin = () => {
+    if (!rhPassword) { setRhError('Entre le mot de passe RH.'); return }
+    const success = onLogin({ nom: 'RH' }, rhPassword)
+    if (!success) setRhError('Mot de passe incorrect.')
   }
 
   return (
@@ -25,7 +34,7 @@ export default function LoginCR({ onLogin, onBack }) {
         <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }}>Je suis...</div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
-          {CR_LIST.map((cr, i) => {
+          {CR_LIST.map((cr) => {
             const isSelected = nom === cr
             return (
               <div
@@ -77,18 +86,52 @@ export default function LoginCR({ onLogin, onBack }) {
             background: nom ? '#534AB7' : 'var(--color-background-secondary)',
             color: nom ? '#EEEDFE' : 'var(--color-text-secondary)',
             border: 'none', borderRadius: 10,
-            fontSize: 14, fontWeight: 500, cursor: nom ? 'pointer' : 'default',
+            fontSize: 14, fontWeight: 500,
+            cursor: nom ? 'pointer' : 'default',
             transition: 'all 0.2s'
           }}
         >
           Se connecter
         </button>
 
+        {/* ── Accès Dashboard RH ── */}
+        <div style={{ marginTop: 24, borderTop: '1px solid var(--color-border-tertiary)', paddingTop: 20 }}>
+          {!showRH ? (
+            <button
+              onClick={() => setShowRH(true)}
+              style={{ width: '100%', padding: 11, background: 'none', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}
+            >
+              📊 Accès Dashboard RH
+            </button>
+          ) : (
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 500 }}>Mot de passe RH</div>
+              <input
+                type="password"
+                value={rhPassword}
+                onChange={e => { setRhPassword(e.target.value); setRhError('') }}
+                onKeyDown={e => e.key === 'Enter' && handleRHLogin()}
+                placeholder="Mot de passe RH"
+                style={{ width: '100%', marginBottom: 8 }}
+                autoFocus
+              />
+              {rhError && (
+                <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', padding: '8px 12px', borderRadius: 8, marginBottom: 8 }}>
+                  {rhError}
+                </div>
+              )}
+              <button
+                onClick={handleRHLogin}
+                style={{ width: '100%', padding: 11, background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+              >
+                Accéder au Dashboard RH
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <button
-            onClick={onBack}
-            style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}
-          >
+          <button onClick={onBack} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
             ← Retour Espace IA
           </button>
         </div>
