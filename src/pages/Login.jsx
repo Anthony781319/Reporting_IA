@@ -41,4 +41,36 @@ export default function Login({ onLogin, onSwitchCR }) {
         {loading ? (
           <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 20 }}>Chargement...</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumn
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
+            {iaList.map((ia, i) => {
+              const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
+              const isSelected = selected?.id === ia.id
+              return (
+                <div
+                  key={ia.id}
+                  onClick={() => { setSelected(ia); setError('') }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                    border: isSelected ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)',
+                    background: isSelected ? '#EEEDFE' : 'var(--color-background-primary)',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
+                    {ia.nom.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{ia.nom}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {selected && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 500 }}>Mot de passe</div>
+            <input
+              type="password"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError
