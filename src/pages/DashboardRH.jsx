@@ -29,7 +29,6 @@ export default function DashboardRH() {
         supabase.from('cr_signatures').select('*').eq('semaine', semaine).eq('annee', annee),
       ])
 
-      // Indexer par cr_nom
       const repMap = {}
       CR_LIST.forEach(cr => {
         const found = (rep || []).find(r => r.cr_nom === cr)
@@ -53,7 +52,6 @@ export default function DashboardRH() {
     load()
   }, [semaine, annee])
 
-  // Totaux consolidés
   const total = (key) => CR_LIST.reduce((acc, cr) => acc + (reportings[cr]?.[key] || 0), 0)
 
   const kpis = [
@@ -67,7 +65,6 @@ export default function DashboardRH() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
 
-      {/* Header + navigation semaine */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📊 Dashboard Recrutement</h2>
@@ -84,7 +81,6 @@ export default function DashboardRH() {
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-secondary)' }}>Chargement...</div>
       ) : (
         <>
-          {/* ── Vue consolidée ── */}
           <div style={sectionBox}>
             <div style={sectionTitle}>🏆 Total équipe</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
@@ -97,15 +93,14 @@ export default function DashboardRH() {
             </div>
           </div>
 
-          {/* ── Cartes individuelles ── */}
           <div style={sectionTitle2}>👤 Par chargé(e) de recrutement</div>
+
           {CR_LIST.map(cr => {
             const rep = reportings[cr] || {}
             const isOpen = expanded === cr
             return (
               <div key={cr} style={{ ...sectionBox, marginBottom: 12 }}>
 
-                {/* En-tête CR */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13 }}>
@@ -113,15 +108,11 @@ export default function DashboardRH() {
                     </div>
                     <span style={{ fontWeight: 600, fontSize: 15 }}>{cr}</span>
                   </div>
-                  <button
-                    onClick={() => setExpanded(isOpen ? null : cr)}
-                    style={{ ...btnNav, fontSize: 12, padding: '6px 12px', borderRadius: 8 }}
-                  >
+                  <button onClick={() => setExpanded(isOpen ? null : cr)} style={{ ...btnNav, fontSize: 12, padding: '6px 12px', borderRadius: 8 }}>
                     {isOpen ? '▲ Réduire' : '▼ Détail'}
                   </button>
                 </div>
 
-                {/* KPIs du CR */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: isOpen ? 20 : 0 }}>
                   {kpis.map(k => (
                     <div key={k.key} style={{ background: k.bg, borderRadius: 10, padding: '10px 6px', textAlign: 'center' }}>
@@ -131,30 +122,29 @@ export default function DashboardRH() {
                   ))}
                 </div>
 
-                {/* Détail dépliable */}
                 {isOpen && (
                   <div>
-                    {/* Rendez-vous */}
-                    <DetailSection title="📅 Rendez-vous" empty={rdvs[cr]?.length === 0}>
-                      {rdvs[cr]?.map(r => (
+                    <DetailSection title="📅 Rendez-vous" empty={!rdvs[cr] || rdvs[cr].length === 0}>
+                      {(rdvs[cr] || []).map(r => (
                         <div key={r.id} style={detailCard}>
                           <div style={detailRow}>
                             <b>{r.identite_candidat}</b>
                             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{r.profil}</span>
                           </div>
                           <div style={detailRow}>
-                            <span style={{ ...pill, background: r.valide ? '#E1F5EE', color: r.valide ? '#085041' : '#A32D2D', background: r.valide ? '#E1F5EE' : '#FCEBEB' }}>
+                            <span style={{ ...pill, background: r.valide ? '#E1F5EE' : '#FCEBEB', color: r.valide ? '#085041' : '#A32D2D' }}>
                               {r.valide ? '✅ Validé' : '❌ Non validé'}
                             </span>
-                            {r.positionne_sur_besoins && <span style={pill}>📌 {r.positionne_sur_besoins}</span>}
+                            {r.positionne_sur_besoins && (
+                              <span style={pill}>📌 {r.positionne_sur_besoins}</span>
+                            )}
                           </div>
                         </div>
                       ))}
                     </DetailSection>
 
-                    {/* Présentations */}
-                    <DetailSection title="📋 Présentations" empty={pres[cr]?.length === 0}>
-                      {pres[cr]?.map(p => (
+                    <DetailSection title="📋 Présentations" empty={!pres[cr] || pres[cr].length === 0}>
+                      {(pres[cr] || []).map(p => (
                         <div key={p.id} style={detailCard}>
                           <div style={detailRow}>
                             <b>{p.identite_candidat}</b>
@@ -168,9 +158,8 @@ export default function DashboardRH() {
                       ))}
                     </DetailSection>
 
-                    {/* Signatures */}
-                    <DetailSection title="✍️ Signatures" empty={sigs[cr]?.length === 0}>
-                      {sigs[cr]?.map(s => (
+                    <DetailSection title="✍️ Signatures" empty={!sigs[cr] || sigs[cr].length === 0}>
+                      {(sigs[cr] || []).map(s => (
                         <div key={s.id} style={detailCard}>
                           <div style={detailRow}>
                             <b>{s.identite_candidat}</b>
@@ -206,11 +195,6 @@ function DetailSection({ title, children, empty }) {
   )
 }
 
-// ── Styles ──
 const sectionBox = { background: 'var(--color-background-primary)', borderRadius: 14, padding: '20px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
 const sectionTitle = { fontSize: 14, fontWeight: 600, marginBottom: 14 }
-const sectionTitle2 = { fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--color-text-secondary)' }
-const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px', marginBottom: 6, fontSize: 13 }
-const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
-const pill = { background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
-const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
+const sectionTitle2 = { fontSize
