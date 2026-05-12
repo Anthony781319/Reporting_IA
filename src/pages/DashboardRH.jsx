@@ -197,4 +197,8 @@ function DetailSection({ title, children, empty }) {
 
 const sectionBox = { background: 'var(--color-background-primary)', borderRadius: 14, padding: '20px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
 const sectionTitle = { fontSize: 14, fontWeight: 600, marginBottom: 14 }
-const sectionTitle2 = { fontSize
+const sectionTitle2 = { fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--color-text-secondary)' }
+const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px', marginBottom: 6, fontSize: 13 }
+const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
+const pill = { border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
+const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
