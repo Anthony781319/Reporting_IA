@@ -29,23 +29,18 @@ export default function App() {
   }
 
   const handleLogin = (ia, password) => {
-    // Dashboard RH
     if (ia.nom === 'RH' && password === RH_PASSWORD) {
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
     }
-    // Espace CR
     if (ia.type === 'cr' && password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setIsCR(true); setTab('saisie-cr'); return true
     }
-    // P1 of the week
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
-    // Admin Anthony
     if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
       resetRoles(); setUser(ia); setIsAdmin(true); setTab('dashboard'); return true
     }
-    // IA standard
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
     }
@@ -82,7 +77,7 @@ export default function App() {
   const getTitle = () => {
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
-    return 'Reporting IA'
+    return 'Reporting'
   }
 
   return (
