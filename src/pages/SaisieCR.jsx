@@ -8,8 +8,9 @@ const currentWeek = () => {
 }
 
 export default function SaisieCR({ crNom }) {
-  const semaine = currentWeek()
   const annee = new Date().getFullYear()
+  const semaineActuelle = currentWeek()
+  const [semaine, setSemaine] = useState(semaineActuelle)
 
   const [reporting, setReporting] = useState({
     nb_entretiens: 0, nb_candidats_valides: 0,
@@ -31,6 +32,14 @@ export default function SaisieCR({ crNom }) {
 
   useEffect(() => {
     const load = async () => {
+      setReporting({ nb_entretiens: 0, nb_candidats_valides: 0, nb_cv_envoyes: 0, nb_presentations: 0, nb_signatures: 0 })
+      setRdvList([])
+      setPresList([])
+      setSigList([])
+      setShowRdvForm(false)
+      setShowPresForm(false)
+      setShowSigForm(false)
+
       const [{ data: rep }, { data: rdv }, { data: pres }, { data: sig }] = await Promise.all([
         supabase.from('cr_reporting').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee).single(),
         supabase.from('cr_rendez_vous').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
@@ -54,11 +63,7 @@ export default function SaisieCR({ crNom }) {
 
   const addRdv = async () => {
     if (!rdvForm.identite_candidat) return
-    const { data, error } = await supabase
-      .from('cr_rendez_vous')
-      .insert({ cr_nom: crNom, semaine, annee, ...rdvForm })
-      .select()
-      .single()
+    const { data, error } = await supabase.from('cr_rendez_vous').insert({ cr_nom: crNom, semaine, annee, ...rdvForm }).select().single()
     if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setRdvList([...rdvList, data])
     setRdvForm({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
@@ -73,11 +78,7 @@ export default function SaisieCR({ crNom }) {
 
   const addPres = async () => {
     if (!presForm.identite_candidat) return
-    const { data, error } = await supabase
-      .from('cr_presentations')
-      .insert({ cr_nom: crNom, semaine, annee, ...presForm })
-      .select()
-      .single()
+    const { data, error } = await supabase.from('cr_presentations').insert({ cr_nom: crNom, semaine, annee, ...presForm }).select().single()
     if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setPresList([...presList, data])
     setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
@@ -92,11 +93,7 @@ export default function SaisieCR({ crNom }) {
 
   const addSig = async () => {
     if (!sigForm.identite_candidat) return
-    const { data, error } = await supabase
-      .from('cr_signatures')
-      .insert({ cr_nom: crNom, semaine, annee, ...sigForm })
-      .select()
-      .single()
+    const { data, error } = await supabase.from('cr_signatures').insert({ cr_nom: crNom, semaine, annee, ...sigForm }).select().single()
     if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setSigList([...sigList, data])
     setSigForm({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
@@ -118,9 +115,22 @@ export default function SaisieCR({ crNom }) {
         </div>
       )}
 
-      <div style={{ marginBottom: 28 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>👋 Bonjour {crNom}</h2>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>Semaine {semaine} — {annee}</p>
+      {/* Header + navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>👋 Bonjour {crNom}</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{annee}</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => setSemaine(s => Math.max(1, s - 1))} style={btnNav}>←</button>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>Semaine {semaine}</div>
+            {semaine === semaineActuelle && (
+              <div style={{ fontSize: 10, color: '#534AB7', fontWeight: 500 }}>Semaine actuelle</div>
+            )}
+          </div>
+          <button onClick={() => setSemaine(s => Math.min(52, s + 1))} style={btnNav}>→</button>
+        </div>
       </div>
 
       {/* ── BLOC 1 : Rendez-vous ── */}
@@ -166,7 +176,6 @@ export default function SaisieCR({ crNom }) {
             <div style={blockSub}>{rdvList.length} entrée{rdvList.length !== 1 ? 's' : ''} cette semaine</div>
           </div>
         </div>
-
         {rdvList.map(r => (
           <div key={r.id} style={detailCard}>
             <div style={detailRow}>
@@ -182,7 +191,6 @@ export default function SaisieCR({ crNom }) {
             <button onClick={() => deleteRdv(r.id)} style={btnDelete}>Supprimer</button>
           </div>
         ))}
-
         {showRdvForm ? (
           <div style={formBox}>
             <Input label="Identité du candidat" value={rdvForm.identite_candidat} onChange={v => setRdvForm({ ...rdvForm, identite_candidat: v })} />
@@ -211,7 +219,6 @@ export default function SaisieCR({ crNom }) {
             <div style={blockSub}>{presList.length} entrée{presList.length !== 1 ? 's' : ''} cette semaine</div>
           </div>
         </div>
-
         {presList.map(p => (
           <div key={p.id} style={detailCard}>
             <div style={detailRow}>
@@ -225,7 +232,6 @@ export default function SaisieCR({ crNom }) {
             <button onClick={() => deletePres(p.id)} style={btnDelete}>Supprimer</button>
           </div>
         ))}
-
         {showPresForm ? (
           <div style={formBox}>
             <Input label="Identité du candidat" value={presForm.identite_candidat} onChange={v => setPresForm({ ...presForm, identite_candidat: v })} />
@@ -251,7 +257,6 @@ export default function SaisieCR({ crNom }) {
             <div style={blockSub}>{sigList.length} entrée{sigList.length !== 1 ? 's' : ''} cette semaine</div>
           </div>
         </div>
-
         {sigList.map(s => (
           <div key={s.id} style={detailCard}>
             <div style={detailRow}>
@@ -265,7 +270,6 @@ export default function SaisieCR({ crNom }) {
             <button onClick={() => deleteSig(s.id)} style={btnDelete}>Supprimer</button>
           </div>
         ))}
-
         {showSigForm ? (
           <div style={formBox}>
             <Input label="Identité du candidat" value={sigForm.identite_candidat} onChange={v => setSigForm({ ...sigForm, identite_candidat: v })} />
@@ -327,3 +331,4 @@ const btnCancel = { padding: '10px 18px', background: 'none', color: 'var(--colo
 const btnAdd = { width: '100%', padding: '10px', background: 'none', border: '1px dashed', borderRadius: 8, fontSize: 13, cursor: 'pointer', marginTop: 4, fontWeight: 500 }
 const btnDelete = { marginTop: 6, padding: '4px 10px', background: 'none', border: '1px solid #f5c6c6', borderRadius: 6, fontSize: 11, color: '#A32D2D', cursor: 'pointer' }
 const btnCounter = { width: 28, height: 28, borderRadius: '50%', border: '1px solid', background: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
