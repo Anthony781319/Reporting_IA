@@ -87,8 +87,6 @@ export default function DashboardRH() {
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📊 Dashboard Recrutement</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{annee}</p>
         </div>
-
-        {/* Toggle Semaine / Année */}
         <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 10, padding: 4, gap: 4 }}>
           <button
             onClick={() => setMode('semaine')}
@@ -105,7 +103,7 @@ export default function DashboardRH() {
         </div>
       </div>
 
-      {/* Navigation semaine (seulement en mode semaine) */}
+      {/* Navigation semaine */}
       {mode === 'semaine' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 20 }}>
           <button onClick={() => setSemaine(s => Math.max(1, s - 1))} style={btnNav}>←</button>
@@ -148,12 +146,14 @@ export default function DashboardRH() {
                     </div>
                     <span style={{ fontWeight: 600, fontSize: 15 }}>{cr}</span>
                   </div>
-                  <button onClick={() => setExpanded(isOpen ? null : cr)} style={{ ...btnNav, fontSize: 12, padding: '6px 12px', borderRadius: 8 }}>
-                    {isOpen ? '▲ Réduire' : '▼ Détail'}
-                  </button>
+                  {mode === 'semaine' && (
+                    <button onClick={() => setExpanded(isOpen ? null : cr)} style={{ ...btnNav, fontSize: 12, padding: '6px 12px', borderRadius: 8 }}>
+                      {isOpen ? '▲ Réduire' : '▼ Détail'}
+                    </button>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginBottom: isOpen ? 20 : 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
                   {kpis.map(k => (
                     <div key={k.key} style={{ background: k.bg, borderRadius: 10, padding: '10px 6px', textAlign: 'center' }}>
                       <div style={{ fontSize: 20, fontWeight: 700, color: k.color }}>{rep[k.key] || 0}</div>
@@ -162,15 +162,14 @@ export default function DashboardRH() {
                   ))}
                 </div>
 
-                {isOpen && (
-                  <div>
+                {isOpen && mode === 'semaine' && (
+                  <div style={{ marginTop: 20 }}>
                     <DetailSection title="📅 Rendez-vous" empty={!rdvs[cr] || rdvs[cr].length === 0}>
                       {(rdvs[cr] || []).map(r => (
                         <div key={r.id} style={detailCard}>
                           <div style={detailRow}>
                             <b>{r.identite_candidat}</b>
                             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{r.profil}</span>
-                            {mode === 'annee' && <span style={weekBadge}>S{r.semaine}</span>}
                           </div>
                           <div style={detailRow}>
                             <span style={{ ...pill, background: r.valide ? '#E1F5EE' : '#FCEBEB', color: r.valide ? '#085041' : '#A32D2D' }}>
@@ -188,7 +187,6 @@ export default function DashboardRH() {
                           <div style={detailRow}>
                             <b>{p.identite_candidat}</b>
                             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{p.profil}</span>
-                            {mode === 'annee' && <span style={weekBadge}>S{p.semaine}</span>}
                           </div>
                           <div style={detailRow}>
                             {p.date_presentation && <span style={pill}>📅 {p.date_presentation}</span>}
@@ -204,7 +202,6 @@ export default function DashboardRH() {
                           <div style={detailRow}>
                             <b>{s.identite_candidat}</b>
                             <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{s.profil}</span>
-                            {mode === 'annee' && <span style={weekBadge}>S{s.semaine}</span>}
                           </div>
                           <div style={detailRow}>
                             {s.salaire_envisage && <span style={pill}>💰 {s.salaire_envisage}</span>}
@@ -229,7 +226,7 @@ function DetailSection({ title, children, empty }) {
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary)' }}>{title}</div>
       {empty
-        ? <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '8px 0' }}>Aucune entrée</div>
+        ? <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '8px 0' }}>Aucune entrée cette semaine</div>
         : children
       }
     </div>
@@ -242,5 +239,4 @@ const sectionTitle2 = { fontSize: 14, fontWeight: 600, marginBottom: 12, color: 
 const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px', marginBottom: 6, fontSize: 13 }
 const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
 const pill = { border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
-const weekBadge = { background: '#534AB7', color: '#fff', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600 }
 const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
