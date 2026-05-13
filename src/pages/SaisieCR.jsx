@@ -128,9 +128,14 @@ export default function SaisieCR({ crNom }) {
       showToast('❌ Remplis le candidat et sélectionne au moins une IA')
       return
     }
-    const { data, error } = await supabase.from('cr_cv_proposes').insert({ cr_nom: crNom, semaine, annee, ...cvForm }).select().single()
+    const { data, error } = await supabase.from('cr_cv_proposes').insert({
+      cr_nom: crNom, semaine, annee,
+      identite_candidat: cvForm.identite_candidat,
+      profil: cvForm.profil,
+      ias_concernees: cvForm.ias_concernees.join(', ')
+    }).select().single()
     if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
-    setCvList([...cvList, data])
+    setCvList([...cvList, { ...data, ias_concernees: cvForm.ias_concernees.join(', ') }])
     setCvForm({ identite_candidat: '', profil: '', ias_concernees: [] })
     setShowCvForm(false)
     showToast('✅ CV ajouté !')
@@ -335,7 +340,7 @@ export default function SaisieCR({ crNom }) {
               <span style={profilBadge}>{c.profil}</span>
             </div>
             <div style={detailRow}>
-              {(c.ias_concernees || []).map(ia => (
+              {(c.ias_concernees ? c.ias_concernees.split(', ') : []).map(ia => (
                 <span key={ia} style={{ ...infoBadge, background: '#E8F5E9', color: '#2E7D32', border: '1px solid #A5D6A7' }}>👤 {ia}</span>
               ))}
             </div>
