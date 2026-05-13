@@ -11,6 +11,7 @@ export default function SaisieCR({ crNom }) {
   const annee = new Date().getFullYear()
   const semaineActuelle = currentWeek()
   const [semaine, setSemaine] = useState(semaineActuelle)
+  const [iaList, setIaList] = useState([])
 
   const [reporting, setReporting] = useState({
     nb_entretiens: 0, nb_candidats_valides: 0,
@@ -25,31 +26,38 @@ export default function SaisieCR({ crNom }) {
   const [sigList, setSigList] = useState([])
   const [sigForm, setSigForm] = useState({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
   const [showSigForm, setShowSigForm] = useState(false)
+  const [cvList, setCvList] = useState([])
+  const [cvForm, setCvForm] = useState({ identite_candidat: '', profil: '', ias_concernees: [] })
+  const [showCvForm, setShowCvForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   useEffect(() => {
+    supabase.from('ia').select('*').order('nom').then(({ data }) => {
+      setIaList((data || []).filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week'))
+    })
+  }, [])
+
+  useEffect(() => {
     const load = async () => {
       setReporting({ nb_entretiens: 0, nb_candidats_valides: 0, nb_cv_envoyes: 0, nb_presentations: 0, nb_signatures: 0 })
-      setRdvList([])
-      setPresList([])
-      setSigList([])
-      setShowRdvForm(false)
-      setShowPresForm(false)
-      setShowSigForm(false)
+      setRdvList([]); setPresList([]); setSigList([]); setCvList([])
+      setShowRdvForm(false); setShowPresForm(false); setShowSigForm(false); setShowCvForm(false)
 
-      const [{ data: rep }, { data: rdv }, { data: pres }, { data: sig }] = await Promise.all([
+      const [{ data: rep }, { data: rdv }, { data: pres }, { data: sig }, { data: cv }] = await Promise.all([
         supabase.from('cr_reporting').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee).single(),
         supabase.from('cr_rendez_vous').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
         supabase.from('cr_presentations').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
         supabase.from('cr_signatures').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
+        supabase.from('cr_cv_proposes').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
       ])
       if (rep) setReporting({ nb_entretiens: rep.nb_entretiens, nb_candidats_valides: rep.nb_candidats_valides, nb_cv_envoyes: rep.nb_cv_envoyes, nb_presentations: rep.nb_presentations, nb_signatures: rep.nb_signatures })
       if (rdv) setRdvList(rdv)
       if (pres) setPresList(pres)
       if (sig) setSigList(sig)
+      if (cv) setCvList(cv)
     }
     load()
   }, [crNom, semaine, annee])
@@ -106,6 +114,33 @@ export default function SaisieCR({ crNom }) {
     setSigList(sigList.filter(s => s.id !== id))
   }
 
+  const toggleIA = (nom) => {
+    const current = cvForm.ias_concernees
+    if (current.includes(nom)) {
+      setCvForm({ ...cvForm, ias_concernees: current.filter(n => n !== nom) })
+    } else {
+      setCvForm({ ...cvForm, ias_concernees: [...current, nom] })
+    }
+  }
+
+  const addCv = async () => {
+    if (!cvForm.identite_candidat || cvForm.ias_concernees.length === 0) {
+      showToast('❌ Remplis le candidat et sélectionne au moins une IA')
+      return
+    }
+    const { data, error } = await supabase.from('cr_cv_proposes').insert({ cr_nom: crNom, semaine, annee, ...cvForm }).select().single()
+    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
+    setCvList([...cvList, data])
+    setCvForm({ identite_candidat: '', profil: '', ias_concernees: [] })
+    setShowCvForm(false)
+    showToast('✅ CV ajouté !')
+  }
+
+  const deleteCv = async (id) => {
+    await supabase.from('cr_cv_proposes').delete().eq('id', id)
+    setCvList(cvList.filter(c => c.id !== id))
+  }
+
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
 
@@ -115,7 +150,6 @@ export default function SaisieCR({ crNom }) {
         </div>
       )}
 
-      {/* Header + navigation */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>👋 Bonjour {crNom}</h2>
@@ -125,9 +159,7 @@ export default function SaisieCR({ crNom }) {
           <button onClick={() => setSemaine(s => Math.max(1, s - 1))} style={btnNav}>←</button>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Semaine {semaine}</div>
-            {semaine === semaineActuelle && (
-              <div style={{ fontSize: 10, color: '#534AB7', fontWeight: 500 }}>Semaine actuelle</div>
-            )}
+            {semaine === semaineActuelle && <div style={{ fontSize: 10, color: '#534AB7', fontWeight: 500 }}>Semaine actuelle</div>}
           </div>
           <button onClick={() => setSemaine(s => Math.min(52, s + 1))} style={btnNav}>→</button>
         </div>
@@ -283,6 +315,63 @@ export default function SaisieCR({ crNom }) {
           </div>
         ) : (
           <button onClick={() => setShowSigForm(true)} style={{ ...btnAdd, borderColor: '#72243E', color: '#72243E' }}>+ Ajouter une signature</button>
+        )}
+      </div>
+
+      {/* ── BLOC 4 : CV proposés aux IAs ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #2E7D32' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#E8F5E9' }}>📨</div>
+          <div>
+            <div style={blockTitle}>CV proposés aux IAs</div>
+            <div style={blockSub}>{cvList.length} candidat{cvList.length !== 1 ? 's' : ''} proposé{cvList.length !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+
+        {cvList.map(c => (
+          <div key={c.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{c.identite_candidat}</span>
+              <span style={profilBadge}>{c.profil}</span>
+            </div>
+            <div style={detailRow}>
+              {(c.ias_concernees || []).map(ia => (
+                <span key={ia} style={{ ...infoBadge, background: '#E8F5E9', color: '#2E7D32', border: '1px solid #A5D6A7' }}>👤 {ia}</span>
+              ))}
+            </div>
+            <button onClick={() => deleteCv(c.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+
+        {showCvForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={cvForm.identite_candidat} onChange={v => setCvForm({ ...cvForm, identite_candidat: v })} />
+            <Input label="Profil" value={cvForm.profil} onChange={v => setCvForm({ ...cvForm, profil: v })} />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>IAs concernées</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                {iaList.map(ia => {
+                  const checked = cvForm.ias_concernees.includes(ia.nom)
+                  return (
+                    <div key={ia.id} onClick={() => toggleIA(ia.nom)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: checked ? '2px solid #2E7D32' : '1px solid var(--color-border-tertiary)', background: checked ? '#E8F5E9' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
+                    >
+                      <div style={{ width: 18, height: 18, borderRadius: 4, border: checked ? '2px solid #2E7D32' : '2px solid var(--color-border-tertiary)', background: checked ? '#2E7D32' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {checked && <span style={{ color: '#fff', fontSize: 11 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: checked ? 500 : 400, color: checked ? '#2E7D32' : 'var(--color-text-primary)' }}>{ia.nom}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addCv} style={{ ...btnSave, background: '#2E7D32' }}>Ajouter</button>
+              <button onClick={() => setShowCvForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowCvForm(true)} style={{ ...btnAdd, borderColor: '#2E7D32', color: '#2E7D32' }}>+ Ajouter un CV proposé</button>
         )}
       </div>
 
