@@ -144,18 +144,13 @@ export default function Login({ onLogin }) {
                 </div>
               )
             })}
-
-            {/* P1 of the week */}
             <div onClick={() => { setSelected('P1 of the week'); setError('') }}
               style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: selected === 'P1 of the week' ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: selected === 'P1 of the week' ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
             >
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
-                P1
-              </div>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>P1</div>
               <span style={{ fontSize: 13, fontWeight: selected === 'P1 of the week' ? 500 : 400, color: selected === 'P1 of the week' ? '#3C3489' : 'var(--color-text-primary)' }}>P1 of the week</span>
             </div>
           </div>
-
           <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitCR} />
           {error && <ErrorMsg msg={error} />}
           <SubmitBtn disabled={!selected} onClick={handleSubmitCR} />
@@ -171,38 +166,58 @@ export default function Login({ onLogin }) {
         <BackButton onClick={handleBack} />
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360 }}>
-          <div style={labelStyle}>Connexion</div>
-          {loading ? <Loader /> : anthony && (
-            <div style={{ marginBottom: 16 }}>
-              <div onClick={() => { setSelected(anthony); setShowRH(false); setError('') }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', border: selected?.id === anthony.id ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: selected?.id === anthony.id ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s', marginBottom: 8 }}
-              >
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>DC</div>
-                <span style={{ fontSize: 14, fontWeight: 500 }}>Dashboard Commerce</span>
-              </div>
-              <PasswordField show={selected?.id === anthony.id} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
-              {error && <ErrorMsg msg={error} />}
-              {selected?.id === anthony.id && <SubmitBtn disabled={false} onClick={handleSubmitIA} />}
-            </div>
-          )}
+          {loading ? <Loader /> : (
+            <>
+              {/* Dashboard Commerce */}
+              {anthony && (
+                <div>
+                  <div
+                    onClick={() => { setSelected(anthony); setShowRH(false); setError('') }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: selected?.id === anthony.id ? '2px solid #534AB7' : '1px solid var(--color-border-tertiary)', background: selected?.id === anthony.id ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 12 }}
+                  >
+                    <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📊</div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: selected?.id === anthony.id ? '#3C3489' : 'var(--color-text-primary)' }}>Dashboard Commerce</div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>Pilotage & reporting équipe</div>
+                    </div>
+                    <div style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)', fontSize: 18 }}>›</div>
+                  </div>
+                  {selected?.id === anthony.id && (
+                    <>
+                      <PasswordField show value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
+                      {error && <ErrorMsg msg={error} />}
+                      <SubmitBtn disabled={false} onClick={handleSubmitIA} />
+                    </>
+                  )}
+                </div>
+              )}
 
-          <div style={{ borderTop: '1px solid var(--color-border-tertiary)', paddingTop: 16, marginTop: 8 }}>
-            {!showRH ? (
-              <button onClick={() => { setShowRH(true); setSelected(null) }}
-                style={{ width: '100%', padding: 12, background: 'none', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-                📊 Accès Dashboard RH
-              </button>
-            ) : (
+              {/* Dashboard RH */}
               <div>
-                <div style={labelStyle}>Mot de passe RH</div>
-                <input type="password" value={rhPassword} onChange={e => { setRhPassword(e.target.value); setRhError('') }} onKeyDown={e => e.key === 'Enter' && handleRHLogin()} placeholder="Mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
-                {rhError && <ErrorMsg msg={rhError} />}
-                <button onClick={handleRHLogin} style={{ width: '100%', padding: 12, background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-                  Accéder au Dashboard RH
-                </button>
+                <div
+                  onClick={() => { setShowRH(true); setSelected(null); setError('') }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: showRH ? '2px solid #0F6E56' : '1px solid var(--color-border-tertiary)', background: showRH ? '#E1F5EE' : 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 12 }}
+                >
+                  <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>👥</div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: showRH ? '#085041' : 'var(--color-text-primary)' }}>Dashboard RH</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>Suivi recrutement & candidats</div>
+                  </div>
+                  <div style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)', fontSize: 18 }}>›</div>
+                </div>
+                {showRH && (
+                  <>
+                    <div style={labelStyle}>Mot de passe RH</div>
+                    <input type="password" value={rhPassword} onChange={e => { setRhPassword(e.target.value); setRhError('') }} onKeyDown={e => e.key === 'Enter' && handleRHLogin()} placeholder="Mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                    {rhError && <ErrorMsg msg={rhError} />}
+                    <button onClick={handleRHLogin} style={{ width: '100%', padding: 13, background: '#0F6E56', color: '#E1F5EE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                      Se connecter
+                    </button>
+                  </>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
     )
