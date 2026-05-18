@@ -49,18 +49,24 @@ const emptyForm = {
 
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 const P1_FIELDS = [
-  { key: 'client',       label: 'Client',                 icon: '🏢' },
-  { key: 'profil',       label: 'Profil recherché',        icon: '🎯' },
-  { key: 'experience',   label: "Années d'expérience",     icon: '📅' },
-  { key: 'technologies', label: 'Technologies à maîtriser',icon: '💻' },
-  { key: 'salaire_max',  label: 'Salaire max',             icon: '💰' },
-  { key: 'langues',      label: 'Langues à maîtriser',     icon: '🌍' },
-  { key: 'lieu',         label: 'Lieu de mission',         icon: '📍' },
+  { key: 'client',       label: 'Client',                  icon: '🏢' },
+  { key: 'profil',       label: 'Profil recherché',         icon: '🎯' },
+  { key: 'experience',   label: "Années d'expérience",      icon: '📅' },
+  { key: 'technologies', label: 'Technologies à maîtriser', icon: '💻' },
+  { key: 'salaire_max',  label: 'Salaire max',              icon: '💰' },
+  { key: 'langues',      label: 'Langues à maîtriser',      icon: '🌍' },
+  { key: 'lieu',         label: 'Lieu de mission',          icon: '📍' },
 ]
 
 export default function Saisie({ iaId, iaName }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
+
+  // Semaines autorisées : semaine en cours + semaine précédente uniquement
+  const allowedWeeks = semaine > 1
+    ? [{ value: semaine, label: `Semaine ${semaine} (en cours)` }, { value: semaine - 1, label: `Semaine ${semaine - 1} (précédente)` }]
+    : [{ value: semaine, label: `Semaine ${semaine} (en cours)` }]
+
   const [selectedWeek, setSelectedWeek] = useState(semaine)
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
@@ -142,9 +148,13 @@ export default function Saisie({ iaId, iaName }) {
           <div style={{ fontSize: 15, fontWeight: 500 }}>Bonjour {iaName} 👋</div>
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{annee}</div>
         </div>
-        <select value={selectedWeek} onChange={e => setSelectedWeek(parseInt(e.target.value))} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}>
-          {Array.from({ length: semaine }, (_, i) => i + 1).reverse().map(w => (
-            <option key={w} value={w}>{w === semaine ? `Semaine ${w} (en cours)` : `Semaine ${w}`}</option>
+        <select
+          value={selectedWeek}
+          onChange={e => setSelectedWeek(parseInt(e.target.value))}
+          style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}
+        >
+          {allowedWeeks.map(w => (
+            <option key={w.value} value={w.value}>{w.label}</option>
           ))}
         </select>
       </div>
@@ -155,32 +165,32 @@ export default function Saisie({ iaId, iaName }) {
         <>
           <Section title="RDV Commerciaux" color="#534AB7">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Découvertes"  value={form.decouvertes}  onChange={set('decouvertes')}  color="#534AB7" />
-              <Counter label="Prospects"    value={form.prospects}    onChange={set('prospects')}    color="#534AB7" />
-              <Counter label="Clients"      value={form.clients}      onChange={set('clients')}      color="#534AB7" />
-              <Counter label="Présentations"value={form.presentations}onChange={set('presentations')}color="#534AB7" />
+              <Counter label="Découvertes"   value={form.decouvertes}   onChange={set('decouvertes')}   color="#534AB7" />
+              <Counter label="Prospects"     value={form.prospects}     onChange={set('prospects')}     color="#534AB7" />
+              <Counter label="Clients"       value={form.clients}       onChange={set('clients')}       color="#534AB7" />
+              <Counter label="Présentations" value={form.presentations} onChange={set('presentations')} color="#534AB7" />
             </div>
             <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Besoins Détectés"      value={form.besoins_detectes}    onChange={set('besoins_detectes')}    color="#0F6E56" />
-              <Counter label="RDV Candidat"           value={form.rdv_candidats}       onChange={set('rdv_candidats')}       color="#0F6E56" />
-              <Counter label="Solutions Envoyées"     value={form.cv_envoyes}          onChange={set('cv_envoyes')}          color="#0F6E56" />
-              <Counter label="Attente Réponse Client" value={form.attente_retour}      onChange={set('attente_retour')}      color="#0F6E56" />
-              <Counter label="Attente Retour Prez"    value={form.attente_retour_prez} onChange={set('attente_retour_prez')} color="#0F6E56" />
-              <Counter label="Besoins sans solution"  value={form.besoins_sans_solution}onChange={set('besoins_sans_solution')}color="#0F6E56"/>
+              <Counter label="Besoins Détectés"       value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
+              <Counter label="RDV Candidat"            value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
+              <Counter label="Solutions Envoyées"      value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
+              <Counter label="Attente Réponse Client"  value={form.attente_retour}       onChange={set('attente_retour')}       color="#0F6E56" />
+              <Counter label="Attente Retour Prez"     value={form.attente_retour_prez}  onChange={set('attente_retour_prez')}  color="#0F6E56" />
+              <Counter label="Besoins sans solution"   value={form.besoins_sans_solution}onChange={set('besoins_sans_solution')}color="#0F6E56" />
             </div>
             <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
           </Section>
 
           <Section title="Résultats" color="#993556">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Signatures"            value={form.signatures}           onChange={set('signatures')}           color="#993556" />
-              <Counter label="Démarrages"            value={form.demarrages}           onChange={set('demarrages')}           color="#993556" />
-              <Counter label="Fins de mission"       value={form.fins_de_mission}      onChange={set('fins_de_mission')}      color="#993556" />
-              <Counter label="Présentations à monter"value={form.presentations_a_monter}onChange={set('presentations_a_monter')}color="#993556"/>
+              <Counter label="Signatures"             value={form.signatures}            onChange={set('signatures')}            color="#993556" />
+              <Counter label="Démarrages"             value={form.demarrages}            onChange={set('demarrages')}            color="#993556" />
+              <Counter label="Fins de mission"        value={form.fins_de_mission}       onChange={set('fins_de_mission')}       color="#993556" />
+              <Counter label="Présentations à monter" value={form.presentations_a_monter}onChange={set('presentations_a_monter')}color="#993556" />
             </div>
           </Section>
 
@@ -191,7 +201,6 @@ export default function Saisie({ iaId, iaName }) {
             </div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
 
-              {/* P1 existantes — nouveau format structuré */}
               {p1List.filter(p => p.profil).map(p => (
                 <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
                   <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
@@ -207,7 +216,6 @@ export default function Saisie({ iaId, iaName }) {
                 </div>
               ))}
 
-              {/* P1 ancien format (description libre) — affichage de compatibilité */}
               {p1List.filter(p => p.description && !p.profil).map(p => (
                 <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
                   <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
@@ -215,7 +223,6 @@ export default function Saisie({ iaId, iaName }) {
                 </div>
               ))}
 
-              {/* Formulaire nouvelle P1 */}
               {P1_FIELDS.map(({ key, label, icon }) => (
                 <div key={key} style={{ marginBottom: 8 }}>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#BA7517', display: 'block', marginBottom: 3 }}>
