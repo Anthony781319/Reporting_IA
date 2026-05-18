@@ -49,13 +49,13 @@ const emptyForm = {
 
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 const P1_FIELDS = [
-  { key: 'client', label: 'Client' },
-  { key: 'profil', label: 'Profil recherché' },
-  { key: 'experience', label: "Années d'expérience" },
-  { key: 'technologies', label: 'Technologies à maîtriser' },
-  { key: 'salaire_max', label: 'Salaire max' },
-  { key: 'langues', label: 'Langues à maîtriser' },
-  { key: 'lieu', label: 'Lieu de mission' },
+  { key: 'client',       label: 'Client',                 icon: '🏢' },
+  { key: 'profil',       label: 'Profil recherché',        icon: '🎯' },
+  { key: 'experience',   label: "Années d'expérience",     icon: '📅' },
+  { key: 'technologies', label: 'Technologies à maîtriser',icon: '💻' },
+  { key: 'salaire_max',  label: 'Salaire max',             icon: '💰' },
+  { key: 'langues',      label: 'Langues à maîtriser',     icon: '🌍' },
+  { key: 'lieu',         label: 'Lieu de mission',         icon: '📍' },
 ]
 
 export default function Saisie({ iaId, iaName }) {
@@ -155,32 +155,32 @@ export default function Saisie({ iaId, iaName }) {
         <>
           <Section title="RDV Commerciaux" color="#534AB7">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Découvertes" value={form.decouvertes} onChange={set('decouvertes')} color="#534AB7" />
-              <Counter label="Prospects" value={form.prospects} onChange={set('prospects')} color="#534AB7" />
-              <Counter label="Clients" value={form.clients} onChange={set('clients')} color="#534AB7" />
-              <Counter label="Présentations" value={form.presentations} onChange={set('presentations')} color="#534AB7" />
+              <Counter label="Découvertes"  value={form.decouvertes}  onChange={set('decouvertes')}  color="#534AB7" />
+              <Counter label="Prospects"    value={form.prospects}    onChange={set('prospects')}    color="#534AB7" />
+              <Counter label="Clients"      value={form.clients}      onChange={set('clients')}      color="#534AB7" />
+              <Counter label="Présentations"value={form.presentations}onChange={set('presentations')}color="#534AB7" />
             </div>
             <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Besoins Détectés" value={form.besoins_detectes} onChange={set('besoins_detectes')} color="#0F6E56" />
-              <Counter label="RDV Candidat" value={form.rdv_candidats} onChange={set('rdv_candidats')} color="#0F6E56" />
-              <Counter label="Solutions Envoyées" value={form.cv_envoyes} onChange={set('cv_envoyes')} color="#0F6E56" />
-              <Counter label="Attente Réponse Client" value={form.attente_retour} onChange={set('attente_retour')} color="#0F6E56" />
-              <Counter label="Attente Retour Prez" value={form.attente_retour_prez} onChange={set('attente_retour_prez')} color="#0F6E56" />
-              <Counter label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} color="#0F6E56" />
+              <Counter label="Besoins Détectés"      value={form.besoins_detectes}    onChange={set('besoins_detectes')}    color="#0F6E56" />
+              <Counter label="RDV Candidat"           value={form.rdv_candidats}       onChange={set('rdv_candidats')}       color="#0F6E56" />
+              <Counter label="Solutions Envoyées"     value={form.cv_envoyes}          onChange={set('cv_envoyes')}          color="#0F6E56" />
+              <Counter label="Attente Réponse Client" value={form.attente_retour}      onChange={set('attente_retour')}      color="#0F6E56" />
+              <Counter label="Attente Retour Prez"    value={form.attente_retour_prez} onChange={set('attente_retour_prez')} color="#0F6E56" />
+              <Counter label="Besoins sans solution"  value={form.besoins_sans_solution}onChange={set('besoins_sans_solution')}color="#0F6E56"/>
             </div>
             <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
           </Section>
 
           <Section title="Résultats" color="#993556">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Signatures" value={form.signatures} onChange={set('signatures')} color="#993556" />
-              <Counter label="Démarrages" value={form.demarrages} onChange={set('demarrages')} color="#993556" />
-              <Counter label="Fins de mission" value={form.fins_de_mission} onChange={set('fins_de_mission')} color="#993556" />
-              <Counter label="Présentations à monter" value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
+              <Counter label="Signatures"            value={form.signatures}           onChange={set('signatures')}           color="#993556" />
+              <Counter label="Démarrages"            value={form.demarrages}           onChange={set('demarrages')}           color="#993556" />
+              <Counter label="Fins de mission"       value={form.fins_de_mission}      onChange={set('fins_de_mission')}      color="#993556" />
+              <Counter label="Présentations à monter"value={form.presentations_a_monter}onChange={set('presentations_a_monter')}color="#993556"/>
             </div>
           </Section>
 
@@ -191,24 +191,36 @@ export default function Saisie({ iaId, iaName }) {
             </div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
 
-              {p1List.map(p => (
+              {/* P1 existantes — nouveau format structuré */}
+              {p1List.filter(p => p.profil).map(p => (
                 <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
                   <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#633806', marginBottom: 8 }}>🎯 {p.client}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12, color: '#633806' }}>
-                    <span><strong>Profil :</strong> {p.profil}</span>
-                    <span><strong>Expérience :</strong> {p.experience}</span>
-                    <span><strong>Technologies :</strong> {p.technologies}</span>
-                    <span><strong>Salaire max :</strong> {p.salaire_max}</span>
-                    <span><strong>Langues :</strong> {p.langues}</span>
-                    <span><strong>Lieu :</strong> {p.lieu}</span>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#633806', marginBottom: 8 }}>🎯 {p.profil}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: 12, color: '#633806' }}>
+                    <span>🏢 <strong>Client :</strong> {p.client}</span>
+                    <span>📅 <strong>Expérience :</strong> {p.experience}</span>
+                    <span>💻 <strong>Technologies :</strong> {p.technologies}</span>
+                    <span>💰 <strong>Salaire max :</strong> {p.salaire_max}</span>
+                    <span>🌍 <strong>Langues :</strong> {p.langues}</span>
+                    <span>📍 <strong>Lieu :</strong> {p.lieu}</span>
                   </div>
                 </div>
               ))}
 
-              {P1_FIELDS.map(({ key, label }) => (
+              {/* P1 ancien format (description libre) — affichage de compatibilité */}
+              {p1List.filter(p => p.description && !p.profil).map(p => (
+                <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
+                  <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
+                  <div style={{ fontSize: 13, color: '#633806', lineHeight: 1.5 }}>🎯 {p.description}</div>
+                </div>
+              ))}
+
+              {/* Formulaire nouvelle P1 */}
+              {P1_FIELDS.map(({ key, label, icon }) => (
                 <div key={key} style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 3 }}>{label}</label>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#BA7517', display: 'block', marginBottom: 3 }}>
+                    {icon} {label}
+                  </label>
                   <input
                     type="text"
                     value={newP1[key]}
