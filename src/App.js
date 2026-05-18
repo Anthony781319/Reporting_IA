@@ -9,7 +9,7 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import './App.css'
 
-const ADMIN_PASSWORD = 'Kai'
+const ADMIN_PASSWORD = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 
@@ -56,15 +56,15 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />
 
   const adminTabs = [
-    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
-    { id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' },
-    { id: 'equipe', icon: 'ti-users', label: 'Équipe' },
-    { id: 'admin', icon: 'ti-settings', label: 'Admin' },
+    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard Commerce' },
+    { id: 'saisie',    icon: 'ti-edit',             label: 'Ma saisie' },
+    { id: 'equipe',    icon: 'ti-users',             label: 'Équipe' },
+    { id: 'admin',     icon: 'ti-settings',          label: 'Admin' },
   ]
-  const userTabs = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
-  const p1Tabs   = [{ id: 'p1', icon: 'ti-target', label: 'P1 of the week' }]
-  const crTabs   = [{ id: 'saisie-cr', icon: 'ti-edit', label: 'Mon reporting' }]
-  const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
+  const userTabs = [{ id: 'saisie', icon: 'ti-edit',       label: 'Ma saisie' }]
+  const p1Tabs   = [{ id: 'p1',     icon: 'ti-target',     label: 'P1 of the week' }]
+  const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',       label: 'Mon reporting' }]
+  const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar',  label: 'Dashboard RH' }]
 
   const tabs = isAdmin ? adminTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
 
@@ -75,6 +75,7 @@ export default function App() {
   }
 
   const getTitle = () => {
+    if (isAdmin) return 'Dashboard Commerce'
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
     return 'Reporting'
