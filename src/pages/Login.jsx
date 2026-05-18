@@ -177,8 +177,8 @@ export default function Login({ onLogin }) {
               <div onClick={() => { setSelected(anthony); setShowRH(false); setError('') }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', border: selected?.id === anthony.id ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: selected?.id === anthony.id ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s', marginBottom: 8 }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>AN</div>
-                <span style={{ fontSize: 14, fontWeight: 500 }}>Anthony</span>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>DC</div>
+                <span style={{ fontSize: 14, fontWeight: 500 }}>Dashboard Commerce</span>
               </div>
               <PasswordField show={selected?.id === anthony.id} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
               {error && <ErrorMsg msg={error} />}
