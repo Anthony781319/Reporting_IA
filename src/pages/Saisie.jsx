@@ -47,6 +47,17 @@ const emptyForm = {
   signatures: 0, demarrages: 0, fins_de_mission: 0, presentations_a_monter: 0,
 }
 
+const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
+const P1_FIELDS = [
+  { key: 'client', label: 'Client' },
+  { key: 'profil', label: 'Profil recherché' },
+  { key: 'experience', label: "Années d'expérience" },
+  { key: 'technologies', label: 'Technologies à maîtriser' },
+  { key: 'salaire_max', label: 'Salaire max' },
+  { key: 'langues', label: 'Langues à maîtriser' },
+  { key: 'lieu', label: 'Lieu de mission' },
+]
+
 export default function Saisie({ iaId, iaName }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
@@ -57,11 +68,12 @@ export default function Saisie({ iaId, iaName }) {
   const [saved, setSaved] = useState(false)
 
   const [p1List, setP1List] = useState([])
-  const [newP1, setNewP1] = useState('')
+  const [newP1, setNewP1] = useState(emptyP1)
   const [savingP1, setSavingP1] = useState(false)
 
   const totalRdv = form.decouvertes + form.prospects + form.clients + form.presentations
   const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
+  const p1Complete = P1_FIELDS.every(({ key }) => newP1[key]?.trim())
 
   useEffect(() => {
     if (!iaId) return
@@ -102,13 +114,13 @@ export default function Saisie({ iaId, iaName }) {
   }
 
   const addP1 = async () => {
-    if (!newP1.trim()) return
+    if (!p1Complete) return
     setSavingP1(true)
     const { data } = await supabase.from('p1').insert({
-      ia_id: iaId, semaine: selectedWeek, annee, description: newP1.trim()
+      ia_id: iaId, semaine: selectedWeek, annee, ...newP1
     }).select().single()
     if (data) setP1List(l => [...l, data])
-    setNewP1('')
+    setNewP1(emptyP1)
     setSavingP1(false)
   }
 
@@ -178,24 +190,45 @@ export default function Saisie({ iaId, iaName }) {
               Priorités P1
             </div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
+
               {p1List.map(p => (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#FAEEDA', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
-                  <span style={{ fontSize: 14 }}>🎯</span>
-                  <span style={{ flex: 1, fontSize: 13, color: '#633806', lineHeight: 1.5 }}>{p.description}</span>
-                  <button onClick={() => removeP1(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16, flexShrink: 0, padding: 2 }}>×</button>
+                <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
+                  <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#633806', marginBottom: 8 }}>🎯 {p.client}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12, color: '#633806' }}>
+                    <span><strong>Profil :</strong> {p.profil}</span>
+                    <span><strong>Expérience :</strong> {p.experience}</span>
+                    <span><strong>Technologies :</strong> {p.technologies}</span>
+                    <span><strong>Salaire max :</strong> {p.salaire_max}</span>
+                    <span><strong>Langues :</strong> {p.langues}</span>
+                    <span><strong>Lieu :</strong> {p.lieu}</span>
+                  </div>
                 </div>
               ))}
-              <textarea
-                value={newP1}
-                onChange={e => setNewP1(e.target.value)}
-                placeholder="Ex: Ingénieur production, compétences Ansible, anglais courant..."
-                rows={3}
-                style={{ width: '100%', borderRadius: 8, padding: '10px 12px', fontSize: 13, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', resize: 'vertical', fontFamily: 'inherit', marginTop: p1List.length > 0 ? 8 : 0 }}
-              />
+
+              {P1_FIELDS.map(({ key, label }) => (
+                <div key={key} style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 3 }}>{label}</label>
+                  <input
+                    type="text"
+                    value={newP1[key]}
+                    onChange={e => setNewP1(p => ({ ...p, [key]: e.target.value }))}
+                    placeholder={label}
+                    style={{ width: '100%', borderRadius: 8, padding: '8px 12px', fontSize: 13, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+
               <button
                 onClick={addP1}
-                disabled={savingP1 || !newP1.trim()}
-                style={{ marginTop: 8, width: '100%', padding: '10px', background: newP1.trim() ? '#BA7517' : 'var(--color-background-secondary)', color: newP1.trim() ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: newP1.trim() ? 'pointer' : 'default' }}
+                disabled={savingP1 || !p1Complete}
+                style={{
+                  marginTop: 8, width: '100%', padding: '10px',
+                  background: p1Complete ? '#BA7517' : 'var(--color-background-secondary)',
+                  color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)',
+                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                  cursor: p1Complete ? 'pointer' : 'default'
+                }}
               >
                 {savingP1 ? 'Ajout...' : '+ Ajouter un P1'}
               </button>
