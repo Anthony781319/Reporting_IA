@@ -7,8 +7,9 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
+const isValidP1 = p => p.profil?.trim() || p.description?.trim()
+
 const P1Card = ({ p, faded = false }) => {
-  // Rétrocompatibilité ancien format texte libre
   if (p.description && !p.profil) {
     return (
       <div style={{ display: 'flex', gap: 8 }}>
@@ -17,7 +18,6 @@ const P1Card = ({ p, faded = false }) => {
       </div>
     )
   }
-
   return (
     <div>
       <div style={{ fontSize: 13, fontWeight: 700, color: faded ? '#888780' : '#633806', marginBottom: 6 }}>
@@ -50,8 +50,8 @@ export default function P1Page() {
         supabase.from('p1').select('*, ia(nom)').eq('semaine', selectedWeek - 1).eq('annee', annee),
         supabase.from('p1').select('*, ia(nom)').eq('semaine', selectedWeek - 2).eq('annee', annee),
       ])
-      setP1Data(p1 || [])
-      setPrevP1Data(prevP1 || [])
+      setP1Data((p1 || []).filter(isValidP1))
+      setPrevP1Data((prevP1 || []).filter(isValidP1))
       setLoading(false)
     }
     load()
