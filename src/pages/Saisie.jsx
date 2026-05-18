@@ -16,16 +16,27 @@ const Section = ({ title, color, children }) => (
   </div>
 )
 
-const Field = ({ label, value, onChange, readOnly, highlight }) => (
-  <div style={{ marginBottom: 10 }}>
-    <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>{label}</label>
-    <input
-      type="number" min="0"
-      value={value}
-      onChange={onChange ? e => onChange(parseInt(e.target.value) || 0) : undefined}
-      readOnly={readOnly}
-      style={{ width: '100%', textAlign: 'center', fontWeight: highlight ? 500 : 400, background: readOnly ? 'var(--color-background-secondary)' : undefined, color: highlight ? '#534AB7' : undefined, cursor: readOnly ? 'default' : undefined }}
-    />
+const Counter = ({ label, value, onChange, color = '#534AB7' }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <button
+        onClick={() => onChange(Math.max(0, value - 1))}
+        style={{ width: 32, height: 32, borderRadius: '50%', border: `1.5px solid ${color}`, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}
+      >−</button>
+      <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center', color }}>{value}</span>
+      <button
+        onClick={() => onChange(value + 1)}
+        style={{ width: 32, height: 32, borderRadius: '50%', border: `1.5px solid ${color}`, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}
+      >+</button>
+    </div>
+  </div>
+)
+
+const TotalField = ({ label, value, color }) => (
+  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${color}20`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{label}</span>
+    <span style={{ fontSize: 16, fontWeight: 600, color }}>{value}</span>
   </div>
 )
 
@@ -45,7 +56,6 @@ export default function Saisie({ iaId, iaName }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  // P1
   const [p1List, setP1List] = useState([])
   const [newP1, setNewP1] = useState('')
   const [savingP1, setSavingP1] = useState(false)
@@ -72,8 +82,7 @@ export default function Saisie({ iaId, iaName }) {
           fins_de_mission: data.fins_de_mission || 0, presentations_a_monter: data.presentations_a_monter || 0,
         })
       } else { setForm(emptyForm) }
-      const p1s = p1Data || []
-      setP1List(p1s)
+      setP1List(p1Data || [])
       setLoading(false)
     }
     load()
@@ -133,33 +142,33 @@ export default function Saisie({ iaId, iaName }) {
       ) : (
         <>
           <Section title="RDV Commerciaux" color="#534AB7">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-              <Field label="Découvertes" value={form.decouvertes} onChange={set('decouvertes')} />
-              <Field label="Prospects" value={form.prospects} onChange={set('prospects')} />
-              <Field label="Clients" value={form.clients} onChange={set('clients')} />
-              <Field label="Présentations" value={form.presentations} onChange={set('presentations')} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+              <Counter label="Découvertes" value={form.decouvertes} onChange={set('decouvertes')} color="#534AB7" />
+              <Counter label="Prospects" value={form.prospects} onChange={set('prospects')} color="#534AB7" />
+              <Counter label="Clients" value={form.clients} onChange={set('clients')} color="#534AB7" />
+              <Counter label="Présentations" value={form.presentations} onChange={set('presentations')} color="#534AB7" />
             </div>
-            <Field label="Total RDV (automatique)" value={totalRdv} readOnly highlight />
+            <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-              <Field label="Besoins Détectés" value={form.besoins_detectes} onChange={set('besoins_detectes')} />
-              <Field label="RDV Candidat" value={form.rdv_candidats} onChange={set('rdv_candidats')} />
-              <Field label="Solutions Envoyées" value={form.cv_envoyes} onChange={set('cv_envoyes')} />
-              <Field label="Attente Réponse Client" value={form.attente_retour} onChange={set('attente_retour')} />
-              <Field label="Attente Retour Prez" value={form.attente_retour_prez} onChange={set('attente_retour_prez')} />
-              <Field label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+              <Counter label="Besoins Détectés" value={form.besoins_detectes} onChange={set('besoins_detectes')} color="#0F6E56" />
+              <Counter label="RDV Candidat" value={form.rdv_candidats} onChange={set('rdv_candidats')} color="#0F6E56" />
+              <Counter label="Solutions Envoyées" value={form.cv_envoyes} onChange={set('cv_envoyes')} color="#0F6E56" />
+              <Counter label="Attente Réponse Client" value={form.attente_retour} onChange={set('attente_retour')} color="#0F6E56" />
+              <Counter label="Attente Retour Prez" value={form.attente_retour_prez} onChange={set('attente_retour_prez')} color="#0F6E56" />
+              <Counter label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} color="#0F6E56" />
             </div>
-            <Field label="Total Pipe (automatique)" value={totalPipe} readOnly highlight />
+            <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
           </Section>
 
           <Section title="Résultats" color="#993556">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-              <Field label="Signatures" value={form.signatures} onChange={set('signatures')} />
-              <Field label="Démarrages" value={form.demarrages} onChange={set('demarrages')} />
-              <Field label="Fins de mission" value={form.fins_de_mission} onChange={set('fins_de_mission')} />
-              <Field label="Présentations à monter" value={form.presentations_a_monter} onChange={set('presentations_a_monter')} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+              <Counter label="Signatures" value={form.signatures} onChange={set('signatures')} color="#993556" />
+              <Counter label="Démarrages" value={form.demarrages} onChange={set('demarrages')} color="#993556" />
+              <Counter label="Fins de mission" value={form.fins_de_mission} onChange={set('fins_de_mission')} color="#993556" />
+              <Counter label="Présentations à monter" value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
             </div>
           </Section>
 
@@ -193,7 +202,7 @@ export default function Saisie({ iaId, iaName }) {
             </div>
           </div>
 
-                    <button
+          <button
             onClick={handleSave}
             disabled={saving}
             style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}
