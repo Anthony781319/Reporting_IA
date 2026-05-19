@@ -23,11 +23,10 @@ const SectionHeader = ({ title, subtitle, color, icon }) => (
 )
 
 const SectionBody = ({ color, children, noPadding }) => (
-  <div style={{ border: '1px solid ' + color + '25', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: noPadding ? 0 : 14, marginBottom: 20, overflow: noPadding ? 'hidden' : undefined }}>
+  <div style={{ border: '1px solid ' + color + '25', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: noPadding ? 0 : 14, marginBottom: 20, overflow: noPadding ? 'hidden' : undefined, background: color + '06' }}>
     {children}
   </div>
 )
-
 const Trend = ({ current, previous }) => {
   if (previous === undefined || previous === null) return null
   const diff = current - previous
