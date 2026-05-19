@@ -20,15 +20,11 @@ const Counter = ({ label, value, onChange, color = '#534AB7' }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
     <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>{label}</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <button
-        onClick={() => onChange(Math.max(0, value - 1))}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: `1.5px solid ${color}`, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}
-      >−</button>
+      <button onClick={() => onChange(Math.max(0, value - 1))}
+        style={{ width: 32, height: 32, borderRadius: '50%', border: `1.5px solid ${color}`, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>−</button>
       <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center', color }}>{value}</span>
-      <button
-        onClick={() => onChange(value + 1)}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: `1.5px solid ${color}`, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}
-      >+</button>
+      <button onClick={() => onChange(value + 1)}
+        style={{ width: 32, height: 32, borderRadius: '50%', border: `1.5px solid ${color}`, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
     </div>
   </div>
 )
@@ -48,21 +44,20 @@ const emptyForm = {
 }
 
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
-const P1_FIELDS = [
-  { key: 'client',       label: 'Client',                  icon: '🏢' },
-  { key: 'profil',       label: 'Profil recherché',         icon: '🎯' },
-  { key: 'experience',   label: "Années d'expérience",      icon: '📅' },
-  { key: 'technologies', label: 'Technologies à maîtriser', icon: '💻' },
-  { key: 'salaire_max',  label: 'Salaire max',              icon: '💰' },
-  { key: 'langues',      label: 'Langues à maîtriser',      icon: '🌍' },
-  { key: 'lieu',         label: 'Lieu de mission',          icon: '📍' },
+
+const P1_STEPS = [
+  { key: 'profil',       label: 'Profil recherché',         placeholder: 'Ex: Ingénieur DevOps senior',    color: '#534AB7', textColor: '#3C3489', num: 1 },
+  { key: 'client',       label: 'Client',                   placeholder: 'Nom du client',                  color: '#0F6E56', textColor: '#085041', num: 2 },
+  { key: 'experience',   label: "Expérience requise",       placeholder: 'Ex: 5 ans minimum',              color: '#BA7517', textColor: '#633806', num: 3 },
+  { key: 'technologies', label: 'Technologies',             placeholder: 'Ex: Ansible, Kubernetes',        color: '#993556', textColor: '#72243E', num: 4 },
+  { key: 'salaire_max',  label: 'Salaire max',              placeholder: 'Ex: 55k€',                      color: '#185FA5', textColor: '#0C447C', num: 5 },
+  { key: 'langues',      label: 'Langues',                  placeholder: 'Ex: Anglais, Français',          color: '#185FA5', textColor: '#0C447C', num: 6 },
+  { key: 'lieu',         label: 'Lieu de mission',          placeholder: 'Ex: Paris / Remote',             color: '#5F5E5A', textColor: '#444441', num: 7 },
 ]
 
 export default function Saisie({ iaId, iaName }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
-
-  // Semaines autorisées : semaine en cours + semaine précédente uniquement
   const allowedWeeks = semaine > 1
     ? [{ value: semaine, label: `Semaine ${semaine} (en cours)` }, { value: semaine - 1, label: `Semaine ${semaine - 1} (précédente)` }]
     : [{ value: semaine, label: `Semaine ${semaine} (en cours)` }]
@@ -72,14 +67,13 @@ export default function Saisie({ iaId, iaName }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-
   const [p1List, setP1List] = useState([])
   const [newP1, setNewP1] = useState(emptyP1)
   const [savingP1, setSavingP1] = useState(false)
 
   const totalRdv = form.decouvertes + form.prospects + form.clients + form.presentations
   const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
-  const p1Complete = P1_FIELDS.every(({ key }) => newP1[key]?.trim())
+  const p1Complete = P1_STEPS.every(({ key }) => newP1[key]?.trim())
 
   useEffect(() => {
     if (!iaId) return
@@ -148,11 +142,7 @@ export default function Saisie({ iaId, iaName }) {
           <div style={{ fontSize: 15, fontWeight: 500 }}>Bonjour {iaName} 👋</div>
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{annee}</div>
         </div>
-        <select
-          value={selectedWeek}
-          onChange={e => setSelectedWeek(parseInt(e.target.value))}
-          style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}
-        >
+        <select value={selectedWeek} onChange={e => setSelectedWeek(parseInt(e.target.value))} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}>
           {allowedWeeks.map(w => (
             <option key={w.value} value={w.value}>{w.label}</option>
           ))}
@@ -201,55 +191,85 @@ export default function Saisie({ iaId, iaName }) {
             </div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
 
-              {p1List.filter(p => p.profil).map(p => (
+              {/* P1 existantes */}
+              {p1List.filter(p => p.profil?.trim() || p.description?.trim()).map(p => (
                 <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
                   <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#633806', marginBottom: 8 }}>🎯 {p.profil}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: 12, color: '#633806' }}>
-                    <span>🏢 <strong>Client :</strong> {p.client}</span>
-                    <span>📅 <strong>Expérience :</strong> {p.experience}</span>
-                    <span>💻 <strong>Technologies :</strong> {p.technologies}</span>
-                    <span>💰 <strong>Salaire max :</strong> {p.salaire_max}</span>
-                    <span>🌍 <strong>Langues :</strong> {p.langues}</span>
-                    <span>📍 <strong>Lieu :</strong> {p.lieu}</span>
-                  </div>
+                  {p.profil ? (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#633806', marginBottom: 8 }}>🎯 {p.profil}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: 12, color: '#633806' }}>
+                        <span>🏢 <strong>Client :</strong> {p.client}</span>
+                        <span>📅 <strong>Expérience :</strong> {p.experience}</span>
+                        <span>💻 <strong>Technologies :</strong> {p.technologies}</span>
+                        <span>💰 <strong>Salaire max :</strong> {p.salaire_max}</span>
+                        <span>🌍 <strong>Langues :</strong> {p.langues}</span>
+                        <span>📍 <strong>Lieu :</strong> {p.lieu}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 13, color: '#633806', lineHeight: 1.5 }}>🎯 {p.description}</div>
+                  )}
                 </div>
               ))}
 
-              {p1List.filter(p => p.description && !p.profil).map(p => (
-                <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
-                  <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
-                  <div style={{ fontSize: 13, color: '#633806', lineHeight: 1.5 }}>🎯 {p.description}</div>
-                </div>
-              ))}
+              {/* Formulaire wizard */}
+              <div style={{ marginBottom: 12 }}>
+                {P1_STEPS.map((step, idx) => {
+                  const isSalaireLangues = step.key === 'salaire_max'
+                  const isLangues = step.key === 'langues'
+                  if (isLangues) return null // géré avec salaire_max
 
-              {P1_FIELDS.map(({ key, label, icon }) => (
-                <div key={key} style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: '#BA7517', display: 'block', marginBottom: 3 }}>
-                    {icon} {label}
-                  </label>
-                  <input
-                    type="text"
-                    value={newP1[key]}
-                    onChange={e => setNewP1(p => ({ ...p, [key]: e.target.value }))}
-                    placeholder={label}
-                    style={{ width: '100%', borderRadius: 8, padding: '8px 12px', fontSize: 13, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
+                  const langStep = P1_STEPS.find(s => s.key === 'langues')
+
+                  return (
+                    <div key={step.key} style={{ display: 'flex', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: step.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0, marginTop: 2 }}>
+                        {step.num}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: step.textColor, marginBottom: 4 }}>{step.label}</div>
+                        {isSalaireLangues ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <input
+                              type="text" value={newP1[step.key]}
+                              onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
+                              placeholder={step.placeholder}
+                              style={{ borderRadius: 8, padding: '8px 10px', fontSize: 12, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                            />
+                            <input
+                              type="text" value={newP1['langues']}
+                              onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))}
+                              placeholder={langStep.placeholder}
+                              style={{ borderRadius: 8, padding: '8px 10px', fontSize: 12, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            type="text" value={newP1[step.key]}
+                            onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
+                            placeholder={step.placeholder}
+                            style={{ width: '100%', borderRadius: 8, padding: '8px 10px', fontSize: 12, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
 
               <button
                 onClick={addP1}
                 disabled={savingP1 || !p1Complete}
                 style={{
-                  marginTop: 8, width: '100%', padding: '10px',
+                  width: '100%', padding: '11px',
                   background: p1Complete ? '#BA7517' : 'var(--color-background-secondary)',
                   color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)',
-                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500,
+                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
                   cursor: p1Complete ? 'pointer' : 'default'
                 }}
               >
-                {savingP1 ? 'Ajout...' : '+ Ajouter un P1'}
+                {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
               </button>
             </div>
           </div>
