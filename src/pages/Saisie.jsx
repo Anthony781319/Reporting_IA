@@ -215,33 +215,35 @@ export default function Saisie({ iaId, iaName }) {
 
               {/* Formulaire wizard */}
               <div style={{ marginBottom: 12 }}>
-                {P1_STEPS.map((step, idx) => {
-                  const isSalaireLangues = step.key === 'salaire_max'
+                {P1_STEPS.map((step) => {
                   const isLangues = step.key === 'langues'
-                  if (isLangues) return null // géré avec salaire_max
+                  if (isLangues) return null
 
                   const langStep = P1_STEPS.find(s => s.key === 'langues')
+                  const isSalaireLangues = step.key === 'salaire_max'
 
                   return (
-                    <div key={step.key} style={{ display: 'flex', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: step.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0, marginTop: 2 }}>
-                        {step.num}
+                    <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${step.color}` }}>
+                      {/* Colonne numéro */}
+                      <div style={{ width: 40, background: step.color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '10px 0', flexShrink: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{step.num}</div>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: step.textColor, marginBottom: 4 }}>{step.label}</div>
+                      {/* Colonne contenu */}
+                      <div style={{ flex: 1, background: `${step.color}12`, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
                         {isSalaireLangues ? (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             <input
                               type="text" value={newP1[step.key]}
                               onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
                               placeholder={step.placeholder}
-                              style={{ borderRadius: 8, padding: '8px 10px', fontSize: 12, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
                             />
                             <input
                               type="text" value={newP1['langues']}
                               onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))}
                               placeholder={langStep.placeholder}
-                              style={{ borderRadius: 8, padding: '8px 10px', fontSize: 12, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                         ) : (
@@ -249,7 +251,7 @@ export default function Saisie({ iaId, iaName }) {
                             type="text" value={newP1[step.key]}
                             onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
                             placeholder={step.placeholder}
-                            style={{ width: '100%', borderRadius: 8, padding: '8px 10px', fontSize: 12, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
                           />
                         )}
                       </div>
@@ -257,7 +259,6 @@ export default function Saisie({ iaId, iaName }) {
                   )
                 })}
               </div>
-
               <button
                 onClick={addP1}
                 disabled={savingP1 || !p1Complete}
