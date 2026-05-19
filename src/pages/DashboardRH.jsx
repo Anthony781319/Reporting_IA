@@ -9,6 +9,26 @@ const currentWeek = () => {
   return Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7)
 }
 
+const sectionBox = { background: 'var(--color-background-primary)', borderRadius: 14, padding: '20px', marginBottom: 16 }
+const sectionTitle = { fontSize: 14, fontWeight: 600, marginBottom: 14 }
+const sectionTitle2 = { fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--color-text-secondary)' }
+const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px', marginBottom: 6, fontSize: 13 }
+const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
+const pill = { border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
+const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
+
+function DetailSection({ title, children, empty }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary)' }}>{title}</div>
+      {empty
+        ? <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '8px 0' }}>Aucune entrée cette semaine</div>
+        : children
+      }
+    </div>
+  )
+}
+
 export default function DashboardRH() {
   const annee = new Date().getFullYear()
   const [semaine, setSemaine] = useState(currentWeek())
@@ -54,7 +74,9 @@ export default function DashboardRH() {
       })
       setReportings(repMap)
 
-      const rdvMap = {}, presMap = {}, sigMap = {}
+      const rdvMap = {}
+      const presMap = {}
+      const sigMap = {}
       CR_LIST.forEach(cr => {
         rdvMap[cr] = (rdv || []).filter(r => r.cr_nom === cr)
         presMap[cr] = (pr || []).filter(p => p.cr_nom === cr)
@@ -81,29 +103,21 @@ export default function DashboardRH() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 16px' }}>
 
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>📊 Dashboard Recrutement</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{annee}</p>
         </div>
         <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 10, padding: 4, gap: 4 }}>
-          <button
-            onClick={() => setMode('semaine')}
-            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: mode === 'semaine' ? '#534AB7' : 'none', color: mode === 'semaine' ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}
-          >
+          <button onClick={() => setMode('semaine')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: mode === 'semaine' ? '#534AB7' : 'none', color: mode === 'semaine' ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}>
             Semaine
           </button>
-          <button
-            onClick={() => setMode('annee')}
-            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: mode === 'annee' ? '#534AB7' : 'none', color: mode === 'annee' ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}
-          >
+          <button onClick={() => setMode('annee')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: mode === 'annee' ? '#534AB7' : 'none', color: mode === 'annee' ? '#fff' : 'var(--color-text-secondary)', transition: 'all 0.2s' }}>
             Année
           </button>
         </div>
       </div>
 
-      {/* Navigation semaine */}
       {mode === 'semaine' && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 20 }}>
           <button onClick={() => setSemaine(s => Math.max(1, s - 1))} style={btnNav}>←</button>
@@ -116,7 +130,6 @@ export default function DashboardRH() {
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-secondary)' }}>Chargement...</div>
       ) : (
         <>
-          {/* Total équipe */}
           <div style={sectionBox}>
             <div style={sectionTitle}>
               🏆 Total équipe — {mode === 'semaine' ? `Semaine ${semaine}` : `Année ${annee}`}
@@ -131,7 +144,6 @@ export default function DashboardRH() {
             </div>
           </div>
 
-          {/* Par CR */}
           <div style={sectionTitle2}>👤 Par chargé(e) de recrutement</div>
 
           {CR_LIST.map(cr => {
@@ -220,23 +232,3 @@ export default function DashboardRH() {
     </div>
   )
 }
-
-function DetailSection({ title, children, empty }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-secondary)' }}>{title}</div>
-      {empty
-        ? <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '8px 0' }}>Aucune entrée cette semaine</div>
-        : children
-      }
-    </div>
-  )
-}
-
-const sectionBox = { background: 'var(--color-background-primary)', borderRadius: 14, padding: '20px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }
-const sectionTitle = { fontSize: 14, fontWeight: 600, marginBottom: 14 }
-const sectionTitle2 = { fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--color-text-secondary)' }
-const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 8, padding: '10px 12px', marginBottom: 6, fontSize: 13 }
-const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
-const pill = { border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
-const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
