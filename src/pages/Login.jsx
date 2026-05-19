@@ -9,6 +9,16 @@ const PORTALS = [
   { id: 'manager', icon: '🎯', label: 'Manager', desc: 'Accès dashboard & pilotage' },
 ]
 
+const CARD_COLORS = [
+  { bg: '#EEEDFE', border: '#534AB7', avatarBg: '#534AB7', avatarText: '#EEEDFE', nameColor: '#3C3489' },
+  { bg: '#E1F5EE', border: '#0F6E56', avatarBg: '#0F6E56', avatarText: '#E1F5EE', nameColor: '#085041' },
+  { bg: '#FAEEDA', border: '#BA7517', avatarBg: '#BA7517', avatarText: '#FAEEDA', nameColor: '#633806' },
+  { bg: '#FBEAF0', border: '#993556', avatarBg: '#993556', avatarText: '#FBEAF0', nameColor: '#72243E' },
+  { bg: '#E6F1FB', border: '#185FA5', avatarBg: '#185FA5', avatarText: '#E6F1FB', nameColor: '#0C447C' },
+  { bg: '#EAF3DE', border: '#3B6D11', avatarBg: '#3B6D11', avatarText: '#EAF3DE', nameColor: '#27500A' },
+  { bg: '#F1EFE8', border: '#5F5E5A', avatarBg: '#5F5E5A', avatarText: '#F1EFE8', nameColor: '#444441' },
+]
+
 export default function Login({ onLogin }) {
   const [portal, setPortal] = useState(null)
   const [iaList, setIaList] = useState([])
@@ -30,19 +40,9 @@ export default function Login({ onLogin }) {
     }
   }, [portal])
 
-  const AVATAR_COLORS = [
-    ['#EEEDFE','#3C3489'],['#E1F5EE','#085041'],['#FAEEDA','#633806'],
-    ['#FBEAF0','#72243E'],['#F1EFE8','#444441'],['#E6F1FB','#0C447C'],
-  ]
-
   const handleBack = () => {
-    setPortal(null)
-    setSelected(null)
-    setPassword('')
-    setRhPassword('')
-    setError('')
-    setRhError('')
-    setShowRH(false)
+    setPortal(null); setSelected(null); setPassword('')
+    setRhPassword(''); setError(''); setRhError(''); setShowRH(false)
   }
 
   const handleSubmitIA = () => {
@@ -80,14 +80,9 @@ export default function Login({ onLogin }) {
         </div>
         <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {PORTALS.map(p => (
-            <div
-              key={p.id}
-              onClick={() => setPortal(p.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
-            >
-              <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {p.icon}
-              </div>
+            <div key={p.id} onClick={() => setPortal(p.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{p.icon}</div>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{p.label}</div>
                 <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{p.desc}</div>
@@ -106,18 +101,28 @@ export default function Login({ onLogin }) {
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
         <Header icon="💼" title="Ingénieur d'affaires" />
-        <div style={{ width: '100%', maxWidth: 360 }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
           <div style={labelStyle}>Je suis...</div>
           {loading ? <Loader /> : (
-            <div style={grid2}>
-              {filteredList.map((ia, i) => (
-                <UserCard key={ia.id} ia={ia} index={i} selected={selected} onSelect={s => { setSelected(s); setError('') }} colors={AVATAR_COLORS} />
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+              {filteredList.map((ia, i) => {
+                const c = CARD_COLORS[i % CARD_COLORS.length]
+                const isSelected = selected?.id === ia.id
+                return (
+                  <div key={ia.id} onClick={() => { setSelected(ia); setError('') }}
+                    style={{ borderRadius: 12, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: `1.5px solid ${isSelected ? c.border : c.bg}`, outline: isSelected ? `2.5px solid ${c.border}` : 'none', transition: 'all 0.15s' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
+                      {ia.nom.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center', lineHeight: 1.2 }}>{ia.nom}</div>
+                  </div>
+                )
+              })}
             </div>
           )}
           <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
           {error && <ErrorMsg msg={error} />}
-          <SubmitBtn disabled={!selected} onClick={handleSubmitIA} />
+          <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[filteredList.findIndex(ia => ia.id === selected?.id) % CARD_COLORS.length]?.border : undefined} />
         </div>
       </div>
     )
@@ -130,25 +135,24 @@ export default function Login({ onLogin }) {
         <Header icon="👥" title="Recrutement" />
         <div style={{ width: '100%', maxWidth: 360 }}>
           <div style={labelStyle}>Je suis...</div>
-          <div style={grid2}>
-            {CR_LIST.map((cr) => {
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
+            {CR_LIST.map((cr, i) => {
+              const c = CARD_COLORS[i % CARD_COLORS.length]
               const isSelected = selected === cr
               return (
                 <div key={cr} onClick={() => { setSelected(cr); setError('') }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: isSelected ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: isSelected ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
-                >
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
+                  style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: `1.5px solid ${isSelected ? c.border : c.bg}`, outline: isSelected ? `2.5px solid ${c.border}` : 'none', transition: 'all 0.15s' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
                     {cr.slice(0, 2).toUpperCase()}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{cr}</span>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
                 </div>
               )
             })}
             <div onClick={() => { setSelected('P1 of the week'); setError('') }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: selected === 'P1 of the week' ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: selected === 'P1 of the week' ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
-            >
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>P1</div>
-              <span style={{ fontSize: 13, fontWeight: selected === 'P1 of the week' ? 500 : 400, color: selected === 'P1 of the week' ? '#3C3489' : 'var(--color-text-primary)' }}>P1 of the week</span>
+              style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: '#F1EFE8', border: `1.5px solid ${selected === 'P1 of the week' ? '#5F5E5A' : '#F1EFE8'}`, outline: selected === 'P1 of the week' ? '2.5px solid #5F5E5A' : 'none', transition: 'all 0.15s' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#5F5E5A', color: '#F1EFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>P1</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#444441', textAlign: 'center' }}>P1 of the week</div>
             </div>
           </div>
           <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitCR} />
@@ -168,13 +172,10 @@ export default function Login({ onLogin }) {
         <div style={{ width: '100%', maxWidth: 360 }}>
           {loading ? <Loader /> : (
             <>
-              {/* Dashboard Commerce */}
               {anthony && (
                 <div>
-                  <div
-                    onClick={() => { setSelected(anthony); setShowRH(false); setError('') }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: selected?.id === anthony.id ? '2px solid #534AB7' : '1px solid var(--color-border-tertiary)', background: selected?.id === anthony.id ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 12 }}
-                  >
+                  <div onClick={() => { setSelected(anthony); setShowRH(false); setError('') }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: selected?.id === anthony.id ? '2px solid #534AB7' : '1px solid var(--color-border-tertiary)', background: selected?.id === anthony.id ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 12 }}>
                     <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📊</div>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 600, color: selected?.id === anthony.id ? '#3C3489' : 'var(--color-text-primary)' }}>Dashboard Commerce</div>
@@ -191,13 +192,9 @@ export default function Login({ onLogin }) {
                   )}
                 </div>
               )}
-
-              {/* Dashboard RH */}
               <div>
-                <div
-                  onClick={() => { setShowRH(true); setSelected(null); setError('') }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: showRH ? '2px solid #0F6E56' : '1px solid var(--color-border-tertiary)', background: showRH ? '#E1F5EE' : 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 12 }}
-                >
+                <div onClick={() => { setShowRH(true); setSelected(null); setError('') }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: showRH ? '2px solid #0F6E56' : '1px solid var(--color-border-tertiary)', background: showRH ? '#E1F5EE' : 'var(--color-background-primary)', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 12 }}>
                   <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>👥</div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: showRH ? '#085041' : 'var(--color-text-primary)' }}>Dashboard RH</div>
@@ -242,20 +239,6 @@ function Header({ icon, title }) {
   )
 }
 
-function UserCard({ ia, index, selected, onSelect, colors }) {
-  const [bg, fg] = colors[index % colors.length]
-  const isSelected = selected?.id === ia.id
-  return (
-    <div onClick={() => onSelect(ia)}
-      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: isSelected ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: isSelected ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s' }}>
-      <div style={{ width: 28, height: 28, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
-        {ia.nom.slice(0, 2).toUpperCase()}
-      </div>
-      <span style={{ fontSize: 13, fontWeight: isSelected ? 500 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{ia.nom}</span>
-    </div>
-  )
-}
-
 function PasswordField({ show, value, onChange, onEnter }) {
   if (!show) return null
   return (
@@ -266,10 +249,10 @@ function PasswordField({ show, value, onChange, onEnter }) {
   )
 }
 
-function SubmitBtn({ disabled, onClick }) {
+function SubmitBtn({ disabled, onClick, color }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ width: '100%', padding: 13, background: disabled ? 'var(--color-background-secondary)' : '#534AB7', color: disabled ? 'var(--color-text-secondary)' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: disabled ? 'default' : 'pointer', transition: 'all 0.2s' }}>
+      style={{ width: '100%', padding: 13, background: disabled ? 'var(--color-background-secondary)' : (color || '#534AB7'), color: disabled ? 'var(--color-text-secondary)' : '#ffffff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: disabled ? 'default' : 'pointer', transition: 'all 0.2s' }}>
       Se connecter
     </button>
   )
@@ -285,4 +268,3 @@ function Loader() {
 
 const loginWrap = { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }
 const labelStyle = { fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }
-const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }
