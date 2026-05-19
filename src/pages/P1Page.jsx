@@ -9,27 +9,54 @@ const currentWeek = () => {
 
 const isValidP1 = p => p.profil?.trim() || p.description?.trim()
 
-const P1Card = ({ p, faded = false }) => {
+const P1_TAGS = [
+  { key: 'experience',   icon: '📅' },
+  { key: 'technologies', icon: '💻' },
+  { key: 'salaire_max',  icon: '💰' },
+  { key: 'langues',      icon: '🌍' },
+  { key: 'lieu',         icon: '📍' },
+]
+
+const P1_COLORS = [
+  { header: '#534AB7', light: '#EEEDFE' },
+  { header: '#0F6E56', light: '#E1F5EE' },
+  { header: '#BA7517', light: '#FAEEDA' },
+  { header: '#993556', light: '#FBEAF0' },
+  { header: '#185FA5', light: '#E6F1FB' },
+  { header: '#3B6D11', light: '#EAF3DE' },
+]
+
+const P1Card = ({ p, index = 0, faded = false }) => {
+  const c = faded
+    ? { header: '#888780', light: '#F1EFE8' }
+    : P1_COLORS[index % P1_COLORS.length]
+
   if (p.description && !p.profil) {
     return (
-      <div style={{ display: 'flex', gap: 8 }}>
-        <span style={{ fontSize: 14, flexShrink: 0, opacity: faded ? 0.5 : 1 }}>🎯</span>
-        <span style={{ fontSize: 13, color: faded ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', lineHeight: 1.6 }}>{p.description}</span>
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 8 }}>
+        <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>🎯</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.description}</span>
+        </div>
       </div>
     )
   }
+
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: faded ? '#888780' : '#633806', marginBottom: 6 }}>
-        🎯 {p.profil}
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 8 }}>
+      <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🎯</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{p.profil}</div>
+          {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12, color: faded ? '#aaa' : '#633806' }}>
-        <span>🏢 <strong>Client :</strong> {p.client}</span>
-        <span>📅 <strong>Expérience :</strong> {p.experience}</span>
-        <span>💻 <strong>Technologies :</strong> {p.technologies}</span>
-        <span>💰 <strong>Salaire max :</strong> {p.salaire_max}</span>
-        <span>🌍 <strong>Langues :</strong> {p.langues}</span>
-        <span>📍 <strong>Lieu :</strong> {p.lieu}</span>
+      <div style={{ background: c.light, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {P1_TAGS.map(({ key, icon }) => p[key] ? (
+          <div key={key} style={{ background: c.header, color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+            {icon} {p[key]}
+          </div>
+        ) : null)}
       </div>
     </div>
   )
@@ -110,11 +137,11 @@ export default function P1Page() {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#633806' }}>{nom}</span>
               <span style={{ fontSize: 11, color: '#BA7517', marginLeft: 4 }}>{currentGrouped[nom].length} P1</span>
             </div>
-            {currentGrouped[nom].map((p, i) => (
-              <div key={p.id} style={{ padding: '12px 14px 12px 46px', borderTop: '0.5px solid #f5f4f0', background: i % 2 === 0 ? '#ffffff' : '#fafaf8' }}>
-                <P1Card p={p} />
-              </div>
-            ))}
+            <div style={{ padding: '10px 14px', background: '#fff' }}>
+              {currentGrouped[nom].map((p, index) => (
+                <P1Card key={p.id} p={p} index={index} />
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -136,11 +163,11 @@ export default function P1Page() {
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#444441' }}>{nom}</span>
                   <span style={{ fontSize: 11, color: '#888780', marginLeft: 4 }}>{prevGrouped[nom].length} P1</span>
                 </div>
-                {prevGrouped[nom].map((p, i) => (
-                  <div key={p.id} style={{ padding: '12px 14px 12px 46px', borderTop: '0.5px solid #f5f4f0', background: '#ffffff' }}>
-                    <P1Card p={p} faded />
-                  </div>
-                ))}
+                <div style={{ padding: '10px 14px', background: '#fff' }}>
+                  {prevGrouped[nom].map((p, index) => (
+                    <P1Card key={p.id} p={p} index={index} faded />
+                  ))}
+                </div>
               </div>
             ))}
           </div>
