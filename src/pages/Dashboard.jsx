@@ -61,6 +61,49 @@ const WeekSelector = ({ selectedWeek, semaine, onChange }) => (
 
 const isValidP1 = p => p.profil?.trim() || p.description?.trim()
 
+const P1_TAGS = [
+  { key: 'experience',   icon: '📅' },
+  { key: 'technologies', icon: '💻' },
+  { key: 'salaire_max',  icon: '💰' },
+  { key: 'langues',      icon: '🌍' },
+  { key: 'lieu',         icon: '📍' },
+]
+
+const P1Card = ({ p, faded = false }) => {
+  const color = faded ? '#888780' : '#534AB7'
+  const lightBg = faded ? '#F1EFE8' : '#EEEDFE'
+
+  if (p.description && !p.profil) {
+    return (
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 8 }}>
+        <div style={{ background: color, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>🎯</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', flex: 1 }}>{p.description}</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 8 }}>
+      <div style={{ background: color, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🎯</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{p.profil}</div>
+          {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
+        </div>
+      </div>
+      <div style={{ background: lightBg, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {P1_TAGS.map(({ key, icon }) => p[key] ? (
+          <div key={key} style={{ background: color, color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+            {icon} {p[key]}
+          </div>
+        ) : null)}
+      </div>
+    </div>
+  )
+}
+
 function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1Data }) {
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
@@ -75,7 +118,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
   const ranking = [...weekData].map(d => ({ name: d.ia?.nom || '?', score: (d.total_rdv || 0) * 1 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
 
   const p = (key) => selectedWeek > 1 ? sum(prevData, key) : undefined
-
   const validP1ThisWeek = p1Data.filter(p => p.semaine === selectedWeek && isValidP1(p))
 
   return (
@@ -83,14 +125,14 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
       <SectionHeader title="Indicateurs clés" color="#534AB7" icon="📊" subtitle={`Semaine ${selectedWeek} ${selectedWeek > 1 ? `— vs S${selectedWeek - 1}` : ''}`} />
       <SectionBody color="#534AB7">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-          <KpiCard label="RDV semaine"            value={sum(weekData, 'total_rdv')}          color="#534AB7" previous={p('total_rdv')} />
-          <KpiCard label="Présentations"          value={sum(weekData, 'presentations')}       color="#185FA5" previous={p('presentations')} />
-          <KpiCard label="Signatures"             value={sum(weekData, 'signatures')}          color="#993556" previous={p('signatures')} />
-          <KpiCard label="Démarrages"             value={sum(weekData, 'demarrages')}          color="#0F6E56" previous={p('demarrages')} />
-          <KpiCard label="Fins de mission"        value={sum(weekData, 'fins_de_mission')}     color="#BA7517" previous={p('fins_de_mission')} />
-          <KpiCard label="Solutions envoyées"     value={sum(weekData, 'cv_envoyes')}          color="#3B6D11" previous={p('cv_envoyes')} />
-          <KpiCard label="Besoins détectés"       value={sum(weekData, 'besoins_detectes')}    color="#D85A30" previous={p('besoins_detectes')} />
-          <KpiCard label="Pipe total"             value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
+          <KpiCard label="RDV semaine"             value={sum(weekData, 'total_rdv')}          color="#534AB7" previous={p('total_rdv')} />
+          <KpiCard label="Présentations"           value={sum(weekData, 'presentations')}       color="#185FA5" previous={p('presentations')} />
+          <KpiCard label="Signatures"              value={sum(weekData, 'signatures')}          color="#993556" previous={p('signatures')} />
+          <KpiCard label="Démarrages"              value={sum(weekData, 'demarrages')}          color="#0F6E56" previous={p('demarrages')} />
+          <KpiCard label="Fins de mission"         value={sum(weekData, 'fins_de_mission')}     color="#BA7517" previous={p('fins_de_mission')} />
+          <KpiCard label="Solutions envoyées"      value={sum(weekData, 'cv_envoyes')}          color="#3B6D11" previous={p('cv_envoyes')} />
+          <KpiCard label="Besoins détectés"        value={sum(weekData, 'besoins_detectes')}    color="#D85A30" previous={p('besoins_detectes')} />
+          <KpiCard label="Pipe total"              value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
           <KpiCard label="Présentations à monter" value={sum(weekData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
           <KpiCard label="P1 actifs"              value={validP1ThisWeek.length}               color="#BA7517" previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
         </div>
@@ -138,9 +180,9 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
       <SectionHeader title="État du pipe" color="#BA7517" icon="🎯" subtitle={`Photo de la semaine ${selectedWeek}`} />
       <SectionBody color="#BA7517" noPadding>
         {[
-          { label: 'Besoins sans solution',            key: 'besoins_sans_solution', color: '#534AB7', icon: '🔍' },
-          { label: 'En attente réponse client',        key: 'attente_retour',        color: '#BA7517', icon: '⏳' },
-          { label: 'Présentations en attente retour',  key: 'attente_retour_prez',   color: '#993556', icon: '📋' },
+          { label: 'Besoins sans solution',           key: 'besoins_sans_solution', color: '#534AB7', icon: '🔍' },
+          { label: 'En attente réponse client',       key: 'attente_retour',        color: '#BA7517', icon: '⏳' },
+          { label: 'Présentations en attente retour', key: 'attente_retour_prez',   color: '#993556', icon: '📋' },
         ].map((item, idx) => (
           <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: idx < 2 ? `0.5px solid ${item.color}15` : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -157,11 +199,11 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
         ))}
       </SectionBody>
 
-      {/* Section P1 — filtrée et format structuré */}
+      {/* Section P1 */}
       {validP1ThisWeek.length > 0 && (
         <>
-          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#BA7517" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
-          <SectionBody color="#BA7517">
+          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#534AB7" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
+          <SectionBody color="#534AB7">
             {Object.entries(
               validP1ThisWeek.reduce((acc, p) => {
                 const nom = p.ia?.nom || '?'
@@ -170,30 +212,12 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
                 return acc
               }, {})
             ).map(([nom, ps]) => (
-              <div key={nom} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#BA7517', marginBottom: 6 }}>{nom}</div>
-                {ps.map(p => (
-                  <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 8, padding: '10px 12px', marginBottom: 6 }}>
-                    {p.profil ? (
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#633806', marginBottom: 6 }}>🎯 {p.profil}</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12, color: '#633806' }}>
-                          <span>🏢 <strong>Client :</strong> {p.client}</span>
-                          <span>📅 <strong>Expérience :</strong> {p.experience}</span>
-                          <span>💻 <strong>Technologies :</strong> {p.technologies}</span>
-                          <span>💰 <strong>Salaire max :</strong> {p.salaire_max}</span>
-                          <span>🌍 <strong>Langues :</strong> {p.langues}</span>
-                          <span>📍 <strong>Lieu :</strong> {p.lieu}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <span style={{ fontSize: 13, flexShrink: 0 }}>🎯</span>
-                        <span style={{ fontSize: 13, color: '#633806', lineHeight: 1.5 }}>{p.description}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div key={nom} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#534AB7', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700 }}>{nom.slice(0,2).toUpperCase()}</div>
+                  {nom}
+                </div>
+                {ps.map(p => <P1Card key={p.id} p={p} />)}
               </div>
             ))}
           </SectionBody>
@@ -245,12 +269,12 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
           <SectionHeader title={`${selectedIa.nom} — Semaine ${selectedWeek}`} color="#534AB7" icon="👤" subtitle={selectedWeek > 1 ? `vs semaine ${selectedWeek - 1}` : ''} />
           <SectionBody color="#534AB7">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-              <KpiCard label="RDV"                value={sum(iaData, 'total_rdv')}           color="#534AB7" previous={p('total_rdv')} />
-              <KpiCard label="Présentations"      value={sum(iaData, 'presentations')}        color="#185FA5" previous={p('presentations')} />
-              <KpiCard label="Signatures"         value={sum(iaData, 'signatures')}           color="#993556" previous={p('signatures')} />
-              <KpiCard label="Démarrages"         value={sum(iaData, 'demarrages')}           color="#0F6E56" previous={p('demarrages')} />
-              <KpiCard label="Solutions envoyées" value={sum(iaData, 'cv_envoyes')}           color="#3B6D11" previous={p('cv_envoyes')} />
-              <KpiCard label="Besoins détectés"   value={sum(iaData, 'besoins_detectes')}     color="#D85A30" previous={p('besoins_detectes')} />
+              <KpiCard label="RDV"                value={sum(iaData, 'total_rdv')}            color="#534AB7" previous={p('total_rdv')} />
+              <KpiCard label="Présentations"      value={sum(iaData, 'presentations')}         color="#185FA5" previous={p('presentations')} />
+              <KpiCard label="Signatures"         value={sum(iaData, 'signatures')}            color="#993556" previous={p('signatures')} />
+              <KpiCard label="Démarrages"         value={sum(iaData, 'demarrages')}            color="#0F6E56" previous={p('demarrages')} />
+              <KpiCard label="Solutions envoyées" value={sum(iaData, 'cv_envoyes')}            color="#3B6D11" previous={p('cv_envoyes')} />
+              <KpiCard label="Besoins détectés"   value={sum(iaData, 'besoins_detectes')}      color="#D85A30" previous={p('besoins_detectes')} />
               <KpiCard label="Pipe total"         value={sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')} color="#BA7517" previous={selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined} />
               <KpiCard label="Prés. à monter"     value={sum(iaData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
             </div>
@@ -330,7 +354,6 @@ export default function Dashboard() {
         <div style={{ fontSize: 14, fontWeight: 600 }}>Vue d'ensemble</div>
         <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />
       </div>
-
       <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 10, padding: 3, marginBottom: 16 }}>
         {[['equipe', '👥 Équipe'], ['focus', '👤 Focus IA']].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: view === id ? 600 : 400, background: view === id ? '#534AB7' : 'transparent', color: view === id ? '#EEEDFE' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -338,7 +361,6 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
-
       {view === 'equipe' ? (
         <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} />
       ) : (
