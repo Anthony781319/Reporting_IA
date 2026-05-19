@@ -61,25 +61,11 @@ const WeekSelector = ({ selectedWeek, semaine, onChange }) => (
 
 const isValidP1 = p => p.profil?.trim() || p.description?.trim()
 
-const P1_TAGS = [
-  { key: 'experience',   icon: '📅' },
-  { key: 'technologies', icon: '💻' },
-  { key: 'salaire_max',  icon: '💰' },
-  { key: 'langues',      icon: '🌍' },
-  { key: 'lieu',         icon: '📍' },
-]
-
-const P1_COLORS = [
-  { header: '#7F77DD', light: '#EEEDFE' },
-  { header: '#378ADD', light: '#E6F1FB' },
-]
-
-const P1Card = ({ p, index = 0 }) => {
-  const c = P1_COLORS[index % P1_COLORS.length]
+const P1Card = ({ p }) => {
   if (p.description && !p.profil) {
     return (
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 8 }}>
-        <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1.5px solid #534AB7', marginBottom: 10 }}>
+        <div style={{ background: '#534AB7', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14 }}>🎯</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.description}</span>
         </div>
@@ -87,20 +73,42 @@ const P1Card = ({ p, index = 0 }) => {
     )
   }
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 8 }}>
-      <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🎯</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{p.profil}</div>
-          {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
-        </div>
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1.5px solid #534AB7', marginBottom: 10 }}>
+      <div style={{ padding: '12px 14px', background: '#fff', borderBottom: '1px solid #534AB720' }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#26215C', marginBottom: 3 }}>{p.profil}</div>
+        {p.client && <div style={{ fontSize: 12, color: '#534AB7', fontWeight: 600 }}>🏢 {p.client}</div>}
       </div>
-      <div style={{ background: c.light, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {P1_TAGS.map(({ key, icon }) => p[key] ? (
-          <div key={key} style={{ background: c.header, color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
-            {icon} {p[key]}
+      <div style={{ padding: '10px 12px', background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {p.experience && (
+          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
+            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Expérience</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.experience}</div>
           </div>
-        ) : null)}
+        )}
+        {p.salaire_max && (
+          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
+            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.salaire_max}</div>
+          </div>
+        )}
+        {p.technologies && (
+          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}>
+            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.technologies}</div>
+          </div>
+        )}
+        {p.langues && (
+          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
+            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.langues}</div>
+          </div>
+        )}
+        {p.lieu && (
+          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
+            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.lieu}</div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -200,8 +208,8 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
 
       {validP1ThisWeek.length > 0 && (
         <>
-          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#7F77DD" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
-          <SectionBody color="#7F77DD">
+          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#534AB7" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
+          <SectionBody color="#534AB7">
             {Object.entries(
               validP1ThisWeek.reduce((acc, p) => {
                 const nom = p.ia?.nom || '?'
@@ -215,7 +223,7 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
                   <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700 }}>{nom.slice(0,2).toUpperCase()}</div>
                   {nom}
                 </div>
-                {ps.map((p, index) => <P1Card key={p.id} p={p} index={index} />)}
+                {ps.map(p => <P1Card key={p.id} p={p} />)}
               </div>
             ))}
           </SectionBody>
