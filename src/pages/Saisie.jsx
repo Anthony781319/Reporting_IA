@@ -46,13 +46,13 @@ const emptyForm = {
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 
 const P1_STEPS = [
-  { key: 'profil',       label: 'Profil recherché',         placeholder: 'Ex: Ingénieur DevOps senior',    color: '#534AB7', textColor: '#3C3489', num: 1 },
-  { key: 'client',       label: 'Client',                   placeholder: 'Nom du client',                  color: '#0F6E56', textColor: '#085041', num: 2 },
-  { key: 'experience',   label: "Expérience requise",       placeholder: 'Ex: 5 ans minimum',              color: '#BA7517', textColor: '#633806', num: 3 },
-  { key: 'technologies', label: 'Technologies',             placeholder: 'Ex: Ansible, Kubernetes',        color: '#993556', textColor: '#72243E', num: 4 },
-  { key: 'salaire_max',  label: 'Salaire max',              placeholder: 'Ex: 55k€',                      color: '#185FA5', textColor: '#0C447C', num: 5 },
-  { key: 'langues',      label: 'Langues',                  placeholder: 'Ex: Anglais, Français',          color: '#185FA5', textColor: '#0C447C', num: 6 },
-  { key: 'lieu',         label: 'Lieu de mission',          placeholder: 'Ex: Paris / Remote',             color: '#5F5E5A', textColor: '#444441', num: 7 },
+  { key: 'profil',       label: 'Profil recherché',   placeholder: 'Ex: Ingénieur DevOps senior', color: '#534AB7', textColor: '#3C3489', num: 1 },
+  { key: 'client',       label: 'Client',              placeholder: 'Nom du client',               color: '#0F6E56', textColor: '#085041', num: 2 },
+  { key: 'experience',   label: 'Expérience requise',  placeholder: 'Ex: 5 ans minimum',           color: '#BA7517', textColor: '#633806', num: 3 },
+  { key: 'technologies', label: 'Technologies',        placeholder: 'Ex: Ansible, Kubernetes',     color: '#993556', textColor: '#72243E', num: 4 },
+  { key: 'salaire_max',  label: 'Salaire max',         placeholder: 'Ex: 55k€',                   color: '#185FA5', textColor: '#0C447C', num: 5 },
+  { key: 'langues',      label: 'Langues',             placeholder: 'Ex: Anglais, Français',       color: '#185FA5', textColor: '#0C447C', num: 6 },
+  { key: 'lieu',         label: 'Lieu de mission',     placeholder: 'Ex: Paris / Remote',          color: '#5F5E5A', textColor: '#444441', num: 7 },
 ]
 
 export default function Saisie({ iaId, iaName }) {
@@ -224,11 +224,9 @@ export default function Saisie({ iaId, iaName }) {
 
                   return (
                     <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${step.color}` }}>
-                      {/* Colonne numéro */}
-                      <div style={{ width: 40, background: step.color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '10px 0', flexShrink: 0 }}>
+                      <div style={{ width: 40, background: step.color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{step.num}</div>
                       </div>
-                      {/* Colonne contenu */}
                       <div style={{ flex: 1, background: `${step.color}12`, padding: '10px 12px' }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
                         {isSalaireLangues ? (
@@ -237,13 +235,13 @@ export default function Saisie({ iaId, iaName }) {
                               type="text" value={newP1[step.key]}
                               onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
                               placeholder={step.placeholder}
-                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
                             />
                             <input
                               type="text" value={newP1['langues']}
                               onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))}
                               placeholder={langStep.placeholder}
-                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
                             />
                           </div>
                         ) : (
@@ -251,7 +249,7 @@ export default function Saisie({ iaId, iaName }) {
                             type="text" value={newP1[step.key]}
                             onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
                             placeholder={step.placeholder}
-                            style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
                           />
                         )}
                       </div>
@@ -259,6 +257,7 @@ export default function Saisie({ iaId, iaName }) {
                   )
                 })}
               </div>
+
               <button
                 onClick={addP1}
                 disabled={savingP1 || !p1Complete}
