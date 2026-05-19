@@ -70,12 +70,8 @@ const P1_TAGS = [
 ]
 
 const P1_COLORS = [
-  { header: '#534AB7', light: '#EEEDFE' },
-  { header: '#0F6E56', light: '#E1F5EE' },
-  { header: '#BA7517', light: '#FAEEDA' },
-  { header: '#993556', light: '#FBEAF0' },
-  { header: '#185FA5', light: '#E6F1FB' },
-  { header: '#3B6D11', light: '#EAF3DE' },
+  { header: '#7F77DD', light: '#EEEDFE' },
+  { header: '#378ADD', light: '#E6F1FB' },
 ]
 
 const P1Card = ({ p, index = 0 }) => {
