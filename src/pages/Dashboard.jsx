@@ -69,33 +69,39 @@ const P1_TAGS = [
   { key: 'lieu',         icon: '📍' },
 ]
 
-const P1Card = ({ p, faded = false }) => {
-  const color = faded ? '#888780' : '#534AB7'
-  const lightBg = faded ? '#F1EFE8' : '#EEEDFE'
+const P1_COLORS = [
+  { header: '#534AB7', light: '#EEEDFE' },
+  { header: '#0F6E56', light: '#E1F5EE' },
+  { header: '#BA7517', light: '#FAEEDA' },
+  { header: '#993556', light: '#FBEAF0' },
+  { header: '#185FA5', light: '#E6F1FB' },
+  { header: '#3B6D11', light: '#EAF3DE' },
+]
 
+const P1Card = ({ p, index = 0 }) => {
+  const c = P1_COLORS[index % P1_COLORS.length]
   if (p.description && !p.profil) {
     return (
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 8 }}>
-        <div style={{ background: color, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 8 }}>
+        <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14 }}>🎯</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', flex: 1 }}>{p.description}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.description}</span>
         </div>
       </div>
     )
   }
-
   return (
-    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 8 }}>
-      <div style={{ background: color, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 8 }}>
+      <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🎯</div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{p.profil}</div>
           {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
         </div>
       </div>
-      <div style={{ background: lightBg, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ background: c.light, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {P1_TAGS.map(({ key, icon }) => p[key] ? (
-          <div key={key} style={{ background: color, color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+          <div key={key} style={{ background: c.header, color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
             {icon} {p[key]}
           </div>
         ) : null)}
@@ -116,7 +122,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
   })
 
   const ranking = [...weekData].map(d => ({ name: d.ia?.nom || '?', score: (d.total_rdv || 0) * 1 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
-
   const p = (key) => selectedWeek > 1 ? sum(prevData, key) : undefined
   const validP1ThisWeek = p1Data.filter(p => p.semaine === selectedWeek && isValidP1(p))
 
@@ -184,22 +189,19 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
           { label: 'En attente réponse client',       key: 'attente_retour',        color: '#BA7517', icon: '⏳' },
           { label: 'Présentations en attente retour', key: 'attente_retour_prez',   color: '#993556', icon: '📋' },
         ].map((item, idx) => (
-          <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: idx < 2 ? `0.5px solid ${item.color}15` : 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 20 }}>{item.icon}</span>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.label}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 24, fontWeight: 600, color: item.color }}>{sum(weekData, item.key)}</div>
-                  {selectedWeek > 1 && <Trend current={sum(weekData, item.key)} previous={sum(prevData, item.key)} />}
-                </div>
+          <div key={item.key} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: idx < 2 ? `0.5px solid ${item.color}15` : 'none' }}>
+            <span style={{ fontSize: 20, marginRight: 10 }}>{item.icon}</span>
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.label}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 24, fontWeight: 600, color: item.color }}>{sum(weekData, item.key)}</div>
+                {selectedWeek > 1 && <Trend current={sum(weekData, item.key)} previous={sum(prevData, item.key)} />}
               </div>
             </div>
           </div>
         ))}
       </SectionBody>
 
-      {/* Section P1 */}
       {validP1ThisWeek.length > 0 && (
         <>
           <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#534AB7" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
@@ -217,7 +219,7 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
                   <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700 }}>{nom.slice(0,2).toUpperCase()}</div>
                   {nom}
                 </div>
-                {ps.map(p => <P1Card key={p.id} p={p} />)}
+                {ps.map((p, index) => <P1Card key={p.id} p={p} index={index} />)}
               </div>
             ))}
           </SectionBody>
@@ -229,7 +231,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
 
 function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
   const [selectedIa, setSelectedIa] = useState(null)
-
   const iaData = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek) : []
   const iaPrev = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek - 1) : []
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
@@ -261,9 +262,7 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
       </div>
 
       {!selectedIa ? (
-        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '32px 0' }}>
-          👆 Sélectionne un IA pour voir son détail
-        </div>
+        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '32px 0' }}>👆 Sélectionne un IA pour voir son détail</div>
       ) : (
         <>
           <SectionHeader title={`${selectedIa.nom} — Semaine ${selectedWeek}`} color="#534AB7" icon="👤" subtitle={selectedWeek > 1 ? `vs semaine ${selectedWeek - 1}` : ''} />
@@ -301,15 +300,13 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
               { label: 'En attente réponse client',       key: 'attente_retour',        color: '#BA7517', icon: '⏳' },
               { label: 'Présentations en attente retour', key: 'attente_retour_prez',   color: '#993556', icon: '📋' },
             ].map((item, idx) => (
-              <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: idx < 2 ? `0.5px solid ${item.color}15` : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>{item.icon}</span>
-                  <div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.label}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ fontSize: 24, fontWeight: 600, color: item.color }}>{sum(iaData, item.key)}</div>
-                      {selectedWeek > 1 && <Trend current={sum(iaData, item.key)} previous={sum(iaPrev, item.key)} />}
-                    </div>
+              <div key={item.key} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: idx < 2 ? `0.5px solid ${item.color}15` : 'none' }}>
+                <span style={{ fontSize: 20, marginRight: 10 }}>{item.icon}</span>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.label}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: item.color }}>{sum(iaData, item.key)}</div>
+                    {selectedWeek > 1 && <Trend current={sum(iaData, item.key)} previous={sum(iaPrev, item.key)} />}
                   </div>
                 </div>
               </div>
