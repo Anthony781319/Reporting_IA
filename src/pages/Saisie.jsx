@@ -63,32 +63,45 @@ const P1_TAGS = [
   { key: 'lieu',         icon: '📍' },
 ]
 
-const P1Card = ({ p, onRemove }) => {
-  const color = '#534AB7'
-  const lightBg = '#EEEDFE'
-  return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 10 }}>
-      {/* Header */}
-      <div style={{ background: color, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🎯</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{p.profil || p.description}</div>
-            {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
-          </div>
+const P1_COLORS = [
+  { header: '#534AB7', light: '#EEEDFE' },
+  { header: '#0F6E56', light: '#E1F5EE' },
+  { header: '#BA7517', light: '#FAEEDA' },
+  { header: '#993556', light: '#FBEAF0' },
+  { header: '#185FA5', light: '#E6F1FB' },
+  { header: '#3B6D11', light: '#EAF3DE' },
+]
+
+const P1Card = ({ p, index = 0, onRemove }) => {
+  const c = P1_COLORS[index % P1_COLORS.length]
+  if (p.description && !p.profil) {
+    return (
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 10 }}>
+        <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14 }}>🎯</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', flex: 1 }}>{p.description}</span>
+          {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>}
         </div>
-        <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
       </div>
-      {/* Tags */}
-      {p.profil && (
-        <div style={{ background: lightBg, padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-          {P1_TAGS.map(({ key, icon }) => p[key] ? (
-            <div key={key} style={{ background: color, color: '#fff', borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 600 }}>
-              {icon} {p[key]}
-            </div>
-          ) : null)}
+    )
+  }
+  return (
+    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${c.header}`, marginBottom: 10 }}>
+      <div style={{ background: c.header, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🎯</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{p.profil}</div>
+          {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
         </div>
-      )}
+        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>}
+      </div>
+      <div style={{ background: c.light, padding: '8px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {P1_TAGS.map(({ key, icon }) => p[key] ? (
+          <div key={key} style={{ background: c.header, color: '#fff', borderRadius: 20, padding: '3px 10px', fontSize: 11, fontWeight: 600 }}>
+            {icon} {p[key]}
+          </div>
+        ) : null)}
+      </div>
     </div>
   )
 }
@@ -229,9 +242,8 @@ export default function Saisie({ iaId, iaName }) {
             </div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
 
-              {/* P1 existantes */}
-              {p1List.filter(p => p.profil?.trim() || p.description?.trim()).map(p => (
-                <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
+              {p1List.filter(p => p.profil?.trim() || p.description?.trim()).map((p, index) => (
+                <P1Card key={p.id} p={p} index={index} onRemove={() => removeP1(p.id)} />
               ))}
 
               {/* Formulaire wizard */}
