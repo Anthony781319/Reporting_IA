@@ -46,14 +46,52 @@ const emptyForm = {
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 
 const P1_STEPS = [
-  { key: 'profil',       label: 'Profil recherché',   placeholder: 'Ex: Ingénieur DevOps senior', color: '#534AB7', textColor: '#3C3489', num: 1 },
-  { key: 'client',       label: 'Client',              placeholder: 'Nom du client',               color: '#0F6E56', textColor: '#085041', num: 2 },
-  { key: 'experience',   label: 'Expérience requise',  placeholder: 'Ex: 5 ans minimum',           color: '#BA7517', textColor: '#633806', num: 3 },
-  { key: 'technologies', label: 'Technologies',        placeholder: 'Ex: Ansible, Kubernetes',     color: '#993556', textColor: '#72243E', num: 4 },
-  { key: 'salaire_max',  label: 'Salaire max',         placeholder: 'Ex: 55k€',                   color: '#185FA5', textColor: '#0C447C', num: 5 },
-  { key: 'langues',      label: 'Langues',             placeholder: 'Ex: Anglais, Français',       color: '#185FA5', textColor: '#0C447C', num: 6 },
-  { key: 'lieu',         label: 'Lieu de mission',     placeholder: 'Ex: Paris / Remote',          color: '#5F5E5A', textColor: '#444441', num: 7 },
+  { key: 'profil',       label: 'Profil recherché',  placeholder: 'Ex: Ingénieur DevOps senior', color: '#534AB7', textColor: '#3C3489', num: 1 },
+  { key: 'client',       label: 'Client',             placeholder: 'Nom du client',               color: '#0F6E56', textColor: '#085041', num: 2 },
+  { key: 'experience',   label: 'Expérience requise', placeholder: 'Ex: 5 ans minimum',           color: '#BA7517', textColor: '#633806', num: 3 },
+  { key: 'technologies', label: 'Technologies',       placeholder: 'Ex: Ansible, Kubernetes',     color: '#993556', textColor: '#72243E', num: 4 },
+  { key: 'salaire_max',  label: 'Salaire max',        placeholder: 'Ex: 55k€',                   color: '#185FA5', textColor: '#0C447C', num: 5 },
+  { key: 'langues',      label: 'Langues',            placeholder: 'Ex: Anglais, Français',       color: '#185FA5', textColor: '#0C447C', num: 6 },
+  { key: 'lieu',         label: 'Lieu de mission',    placeholder: 'Ex: Paris / Remote',          color: '#5F5E5A', textColor: '#444441', num: 7 },
 ]
+
+const P1_TAGS = [
+  { key: 'experience',   icon: '📅' },
+  { key: 'technologies', icon: '💻' },
+  { key: 'salaire_max',  icon: '💰' },
+  { key: 'langues',      icon: '🌍' },
+  { key: 'lieu',         icon: '📍' },
+]
+
+const P1Card = ({ p, onRemove }) => {
+  const color = '#534AB7'
+  const lightBg = '#EEEDFE'
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 10 }}>
+      {/* Header */}
+      <div style={{ background: color, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🎯</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{p.profil || p.description}</div>
+            {p.client && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>🏢 {p.client}</div>}
+          </div>
+        </div>
+        <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
+      </div>
+      {/* Tags */}
+      {p.profil && (
+        <div style={{ background: lightBg, padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+          {P1_TAGS.map(({ key, icon }) => p[key] ? (
+            <div key={key} style={{ background: color, color: '#fff', borderRadius: 20, padding: '4px 12px', fontSize: 11, fontWeight: 600 }}>
+              {icon} {p[key]}
+            </div>
+          ) : null)}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Saisie({ iaId, iaName }) {
   const semaine = currentWeek()
@@ -193,24 +231,7 @@ export default function Saisie({ iaId, iaName }) {
 
               {/* P1 existantes */}
               {p1List.filter(p => p.profil?.trim() || p.description?.trim()).map(p => (
-                <div key={p.id} style={{ background: '#FAEEDA', borderRadius: 10, padding: '12px 14px', marginBottom: 10, position: 'relative' }}>
-                  <button onClick={() => removeP1(p.id)} style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#BA7517', fontSize: 16 }}>×</button>
-                  {p.profil ? (
-                    <>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#633806', marginBottom: 8 }}>🎯 {p.profil}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: 12, color: '#633806' }}>
-                        <span>🏢 <strong>Client :</strong> {p.client}</span>
-                        <span>📅 <strong>Expérience :</strong> {p.experience}</span>
-                        <span>💻 <strong>Technologies :</strong> {p.technologies}</span>
-                        <span>💰 <strong>Salaire max :</strong> {p.salaire_max}</span>
-                        <span>🌍 <strong>Langues :</strong> {p.langues}</span>
-                        <span>📍 <strong>Lieu :</strong> {p.lieu}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 13, color: '#633806', lineHeight: 1.5 }}>🎯 {p.description}</div>
-                  )}
-                </div>
+                <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
               ))}
 
               {/* Formulaire wizard */}
@@ -218,39 +239,31 @@ export default function Saisie({ iaId, iaName }) {
                 {P1_STEPS.map((step) => {
                   const isLangues = step.key === 'langues'
                   if (isLangues) return null
-
                   const langStep = P1_STEPS.find(s => s.key === 'langues')
                   const isSalaireLangues = step.key === 'salaire_max'
-
                   return (
                     <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${step.color}` }}>
-                      <div style={{ width: 40, background: step.color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{step.num}</div>
+                      <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
                       </div>
                       <div style={{ flex: 1, background: `${step.color}12`, padding: '10px 12px' }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
                         {isSalaireLangues ? (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <input
-                              type="text" value={newP1[step.key]}
+                            <input type="text" value={newP1[step.key]}
                               onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
                               placeholder={step.placeholder}
-                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
-                            />
-                            <input
-                              type="text" value={newP1['langues']}
+                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                            <input type="text" value={newP1['langues']}
                               onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))}
                               placeholder={langStep.placeholder}
-                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
-                            />
+                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
                           </div>
                         ) : (
-                          <input
-                            type="text" value={newP1[step.key]}
+                          <input type="text" value={newP1[step.key]}
                             onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))}
                             placeholder={step.placeholder}
-                            style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                          />
+                            style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: `1px solid ${step.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                         )}
                       </div>
                     </div>
@@ -258,27 +271,15 @@ export default function Saisie({ iaId, iaName }) {
                 })}
               </div>
 
-              <button
-                onClick={addP1}
-                disabled={savingP1 || !p1Complete}
-                style={{
-                  width: '100%', padding: '11px',
-                  background: p1Complete ? '#BA7517' : 'var(--color-background-secondary)',
-                  color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)',
-                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  cursor: p1Complete ? 'pointer' : 'default'
-                }}
-              >
+              <button onClick={addP1} disabled={savingP1 || !p1Complete}
+                style={{ width: '100%', padding: '11px', background: p1Complete ? '#BA7517' : 'var(--color-background-secondary)', color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
                 {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
               </button>
             </div>
           </div>
 
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}
-          >
+          <button onClick={handleSave} disabled={saving}
+            style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}>
             {saving ? 'Enregistrement...' : saved ? '✓ Semaine enregistrée !' : `Enregistrer la semaine ${selectedWeek}`}
           </button>
         </>
