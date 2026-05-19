@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
 
 const PORTALS = [
-  { id: 'ia', icon: '💼', label: 'Ingénieur d\'affaires', desc: 'Accès à ton espace reporting' },
+  { id: 'ia', icon: '💼', label: "Ingénieur d'affaires", desc: 'Accès à ton espace reporting' },
   { id: 'recrutement', icon: '👥', label: 'Recrutement', desc: 'Accès à ton espace recrutement' },
   { id: 'manager', icon: '🎯', label: 'Manager', desc: 'Accès dashboard & pilotage' },
 ]
@@ -18,6 +18,54 @@ const CARD_COLORS = [
   { bg: '#EAF3DE', border: '#3B6D11', avatarBg: '#3B6D11', avatarText: '#EAF3DE', nameColor: '#27500A' },
   { bg: '#F1EFE8', border: '#5F5E5A', avatarBg: '#5F5E5A', avatarText: '#F1EFE8', nameColor: '#444441' },
 ]
+
+const loginWrap = { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }
+const labelStyle = { fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }
+
+function BackButton({ onClick }) {
+  return (
+    <button onClick={onClick} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+      ← Retour
+    </button>
+  )
+}
+
+function Header({ icon, title }) {
+  return (
+    <div style={{ marginBottom: 32, textAlign: 'center' }}>
+      <div style={{ fontSize: 36, marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: 20, fontWeight: 600 }}>{title}</div>
+      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>Connecte-toi pour accéder à ton espace</div>
+    </div>
+  )
+}
+
+function PasswordField({ show, value, onChange, onEnter }) {
+  if (!show) return null
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={labelStyle}>Mot de passe</div>
+      <input type="password" value={value} onChange={e => onChange(e.target.value)} onKeyDown={e => e.key === 'Enter' && onEnter()} placeholder="Entre ton mot de passe" style={{ width: '100%' }} autoFocus />
+    </div>
+  )
+}
+
+function SubmitBtn({ disabled, onClick, color }) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      style={{ width: '100%', padding: 13, background: disabled ? 'var(--color-background-secondary)' : (color || '#534AB7'), color: disabled ? 'var(--color-text-secondary)' : '#ffffff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: disabled ? 'default' : 'pointer', transition: 'all 0.2s' }}>
+      Se connecter
+    </button>
+  )
+}
+
+function ErrorMsg({ msg }) {
+  return <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{msg}</div>
+}
+
+function Loader() {
+  return <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 20 }}>Chargement...</div>
+}
 
 export default function Login({ onLogin }) {
   const [portal, setPortal] = useState(null)
@@ -220,51 +268,3 @@ export default function Login({ onLogin }) {
     )
   }
 }
-
-function BackButton({ onClick }) {
-  return (
-    <button onClick={onClick} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
-      ← Retour
-    </button>
-  )
-}
-
-function Header({ icon, title }) {
-  return (
-    <div style={{ marginBottom: 32, textAlign: 'center' }}>
-      <div style={{ fontSize: 36, marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontSize: 20, fontWeight: 600 }}>{title}</div>
-      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>Connecte-toi pour accéder à ton espace</div>
-    </div>
-  )
-}
-
-function PasswordField({ show, value, onChange, onEnter }) {
-  if (!show) return null
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={labelStyle}>Mot de passe</div>
-      <input type="password" value={value} onChange={e => onChange(e.target.value)} onKeyDown={e => e.key === 'Enter' && onEnter()} placeholder="Entre ton mot de passe" style={{ width: '100%' }} autoFocus />
-    </div>
-  )
-}
-
-function SubmitBtn({ disabled, onClick, color }) {
-  return (
-    <button onClick={onClick} disabled={disabled}
-      style={{ width: '100%', padding: 13, background: disabled ? 'var(--color-background-secondary)' : (color || '#534AB7'), color: disabled ? 'var(--color-text-secondary)' : '#ffffff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: disabled ? 'default' : 'pointer', transition: 'all 0.2s' }}>
-      Se connecter
-    </button>
-  )
-}
-
-function ErrorMsg({ msg }) {
-  return <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{msg}</div>
-}
-
-function Loader() {
-  return <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 20 }}>Chargement...</div>
-}
-
-const loginWrap = { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }
-const labelStyle = { fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }
