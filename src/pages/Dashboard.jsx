@@ -135,7 +135,7 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
           <KpiCard label="Besoins détectés"        value={sum(weekData, 'besoins_detectes')}    color="#D85A30" previous={p('besoins_detectes')} />
           <KpiCard label="Pipe total"              value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
           <KpiCard label="Présentations à monter" value={sum(weekData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
-          <KpiCard label="P1 actifs"              value={validP1ThisWeek.length}               color="#BA7517" previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
+          <KpiCard label="P1 actifs"              value={validP1ThisWeek.length}               color="#7F77DD" previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
         </div>
       </SectionBody>
 
@@ -200,8 +200,8 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
 
       {validP1ThisWeek.length > 0 && (
         <>
-          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#534AB7" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
-          <SectionBody color="#534AB7">
+          <SectionHeader title={`Priorités P1 — Semaine ${selectedWeek}`} color="#7F77DD" icon="🎯" subtitle={`${validP1ThisWeek.length} priorité(s) active(s)`} />
+          <SectionBody color="#7F77DD">
             {Object.entries(
               validP1ThisWeek.reduce((acc, p) => {
                 const nom = p.ia?.nom || '?'
