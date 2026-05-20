@@ -10,8 +10,24 @@ const PORTALS = [
 ]
 
 const MANAGER_OPTIONS = [
-  { id: 'commerce', icon: '📊', label: 'Dashboard Commerce', desc: 'Pilotage & reporting équipe',     bg: '#EEEDFE', color: '#534AB7', darkColor: '#3C3489' },
-  { id: 'rh',       icon: '👥', label: 'Dashboard RH',       desc: 'Suivi recrutement & candidats',   bg: '#E1F5EE', color: '#0F6E56', darkColor: '#085041' },
+  {
+    id: 'commerce',
+    icon: '📊',
+    label: 'Dashboard Commerce',
+    desc: 'Pilotage & reporting équipe',
+    bg: '#DBEAFE',
+    color: '#2563EB',
+    darkColor: '#1E3A8A'
+  },
+  {
+    id: 'rh',
+    icon: '👥',
+    label: 'Dashboard RH',
+    desc: 'Suivi recrutement & candidats',
+    bg: '#DCFCE7',
+    color: '#16A34A',
+    darkColor: '#14532D'
+  },
 ]
 
 const CARD_COLORS = [
