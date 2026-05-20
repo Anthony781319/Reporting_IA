@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   .select('ia_id')
   .eq('semaine', semaine)
   .eq('annee', annee)
-  .gt('total_rdv', 0)
+  .or('total_rdv.gt.0,presentations.gt.0,signatures.gt.0,demarrages.gt.0,fins_de_mission.gt.0,cv_envoyes.gt.0,besoins_detectes.gt.0')
 
     const iaAvecSaisie = new Set((saisies || []).map(s => s.ia_id))
     const iaSansSaisie = (iaList || [])
