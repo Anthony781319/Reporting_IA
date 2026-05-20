@@ -22,10 +22,7 @@ export default function App() {
   const [tab, setTab] = useState('saisie')
 
   const resetRoles = () => {
-    setIsAdmin(false)
-    setIsP1(false)
-    setIsCR(false)
-    setIsRH(false)
+    setIsAdmin(false); setIsP1(false); setIsCR(false); setIsRH(false)
   }
 
   const handleLogin = (ia, password) => {
@@ -47,24 +44,20 @@ export default function App() {
     return false
   }
 
-  const handleLogout = () => {
-    setUser(null)
-    resetRoles()
-    setTab('saisie')
-  }
+  const handleLogout = () => { setUser(null); resetRoles(); setTab('saisie') }
 
   if (!user) return <Login onLogin={handleLogin} />
 
   const adminTabs = [
-    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard Commerce' },
+    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
     { id: 'saisie',    icon: 'ti-edit',             label: 'Ma saisie' },
     { id: 'equipe',    icon: 'ti-users',             label: 'Équipe' },
     { id: 'admin',     icon: 'ti-settings',          label: 'Admin' },
   ]
-  const userTabs = [{ id: 'saisie', icon: 'ti-edit',       label: 'Ma saisie' }]
-  const p1Tabs   = [{ id: 'p1',     icon: 'ti-target',     label: 'P1 of the week' }]
-  const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',       label: 'Mon reporting' }]
-  const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar',  label: 'Dashboard RH' }]
+  const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
+  const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
+  const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
+  const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
 
   const tabs = isAdmin ? adminTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
 
@@ -90,20 +83,22 @@ export default function App() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="nav-avatar">{getAvatar()}</div>
-          <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 13 }}>
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 13 }}>
             <i className="ti ti-logout" aria-hidden="true"></i>
           </button>
         </div>
       </div>
 
       {tabs.length > 1 && (
-        <div className="tabs">
-          {tabs.map(t => (
-            <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
-              <i className={`ti ${t.icon}`} aria-hidden="true"></i>
-              <span>{t.label}</span>
-            </button>
-          ))}
+        <div className="tabs-wrapper">
+          <div className="tabs-pill">
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} className={`tab-pill ${tab === t.id ? 'active' : ''}`}>
+                <i className={`ti ${t.icon}`} aria-hidden="true"></i>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
