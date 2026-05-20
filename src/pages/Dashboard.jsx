@@ -27,6 +27,7 @@ const SectionBody = ({ color, children, noPadding }) => (
     {children}
   </div>
 )
+
 const Trend = ({ current, previous }) => {
   if (previous === undefined || previous === null) return null
   const diff = current - previous
@@ -108,16 +109,16 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
       <SectionHeader title="Indicateurs cles" color="#534AB7" icon="📊" subtitle={'Semaine ' + selectedWeek + (selectedWeek > 1 ? ' — vs S' + (selectedWeek - 1) : '')} />
       <SectionBody color="#534AB7">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-          <KpiCard label="RDV semaine"           value={sum(weekData, 'total_rdv')}          color="#534AB7" previous={p('total_rdv')} />
-          <KpiCard label="Presentations"         value={sum(weekData, 'presentations')}       color="#185FA5" previous={p('presentations')} />
-          <KpiCard label="Signatures"            value={sum(weekData, 'signatures')}          color="#993556" previous={p('signatures')} />
-          <KpiCard label="Demarrages"            value={sum(weekData, 'demarrages')}          color="#0F6E56" previous={p('demarrages')} />
-          <KpiCard label="Fins de mission"       value={sum(weekData, 'fins_de_mission')}     color="#BA7517" previous={p('fins_de_mission')} />
-          <KpiCard label="Solutions envoyees"    value={sum(weekData, 'cv_envoyes')}          color="#3B6D11" previous={p('cv_envoyes')} />
-          <KpiCard label="Besoins detectes"      value={sum(weekData, 'besoins_detectes')}    color="#D85A30" previous={p('besoins_detectes')} />
-          <KpiCard label="Pipe total"            value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
-          <KpiCard label="Pres. a monter"        value={sum(weekData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
-          <KpiCard label="P1 actifs"             value={validP1ThisWeek.length}               color="#7F77DD" previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
+          <KpiCard label="RDV semaine"        value={sum(weekData, 'total_rdv')}          color="#534AB7" previous={p('total_rdv')} />
+          <KpiCard label="Presentations"      value={sum(weekData, 'presentations')}       color="#185FA5" previous={p('presentations')} />
+          <KpiCard label="Signatures"         value={sum(weekData, 'signatures')}          color="#993556" previous={p('signatures')} />
+          <KpiCard label="Demarrages"         value={sum(weekData, 'demarrages')}          color="#0F6E56" previous={p('demarrages')} />
+          <KpiCard label="Fins de mission"    value={sum(weekData, 'fins_de_mission')}     color="#BA7517" previous={p('fins_de_mission')} />
+          <KpiCard label="Solutions envoyees" value={sum(weekData, 'cv_envoyes')}          color="#3B6D11" previous={p('cv_envoyes')} />
+          <KpiCard label="Besoins detectes"   value={sum(weekData, 'besoins_detectes')}    color="#D85A30" previous={p('besoins_detectes')} />
+          <KpiCard label="Pipe total"         value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')} color="#534AB7" previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
+          <KpiCard label="Pres. a monter"     value={sum(weekData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
+          <KpiCard label="P1 actifs"          value={validP1ThisWeek.length}               color="#7F77DD" previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
         </div>
       </SectionBody>
 
@@ -208,10 +209,15 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
 }
 
 function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
+  const annee = new Date().getFullYear()
   const [selectedIa, setSelectedIa] = useState(null)
-  const iaData = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek) : []
-  const iaPrev = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek - 1) : []
+  const [viewMode, setViewMode] = useState('semaine')
+
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
+
+  const iaData   = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek) : []
+  const iaPrev   = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek - 1) : []
+  const iaAnnuel = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id) : []
 
   const iaTrend = selectedIa ? Array.from({ length: 6 }, (_, i) => {
     const w = selectedWeek - 5 + i
@@ -243,53 +249,95 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '32px 0' }}>👆 Selectionne un IA pour voir son detail</div>
       ) : (
         <>
-          <SectionHeader title={selectedIa.nom + ' — Semaine ' + selectedWeek} color="#534AB7" icon="👤" subtitle={selectedWeek > 1 ? 'vs semaine ' + (selectedWeek - 1) : ''} />
-          <SectionBody color="#534AB7">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-              <KpiCard label="RDV"               value={sum(iaData, 'total_rdv')}            color="#534AB7" previous={p('total_rdv')} />
-              <KpiCard label="Presentations"     value={sum(iaData, 'presentations')}         color="#185FA5" previous={p('presentations')} />
-              <KpiCard label="Signatures"        value={sum(iaData, 'signatures')}            color="#993556" previous={p('signatures')} />
-              <KpiCard label="Demarrages"        value={sum(iaData, 'demarrages')}            color="#0F6E56" previous={p('demarrages')} />
-              <KpiCard label="Solutions"         value={sum(iaData, 'cv_envoyes')}            color="#3B6D11" previous={p('cv_envoyes')} />
-              <KpiCard label="Besoins detectes"  value={sum(iaData, 'besoins_detectes')}      color="#D85A30" previous={p('besoins_detectes')} />
-              <KpiCard label="Pipe total"        value={sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')} color="#BA7517" previous={selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined} />
-              <KpiCard label="Pres. a monter"    value={sum(iaData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
-            </div>
-          </SectionBody>
-
-          <SectionHeader title="Evolution RDV et Signatures" color="#185FA5" icon="📈" subtitle="6 dernieres semaines" />
-          <SectionBody color="#185FA5">
-            <ResponsiveContainer width="100%" height={140}>
-              <LineChart data={iaTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#888780' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#888780' }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="RDV" stroke="#534AB7" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="Signatures" stroke="#993556" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="2 2" />
-              </LineChart>
-            </ResponsiveContainer>
-          </SectionBody>
-
-          <SectionHeader title="Etat du pipe" color="#BA7517" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
-          <SectionBody color="#BA7517" noPadding>
-            {[
-              { label: 'Besoins sans solution',           key: 'besoins_sans_solution', color: '#534AB7', icon: '🔍' },
-              { label: 'En attente reponse client',       key: 'attente_retour',        color: '#BA7517', icon: '⏳' },
-              { label: 'Presentations en attente retour', key: 'attente_retour_prez',   color: '#993556', icon: '📋' },
-            ].map((item, idx) => (
-              <div key={item.key} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: idx < 2 ? '0.5px solid ' + item.color + '15' : 'none' }}>
-                <span style={{ fontSize: 20, marginRight: 10 }}>{item.icon}</span>
-                <div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: item.color }}>{sum(iaData, item.key)}</div>
-                    {selectedWeek > 1 && <Trend current={sum(iaData, item.key)} previous={sum(iaPrev, item.key)} />}
-                  </div>
-                </div>
-              </div>
+          <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 10, padding: 3, marginBottom: 16 }}>
+            {[['semaine', '📅 Semaine'], ['annuel', '📊 Cumulé annuel']].map(([id, label]) => (
+              <button key={id} onClick={() => setViewMode(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: viewMode === id ? 600 : 400, background: viewMode === id ? '#534AB7' : 'transparent', color: viewMode === id ? '#EEEDFE' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                {label}
+              </button>
             ))}
-          </SectionBody>
+          </div>
+
+          {viewMode === 'semaine' ? (
+            <>
+              <SectionHeader title={selectedIa.nom + ' — Semaine ' + selectedWeek} color="#534AB7" icon="👤" subtitle={selectedWeek > 1 ? 'vs semaine ' + (selectedWeek - 1) : ''} />
+              <SectionBody color="#534AB7">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+                  <KpiCard label="RDV"              value={sum(iaData, 'total_rdv')}            color="#534AB7" previous={p('total_rdv')} />
+                  <KpiCard label="Presentations"    value={sum(iaData, 'presentations')}         color="#185FA5" previous={p('presentations')} />
+                  <KpiCard label="Signatures"       value={sum(iaData, 'signatures')}            color="#993556" previous={p('signatures')} />
+                  <KpiCard label="Demarrages"       value={sum(iaData, 'demarrages')}            color="#0F6E56" previous={p('demarrages')} />
+                  <KpiCard label="Solutions"        value={sum(iaData, 'cv_envoyes')}            color="#3B6D11" previous={p('cv_envoyes')} />
+                  <KpiCard label="Besoins detectes" value={sum(iaData, 'besoins_detectes')}      color="#D85A30" previous={p('besoins_detectes')} />
+                  <KpiCard label="Pipe total"       value={sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')} color="#BA7517" previous={selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined} />
+                  <KpiCard label="Pres. a monter"   value={sum(iaData, 'presentations_a_monter')} color="#888780" previous={p('presentations_a_monter')} />
+                </div>
+              </SectionBody>
+
+              <SectionHeader title="Evolution RDV et Signatures" color="#185FA5" icon="📈" subtitle="6 dernieres semaines" />
+              <SectionBody color="#185FA5">
+                <ResponsiveContainer width="100%" height={140}>
+                  <LineChart data={iaTrend}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#888780' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#888780' }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="RDV" stroke="#534AB7" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Signatures" stroke="#993556" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="2 2" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </SectionBody>
+
+              <SectionHeader title="Etat du pipe" color="#BA7517" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
+              <SectionBody color="#BA7517" noPadding>
+                {[
+                  { label: 'Besoins sans solution',           key: 'besoins_sans_solution', color: '#534AB7', icon: '🔍' },
+                  { label: 'En attente reponse client',       key: 'attente_retour',        color: '#BA7517', icon: '⏳' },
+                  { label: 'Presentations en attente retour', key: 'attente_retour_prez',   color: '#993556', icon: '📋' },
+                ].map((item, idx) => (
+                  <div key={item.key} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: idx < 2 ? '0.5px solid ' + item.color + '15' : 'none' }}>
+                    <span style={{ fontSize: 20, marginRight: 10 }}>{item.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{item.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: item.color }}>{sum(iaData, item.key)}</div>
+                        {selectedWeek > 1 && <Trend current={sum(iaData, item.key)} previous={sum(iaPrev, item.key)} />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </SectionBody>
+            </>
+          ) : (
+            <>
+              <SectionHeader title={selectedIa.nom + ' — Cumulé ' + annee} color="#0F6E56" icon="📊" subtitle="Toutes les semaines confondues" />
+              <SectionBody color="#0F6E56">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+                  <KpiCard label="RDV total"        value={sum(iaAnnuel, 'total_rdv')}            color="#534AB7" />
+                  <KpiCard label="Presentations"    value={sum(iaAnnuel, 'presentations')}         color="#185FA5" />
+                  <KpiCard label="Signatures"       value={sum(iaAnnuel, 'signatures')}            color="#993556" />
+                  <KpiCard label="Demarrages"       value={sum(iaAnnuel, 'demarrages')}            color="#0F6E56" />
+                  <KpiCard label="Solutions"        value={sum(iaAnnuel, 'cv_envoyes')}            color="#3B6D11" />
+                  <KpiCard label="Besoins detectes" value={sum(iaAnnuel, 'besoins_detectes')}      color="#D85A30" />
+                  <KpiCard label="Fins de mission"  value={sum(iaAnnuel, 'fins_de_mission')}        color="#BA7517" />
+                  <KpiCard label="Pipe total"       value={sum(iaAnnuel, 'besoins_sans_solution') + sum(iaAnnuel, 'attente_retour') + sum(iaAnnuel, 'attente_retour_prez')} color="#888780" />
+                </div>
+              </SectionBody>
+
+              <SectionHeader title="Evolution RDV et Signatures" color="#185FA5" icon="📈" subtitle="6 dernieres semaines" />
+              <SectionBody color="#185FA5">
+                <ResponsiveContainer width="100%" height={140}>
+                  <LineChart data={iaTrend}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#888780' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#888780' }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="RDV" stroke="#534AB7" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Signatures" stroke="#993556" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="2 2" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </SectionBody>
+            </>
+          )}
         </>
       )}
     </>
