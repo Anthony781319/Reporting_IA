@@ -259,8 +259,8 @@ export default function Login({ onLogin }) {
                       style={{
                         display: 'flex', alignItems: 'center', gap: 16,
                         padding: '18px 20px', borderRadius: 14, cursor: 'pointer',
-                        background: isSelected ? opt.bg : 'var(--color-bg-secondary)',
-                        border: '2px solid ' + (isSelected ? opt.color : 'transparent'),
+                        background: opt.bg,
+border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'),
                         transition: 'all 0.15s'
                       }}>
                       <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
