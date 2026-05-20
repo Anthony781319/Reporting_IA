@@ -21,15 +21,21 @@ export default async function handler(req, res) {
 
     const { data: iaList } = await supabase.from('ia').select('*')
     const { data: saisies } = await supabase
-      .from('saisies')
-      .select('ia_id')
-      .eq('semaine', semaine)
-      .eq('annee', annee)
+  .from('saisies')
+  .select('ia_id')
+  .eq('semaine', semaine)
+  .eq('annee', annee)
+  .gt('total_rdv', 0)
 
     const iaAvecSaisie = new Set((saisies || []).map(s => s.ia_id))
     const iaSansSaisie = (iaList || [])
-      .filter(ia => !iaAvecSaisie.has(ia.id) && ia.nom !== 'Anthony')
-      .map(ia => ia.nom)
+  .filter(ia =>
+    !iaAvecSaisie.has(ia.id) &&
+    ia.nom !== 'Anthony' &&
+    ia.nom !== 'P1 of the week' &&
+    ia.type !== 'cr'
+  )
+  .map(ia => ia.nom)
 
     const message = iaSansSaisie.length === 0
       ? `✅ Tout le monde a saisi son reporting pour la semaine ${semaine} !`
