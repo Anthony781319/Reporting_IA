@@ -4,9 +4,14 @@ import { supabase } from '../supabase'
 const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
 
 const PORTALS = [
-  { id: 'ia', icon: '💼', label: "Ingénieur d'affaires", desc: 'Accès à ton espace reporting', bg: '#EEEDFE', color: '#534AB7' },
-  { id: 'recrutement', icon: '👥', label: 'Recrutement', desc: 'Accès à ton espace recrutement', bg: '#E1F5EE', color: '#0F6E56' },
-  { id: 'manager', icon: '🎯', label: 'Manager', desc: 'Accès dashboard & pilotage', bg: '#FAEEDA', color: '#BA7517' },
+  { id: 'ia',          icon: '💼', label: "Ingénieur d'affaires", desc: 'Accès à ton espace reporting',   bg: '#EEEDFE', color: '#534AB7' },
+  { id: 'recrutement', icon: '👥', label: 'Recrutement',          desc: 'Accès à ton espace recrutement', bg: '#E1F5EE', color: '#0F6E56' },
+  { id: 'manager',     icon: '🎯', label: 'Manager',              desc: 'Accès dashboard & pilotage',     bg: '#FAEEDA', color: '#BA7517' },
+]
+
+const MANAGER_OPTIONS = [
+  { id: 'commerce', icon: '📊', label: 'Dashboard Commerce', desc: 'Pilotage & reporting équipe',     bg: '#EEEDFE', color: '#534AB7', darkColor: '#3C3489' },
+  { id: 'rh',       icon: '👥', label: 'Dashboard RH',       desc: 'Suivi recrutement & candidats',   bg: '#E1F5EE', color: '#0F6E56', darkColor: '#085041' },
 ]
 
 const CARD_COLORS = [
@@ -20,11 +25,11 @@ const CARD_COLORS = [
 ]
 
 const loginWrap = { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }
-const labelStyle = { fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }
+const labelStyle = { fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10, fontWeight: 500 }
 
 function BackButton({ onClick }) {
   return (
-    <button onClick={onClick} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+    <button onClick={onClick} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', fontSize: 13, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
       ← Retour
     </button>
   )
@@ -35,7 +40,7 @@ function Header({ icon, title }) {
     <div style={{ marginBottom: 32, textAlign: 'center' }}>
       <div style={{ fontSize: 36, marginBottom: 8 }}>{icon}</div>
       <div style={{ fontSize: 20, fontWeight: 600 }}>{title}</div>
-      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>Connecte-toi pour accéder à ton espace</div>
+      <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4 }}>Connecte-toi pour accéder à ton espace</div>
     </div>
   )
 }
@@ -53,7 +58,7 @@ function PasswordField({ show, value, onChange, onEnter }) {
 function SubmitBtn({ disabled, onClick, color }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ width: '100%', padding: 13, background: disabled ? 'var(--color-background-secondary)' : (color || '#534AB7'), color: disabled ? 'var(--color-text-secondary)' : '#ffffff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: disabled ? 'default' : 'pointer', transition: 'all 0.2s' }}>
+      style={{ width: '100%', padding: 13, background: disabled ? 'var(--color-bg-secondary)' : (color || '#534AB7'), color: disabled ? 'var(--color-text-muted)' : '#ffffff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: disabled ? 'default' : 'pointer', transition: 'all 0.2s' }}>
       Se connecter
     </button>
   )
@@ -64,7 +69,7 @@ function ErrorMsg({ msg }) {
 }
 
 function Loader() {
-  return <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 20 }}>Chargement...</div>
+  return <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 20 }}>Chargement...</div>
 }
 
 export default function Login({ onLogin }) {
@@ -118,13 +123,14 @@ export default function Login({ onLogin }) {
     if (!ok) setRhError('Mot de passe incorrect')
   }
 
+  // — Écran d'accueil : choix du portail —
   if (!portal) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ marginBottom: 40, textAlign: 'center' }}>
           <i className="ti ti-chart-bar" aria-hidden="true" style={{ fontSize: 40, color: '#534AB7' }}></i>
           <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>Reporting</div>
-          <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>Quel est ton espace ?</div>
+          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 6 }}>Quel est ton espace ?</div>
         </div>
         <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {PORTALS.map(p => (
@@ -143,6 +149,7 @@ export default function Login({ onLogin }) {
     )
   }
 
+  // — Portail IA —
   if (portal === 'ia') {
     const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week')
     return (
@@ -170,12 +177,13 @@ export default function Login({ onLogin }) {
           )}
           <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
           {error && <ErrorMsg msg={error} />}
-          <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[filteredList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length] && CARD_COLORS[filteredList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
+          <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[filteredList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
         </div>
       </div>
     )
   }
 
+  // — Portail Recrutement —
   if (portal === 'recrutement') {
     return (
       <div style={loginWrap}>
@@ -211,6 +219,7 @@ export default function Login({ onLogin }) {
     )
   }
 
+  // — Portail Manager —
   if (portal === 'manager') {
     const anthony = iaList.find(ia => ia.nom === 'Anthony')
     return (
@@ -219,49 +228,57 @@ export default function Login({ onLogin }) {
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360 }}>
           {loading ? <Loader /> : (
-            <>
-              {anthony && (
-                <div>
-                  <div onClick={() => { setSelected(anthony); setShowRH(false); setError('') }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: selected && selected.id === anthony.id ? '2px solid #534AB7' : '1px solid var(--color-border-tertiary)', background: selected && selected.id === anthony.id ? '#EEEDFE' : 'var(--color-background-primary)', transition: 'all 0.15s', marginBottom: 12 }}>
-                    <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#EEEDFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📊</div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: selected && selected.id === anthony.id ? '#3C3489' : 'var(--color-text-primary)' }}>Dashboard Commerce</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>Pilotage & reporting équipe</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {MANAGER_OPTIONS.map(opt => {
+                const isSelected = opt.id === 'commerce'
+                  ? (selected && anthony && selected.id === anthony.id)
+                  : showRH
+                return (
+                  <div key={opt.id}>
+                    <div
+                      onClick={() => {
+                        if (opt.id === 'commerce') { setSelected(anthony); setShowRH(false); setError('') }
+                        else { setShowRH(true); setSelected(null); setRhError('') }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 16,
+                        padding: '18px 20px', borderRadius: 14, cursor: 'pointer',
+                        background: isSelected ? opt.bg : 'var(--color-bg-secondary)',
+                        border: '2px solid ' + (isSelected ? opt.color : 'transparent'),
+                        transition: 'all 0.15s'
+                      }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                        {opt.icon}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: isSelected ? opt.darkColor : 'var(--color-text)' }}>{opt.label}</div>
+                        <div style={{ fontSize: 12, color: isSelected ? opt.color : 'var(--color-text-muted)', marginTop: 2 }}>{opt.desc}</div>
+                      </div>
+                      <div style={{ marginLeft: 'auto', color: isSelected ? opt.color : 'var(--color-text-muted)', fontSize: 18 }}>›</div>
                     </div>
-                    <div style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)', fontSize: 18 }}>›</div>
+
+                    {opt.id === 'commerce' && isSelected && (
+                      <div style={{ marginTop: 10 }}>
+                        <PasswordField show value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
+                        {error && <ErrorMsg msg={error} />}
+                        <SubmitBtn disabled={false} onClick={handleSubmitIA} color={opt.color} />
+                      </div>
+                    )}
+
+                    {opt.id === 'rh' && isSelected && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={labelStyle}>Mot de passe</div>
+                        <input type="password" value={rhPassword} onChange={e => { setRhPassword(e.target.value); setRhError('') }} onKeyDown={e => e.key === 'Enter' && handleRHLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                        {rhError && <ErrorMsg msg={rhError} />}
+                        <button onClick={handleRHLogin} style={{ width: '100%', padding: 13, background: opt.color, color: opt.bg, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                          Se connecter
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {selected && selected.id === anthony.id && (
-                    <>
-                      <PasswordField show value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
-                      {error && <ErrorMsg msg={error} />}
-                      <SubmitBtn disabled={false} onClick={handleSubmitIA} />
-                    </>
-                  )}
-                </div>
-              )}
-              <div>
-                <div onClick={() => { setShowRH(true); setSelected(null); setError('') }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: showRH ? '2px solid #0F6E56' : '1px solid var(--color-border-tertiary)', background: showRH ? '#E1F5EE' : 'var(--color-background-primary)', transition: 'all 0.15s', marginBottom: 12 }}>
-                  <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>👥</div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: showRH ? '#085041' : 'var(--color-text-primary)' }}>Dashboard RH</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>Suivi recrutement & candidats</div>
-                  </div>
-                  <div style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)', fontSize: 18 }}>›</div>
-                </div>
-                {showRH && (
-                  <>
-                    <div style={labelStyle}>Mot de passe RH</div>
-                    <input type="password" value={rhPassword} onChange={e => { setRhPassword(e.target.value); setRhError('') }} onKeyDown={e => e.key === 'Enter' && handleRHLogin()} placeholder="Mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
-                    {rhError && <ErrorMsg msg={rhError} />}
-                    <button onClick={handleRHLogin} style={{ width: '100%', padding: 13, background: '#0F6E56', color: '#E1F5EE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                      Se connecter
-                    </button>
-                  </>
-                )}
-              </div>
-            </>
+                )
+              })}
+            </div>
           )}
         </div>
       </div>
