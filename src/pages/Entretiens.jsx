@@ -268,9 +268,9 @@ Sois concis, professionnel, et utilise le vouvoiement.`
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                <button style={s.btnSecondary} onClick={genererCR} disabled={loadingCR}>
-                  {loadingCR ? '⏳ Génération…' : '✨ Générer le CR'}
-                </button>
+                <button style={s.btnSecondary} onClick={genererCR}>
+  📋 Copier le prompt Claude
+</button>
               </div>
 
               {crGenere && (
