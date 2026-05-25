@@ -54,6 +54,7 @@ export default function App() {
     { id: 'saisie',    icon: 'ti-edit',             label: 'Ma saisie' },
     { id: 'equipe',    icon: 'ti-users',             label: 'Équipe' },
     { id: 'admin',     icon: 'ti-settings',          label: 'Admin' },
+    { id: 'entretiens', icon: 'ti-messages', label: '1:1' }
   ]
   const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
