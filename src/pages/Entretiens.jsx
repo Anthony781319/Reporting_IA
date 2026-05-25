@@ -65,17 +65,15 @@ export default function Entretiens() {
     setActions(actions.filter((_, idx) => idx !== i))
   }
 
-  const genererCR = async () => {
-    if (!observations && !themes) { setMsg('Renseigne au moins les observations avant de générer le CR.'); return }
-    setLoadingCR(true)
-    setCrGenere('')
-    try {
-      const actionsTexte = actions
-        .filter(a => a.description.trim())
-        .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${a.echeance}` : ''}`)
-        .join('\n')
+ const genererCR = () => {
+  if (!observations && !themes) { setMsg('Renseigne au moins les observations avant de générer le prompt.'); return }
+  
+  const actionsTexte = actions
+    .filter(a => a.description.trim())
+    .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${a.echeance}` : ''}`)
+    .join('\n')
 
-      const prompt = `Tu es un assistant manager. Rédige un compte-rendu professionnel et bienveillant d'un point individuel avec ${iaSelectionnee.nom}, Business Engineer dans une ESN spécialisée IT/Télécom/Cybersécurité.
+  const prompt = `Tu es un assistant manager. Rédige un compte-rendu professionnel et bienveillant d'un point individuel avec ${iaSelectionnee.nom}, Business Engineer dans une ESN spécialisée IT/Télécom/Cybersécurité.
 
 Voici les éléments saisis pendant le point :
 
@@ -94,24 +92,10 @@ Rédige un CR structuré avec :
 
 Sois concis, professionnel, et utilise le vouvoiement.`
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
-      })
-      const data = await response.json()
-      const texte = data.content?.[0]?.text || 'Erreur lors de la génération.'
-      setCrGenere(texte)
-    } catch (e) {
-      setMsg('Erreur lors de la génération du CR.')
-    }
-    setLoadingCR(false)
-  }
-
+  navigator.clipboard.writeText(prompt)
+  setCrGenere('')
+  setMsg('✅ Prompt copié ! Colle-le dans Claude.ai, récupère le CR et colle-le dans le champ ci-dessous.')
+}
   const sauvegarderEntretien = async () => {
     if (!crGenere) { setMsg('Génère le CR avant de sauvegarder.'); return }
     setSaving(true)
