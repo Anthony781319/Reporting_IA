@@ -1,3 +1,4 @@
+import Entretiens from './pages/Entretiens'
 import { useState } from 'react'
 import Dashboard from './pages/Dashboard'
 import Saisie from './pages/Saisie'
