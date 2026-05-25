@@ -112,6 +112,7 @@ export default function App() {
         {tab === 'p1'           && <P1Page />}
         {tab === 'saisie-cr'    && <SaisieCR crNom={user.nom} />}
         {tab === 'dashboard-rh' && <DashboardRH />}
+{tab === 'entretiens'   && <Entretiens />}
       </div>
     </div>
   )
