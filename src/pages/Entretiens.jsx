@@ -254,6 +254,13 @@ const envoyerCR = async (entretien) => {
                   )}
                 </div>
               ))}
+              {!e.cr_envoye && (
+  <button style={{ ...s.btnPrimary, marginTop: 10, fontSize: 13 }} onClick={() => envoyerCR(e)}>
+    📨 Envoyer le CR à {iaSelectionnee.nom}
+  </button>
+)}
+          </div>
+          )}
             </div>
           )}
 
