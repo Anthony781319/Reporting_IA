@@ -355,7 +355,7 @@ export default function Entretiens() {
                   {[
                     { label: 'Besoins détectés / RDV', num: 'besoins_detectes', den: 'total_rdv', key: 'kpi_besoins_rdv', color: '#6D28D9', bg: '#EDE9FE' },
                     { label: 'Présentations / Besoins', num: 'presentations', den: 'besoins_detectes', key: 'kpi_pres_besoins', color: '#0369A1', bg: '#E0F2FE' },
-                    { label: 'Signatures / Besoins', num: 'signatures', den: 'besoins_detectes', key: 'kpi_sign_besoins', color: '#9D174D', bg: '#FCE7F3' },
+                    { label: 'Signatures / Présentations', num: 'signatures', den: 'presentations', key: 'kpi_sign_prez', color: '#9D174D', bg: '#FCE7F3' },
                   ].map(kpi => {
                     const taux = tauxKPI(kpi.num, kpi.den)
                     return (
