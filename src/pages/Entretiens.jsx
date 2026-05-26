@@ -383,74 +383,107 @@ export default function Entretiens() {
               {/* ── ACTIONS ── */}
               {menuActif === 'actions' && (
                 <div className="fade-in">
-                  {/* Ajouter */}
-                  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '18px', border: '1px solid var(--color-border-tertiary)', marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Nouvelle action</div>
-                    <input
-                      placeholder={`Action pour ${iaSelectionnee.nom}…`}
-                      value={nouvelleAction.description}
-                      onChange={e => setNouvelleAction({ ...nouvelleAction, description: e.target.value })}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
-                    />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <select value={nouvelleAction.responsable} onChange={e => setNouvelleAction({ ...nouvelleAction, responsable: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 13 }}>
-                        <option value="ia">{iaSelectionnee.nom}</option>
-                        <option value="manager">Manager</option>
-                      </select>
-                      <input type="date" value={nouvelleAction.echeance} onChange={e => setNouvelleAction({ ...nouvelleAction, echeance: e.target.value })}
-                        style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 13 }} />
+
+                  {/* Compteurs pills */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEF9C3', color: '#854D0E', fontSize: 13, fontWeight: 700 }}>
+                      ⏳ {actions.filter(a => a.statut === 'en_cours').length} en cours
                     </div>
-                    <button onClick={ajouterAction}
-                      style={{ marginTop: 12, width: '100%', padding: '11px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                      + Ajouter
-                    </button>
+                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#D1FAE5', color: '#065F46', fontSize: 13, fontWeight: 700 }}>
+                      ✅ {actions.filter(a => a.statut === 'fait').length} terminées
+                    </div>
                   </div>
 
-                  {/* En cours */}
+                  {/* Formulaire ajout */}
+                  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 16, padding: '20px', border: `2px dashed ${couleurIA.color}44`, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: couleurIA.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>+</div>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>Nouvelle action</span>
+                    </div>
+                    <input
+                      placeholder={`Décris l'action à mener…`}
+                      value={nouvelleAction.description}
+                      onChange={e => setNouvelleAction({ ...nouvelleAction, description: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && ajouterAction()}
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+                    />
+                    {/* Responsable toggle */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      {['ia', 'manager'].map(r => (
+                        <button key={r} onClick={() => setNouvelleAction({ ...nouvelleAction, responsable: r })}
+                          style={{ flex: 1, padding: '8px', borderRadius: 10, border: `1.5px solid ${nouvelleAction.responsable === r ? couleurIA.color : 'var(--color-border-tertiary)'}`, background: nouvelleAction.responsable === r ? `${couleurIA.color}18` : 'transparent', color: nouvelleAction.responsable === r ? couleurIA.color : 'var(--color-text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          {r === 'ia' ? `👤 ${iaSelectionnee.nom}` : '🧑‍💼 Manager'}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input type="date" value={nouvelleAction.echeance} onChange={e => setNouvelleAction({ ...nouvelleAction, echeance: e.target.value })}
+                        style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 13 }} />
+                      <button onClick={ajouterAction}
+                        style={{ flex: 1, padding: '8px 16px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        Ajouter →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Actions en cours */}
                   {actions.filter(a => a.statut === 'en_cours').length > 0 && (
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                        ⏳ En cours · {actions.filter(a => a.statut === 'en_cours').length}
-                      </div>
-                      {actions.filter(a => a.statut === 'en_cours').map(a => (
-                        <div key={a.id} style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '14px 16px', marginBottom: 8, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, fontWeight: 500, color: '#1F2937', marginBottom: 4 }}>{a.description}</div>
-                            <div style={{ fontSize: 12, color: '#92400E' }}>
-                              {a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}
-                              {a.echeance && ` · ${new Date(a.echeance).toLocaleDateString('fr-FR')}`}
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>⏳ En cours</div>
+                      {actions.filter(a => a.statut === 'en_cours').map(a => {
+                        const isIA = a.responsable === 'ia'
+                        const echeanceDate = a.echeance ? new Date(a.echeance) : null
+                        const joursRestants = echeanceDate ? Math.ceil((echeanceDate - new Date()) / (1000 * 60 * 60 * 24)) : null
+                        const echeanceUrgente = joursRestants !== null && joursRestants <= 3
+                        return (
+                          <div key={a.id} style={{ borderRadius: 14, padding: '14px 16px', marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start', background: isIA ? '#EDE9FE' : '#FFF7ED', border: `1.5px solid ${isIA ? '#C4B5FD' : '#FED7AA'}` }}>
+                            {/* Avatar responsable */}
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: isIA ? '#6D28D9' : '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                              {isIA ? iaSelectionnee.nom.slice(0, 2).toUpperCase() : 'MG'}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 6, lineHeight: 1.4 }}>{a.description}</div>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: isIA ? '#DDD6FE' : '#FFEDD5', color: isIA ? '#5B21B6' : '#C2410C' }}>
+                                  {isIA ? iaSelectionnee.nom : 'Manager'}
+                                </span>
+                                {echeanceDate && (
+                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: echeanceUrgente ? '#FEE2E2' : '#F3F4F6', color: echeanceUrgente ? '#991B1B' : '#6B7280' }}>
+                                    {echeanceUrgente ? '🔴 ' : '📅 '}{echeanceDate.toLocaleDateString('fr-FR')}
+                                    {joursRestants === 0 ? ' · Aujourd\'hui' : joursRestants === 1 ? ' · Demain' : joursRestants < 0 ? ` · ${Math.abs(joursRestants)}j de retard` : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+                              <button onClick={() => toggleStatut(a.id, a.statut)}
+                                style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                ✓ Fait
+                              </button>
+                              <button onClick={() => supprimerAction(a.id)}
+                                style={{ padding: '5px 10px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                                ✕
+                              </button>
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                            <button onClick={() => toggleStatut(a.id, a.statut)}
-                              style={{ padding: '5px 12px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                              ✓ Fait
-                            </button>
-                            <button onClick={() => supprimerAction(a.id)}
-                              style={{ padding: '5px 10px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
 
-                  {/* Terminées */}
+                  {/* Actions terminées */}
                   {actions.filter(a => a.statut === 'fait').length > 0 && (
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                        ✅ Terminées · {actions.filter(a => a.statut === 'fait').length}
-                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>✅ Terminées</div>
                       {actions.filter(a => a.statut === 'fait').map(a => (
-                        <div key={a.id} style={{ background: '#F0FFF4', border: '1px solid #A7F3D0', borderRadius: 12, padding: '14px 16px', marginBottom: 8, display: 'flex', gap: 12, alignItems: 'flex-start', opacity: 0.75 }}>
+                        <div key={a.id} style={{ borderRadius: 14, padding: '12px 16px', marginBottom: 8, display: 'flex', gap: 12, alignItems: 'center', background: '#F0FFF4', border: '1.5px solid #A7F3D0', opacity: 0.8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>✓</div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 14, color: '#374151', textDecoration: 'line-through' }}>{a.description}</div>
-                            <div style={{ fontSize: 12, color: '#065F46', marginTop: 4 }}>{a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}</div>
+                            <div style={{ fontSize: 13, color: '#374151', textDecoration: 'line-through', opacity: 0.7 }}>{a.description}</div>
+                            <div style={{ fontSize: 11, color: '#065F46', marginTop: 2, fontWeight: 500 }}>{a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}</div>
                           </div>
                           <button onClick={() => toggleStatut(a.id, a.statut)}
-                            style={{ padding: '5px 10px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
+                            style={{ padding: '4px 10px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
                             Réouvrir
                           </button>
                         </div>
@@ -459,8 +492,9 @@ export default function Entretiens() {
                   )}
 
                   {actions.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '32px', color: 'var(--color-text-secondary)', fontSize: 14 }}>
-                      Aucune action pour {iaSelectionnee.nom}
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-secondary)', fontSize: 14 }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
+                      Aucune action définie pour {iaSelectionnee.nom}
                     </div>
                   )}
                 </div>
