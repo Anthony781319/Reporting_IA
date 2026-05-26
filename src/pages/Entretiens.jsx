@@ -139,7 +139,26 @@ Sois concis, professionnel, et utilise le vouvoiement.`
     }
     setSaving(false)
   }
-
+const envoyerCR = async (entretien) => {
+  try {
+    await fetch('https://default1d593042a69d49e08d1c0daf8ac171.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/357caf7470f146f98e8fd5a4d037d9d0/triggers/manual/paths/invoke?api-version=1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: iaSelectionnee.email,
+        nom: iaSelectionnee.nom,
+        cr: entretien.cr_genere,
+        date: new Date(entretien.date_entretien).toLocaleDateString('fr-FR')
+      })
+    })
+    await supabase.from('entretiens').update({ cr_envoye: true }).eq('id', entretien.id)
+    fetchEntretiens(iaSelectionnee.id)
+    setMsg('✅ CR envoyé avec succès !')
+  } catch (e) {
+    setMsg('❌ Erreur lors de l\'envoi.')
+  }
+}
+  
   const toggleStatutAction = async (actionId, statutActuel) => {
     const nouveau = statutActuel === 'en_cours' ? 'fait' : 'en_cours'
     await supabase.from('actions_1to1').update({ statut: nouveau }).eq('id', actionId)
