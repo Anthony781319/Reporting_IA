@@ -204,12 +204,11 @@ Rédige un CR structuré et professionnel avec :
 
 Utilise le vouvoiement. Sois concis et direct.`
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('/api/generate-cr', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01'
+          
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
