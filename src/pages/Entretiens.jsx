@@ -19,24 +19,6 @@ const AVATAR_COLORS = [
 
 const getColor = (index) => AVATAR_COLORS[index % AVATAR_COLORS.length]
 
-const badgeNotation = (val) => {
-  if (!val) return null
-  const map = {
-    insuffisant: { bg: '#FEE2E2', color: '#991B1B', label: '⚠ Insuffisant' },
-    moyen:       { bg: '#FEF9C3', color: '#854D0E', label: '◎ Moyen' },
-    bon:         { bg: '#D1FAE5', color: '#065F46', label: '✓ Bon' },
-    RAS:         { bg: '#F3F4F6', color: '#374151', label: '— RAS' },
-    excellent:   { bg: '#D1FAE5', color: '#065F46', label: '★ Excellent' },
-  }
-  const m = map[val]
-  if (!m) return null
-  return (
-    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: m.bg, color: m.color }}>
-      {m.label}
-    </span>
-  )
-}
-
 const SelectNotation = ({ value, options, onChange }) => {
   const colorMap = {
     insuffisant: { bg: '#FEE2E2', color: '#991B1B', border: '#FCA5A5' },
@@ -75,6 +57,9 @@ export default function Entretiens() {
   const [msg, setMsg] = useState('')
   const [saving, setSaving] = useState(false)
   const [animating, setAnimating] = useState(false)
+  const [loadingCR, setLoadingCR] = useState(false)
+  const [crGenere, setCrGenere] = useState('')
+  const [crEnvoye, setCrEnvoye] = useState(false)
 
   useEffect(() => { fetchIas() }, [])
 
@@ -99,6 +84,8 @@ export default function Entretiens() {
 
   const handleSelectIA = (ia, index) => {
     setAnimating(true)
+    setCrGenere('')
+    setCrEnvoye(false)
     setTimeout(() => {
       setIaSelectionnee(ia)
       setIaIndex(index)
@@ -117,6 +104,8 @@ export default function Entretiens() {
       setEntretiens([])
       setNotations({})
       setActions([])
+      setCrGenere('')
+      setCrEnvoye(false)
       setAnimating(false)
     }, 200)
   }
@@ -168,26 +157,128 @@ export default function Entretiens() {
     fetchData(iaSelectionnee.id)
   }
 
+  const genererCR = async () => {
+    setLoadingCR(true)
+    setCrGenere('')
+    setMsg('')
+    try {
+      const actionsTexte = actions
+        .filter(a => a.statut === 'en_cours')
+        .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${new Date(a.echeance).toLocaleDateString('fr-FR')}` : ''}`)
+        .join('\n')
+
+      const semSaisie = saisiesSemaine.reduce((acc, s) => ({
+        rdv: acc.rdv + (s.total_rdv || 0),
+        pres: acc.pres + (s.presentations || 0),
+        besoins: acc.besoins + (s.besoins_detectes || 0),
+        sign: acc.sign + (s.signatures || 0),
+      }), { rdv: 0, pres: 0, besoins: 0, sign: 0 })
+
+      const prompt = `Tu es un assistant manager bienveillant et professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Business Engineer dans une ESN spécialisée IT/Télécom/Cybersécurité.
+
+DONNÉES DE LA SEMAINE (semaine ${semaineCourante}) :
+- RDV réalisés : ${semSaisie.rdv}
+- Présentations : ${semSaisie.pres}
+- Besoins détectés : ${semSaisie.besoins}
+- Signatures : ${semSaisie.sign}
+
+NOTATIONS DU MANAGER :
+- RDV : ${notations['rdv'] || 'non renseigné'}
+- Présentation : ${notations['presentation'] || 'non renseigné'}
+- Signature : ${notations['signature'] || 'non renseigné'}
+
+STATS YTD :
+- RDV total : ${totalYTD('total_rdv')} / objectif ${objectifRdv}
+- Taux besoins/RDV : ${tauxKPI('besoins_detectes', 'total_rdv')}%
+- Taux présentations/besoins : ${tauxKPI('presentations', 'besoins_detectes')}%
+- Taux signatures/présentations : ${tauxKPI('signatures', 'presentations')}%
+
+ACTIONS DÉFINIES LORS DU POINT :
+${actionsTexte || 'Aucune action définie'}
+
+Rédige un CR structuré et professionnel avec :
+1. Un résumé du point (2-3 phrases)
+2. Analyse de la performance de la semaine
+3. Les actions à mener avec les responsables et échéances
+4. Un mot de conclusion positif et motivant
+
+Utilise le vouvoiement. Sois concis et direct.`
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      })
+      const data = await response.json()
+      const texte = data.content?.[0]?.text
+      if (texte) {
+        setCrGenere(texte)
+      } else {
+        setMsg('❌ Erreur lors de la génération.')
+      }
+    } catch (e) {
+      setMsg('❌ Erreur lors de la génération du CR.')
+    }
+    setLoadingCR(false)
+  }
+
+  const envoyerCR = async () => {
+    if (!crGenere) return
+    try {
+      await fetch('https://default1d593042a69d49e08d1c0daf8ac171.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/357caf7470f146f98e8fd5a4d037d9d0/triggers/manual/paths/invoke?api-version=1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: iaSelectionnee.email,
+          nom: iaSelectionnee.nom,
+          cr: crGenere,
+          date: new Date().toLocaleDateString('fr-FR')
+        })
+      })
+      // Marquer CR comme envoyé
+      const today = new Date().toISOString().split('T')[0]
+      const { data: existing } = await supabase.from('entretiens').select('id').eq('ia_id', iaSelectionnee.id).eq('date_entretien', today).single()
+      if (existing?.id) {
+        await supabase.from('entretiens').update({ cr_genere: crGenere, cr_envoye: true }).eq('id', existing.id)
+      } else {
+        await supabase.from('entretiens').insert({ ia_id: iaSelectionnee.id, date_entretien: today, cr_genere: crGenere, cr_envoye: true, notations: JSON.stringify(notations) })
+      }
+      setCrEnvoye(true)
+      setMsg(`✅ CR envoyé à ${iaSelectionnee.nom} !`)
+      fetchData(iaSelectionnee.id)
+    } catch (e) {
+      setMsg('❌ Erreur lors de l\'envoi.')
+    }
+  }
+
   const menus = [
     { id: 'semaine', icon: '📅', label: 'Semaine' },
     { id: 'ytd',     icon: '📊', label: 'Stats YTD' },
     { id: 'kpi',     icon: '🎯', label: 'KPI' },
     { id: 'actions', icon: '✅', label: 'Actions' },
+    { id: 'cr',      icon: '✉️', label: 'CR' },
   ]
 
   const couleurIA = iaSelectionnee ? getColor(iaIndex) : null
-
   const pctRdv = Math.min(Math.round((totalYTD('total_rdv') / Math.max(objectifRdv, 1)) * 100), 100)
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-background)', fontFamily: 'inherit' }}>
-
-      {/* CSS animations */}
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
         .fade-in { animation: fadeIn 0.25s ease forwards; }
         .fade-out { animation: fadeOut 0.2s ease forwards; }
+        .pulse { animation: pulse 1.5s ease infinite; }
         @media (min-width: 768px) { .bottom-nav { display: none !important; } .top-nav { display: flex !important; } .content-pad { padding-bottom: 24px !important; } }
         @media (max-width: 767px) { .top-nav { display: none !important; } .bottom-nav { display: flex !important; } .content-pad { padding-bottom: 90px !important; } }
       `}</style>
@@ -236,11 +327,11 @@ export default function Entretiens() {
           </div>
         )}
 
-        {/* CONTENU IA SÉLECTIONNÉE */}
+        {/* CONTENU IA */}
         {iaSelectionnee && (
           <>
             {msg && (
-              <div style={{ padding: '10px 14px', background: '#D1FAE5', borderRadius: 10, fontSize: 13, marginBottom: 16, color: '#065F46', fontWeight: 500 }}>
+              <div style={{ padding: '10px 14px', background: msg.startsWith('❌') ? '#FEE2E2' : '#D1FAE5', borderRadius: 10, fontSize: 13, marginBottom: 16, color: msg.startsWith('❌') ? '#991B1B' : '#065F46', fontWeight: 500 }}>
                 {msg}
               </div>
             )}
@@ -263,7 +354,6 @@ export default function Entretiens() {
               {/* ── SEMAINE ── */}
               {menuActif === 'semaine' && (
                 <div className="fade-in">
-                  {/* Chiffres semaine */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
                     {[
                       { label: 'RDV', val: saisiesSemaine.reduce((a, s) => a + (s.total_rdv || 0), 0), color: '#6D28D9', bg: '#EDE9FE' },
@@ -277,8 +367,6 @@ export default function Entretiens() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Notations */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '20px', border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>Notation semaine {semaineCourante}</div>
                     {[
@@ -302,7 +390,6 @@ export default function Entretiens() {
               {/* ── YTD ── */}
               {menuActif === 'ytd' && (
                 <div className="fade-in">
-                  {/* Barre objectif RDV */}
                   <div style={{ background: '#EDE9FE', borderRadius: 14, padding: '20px', marginBottom: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
                       <div>
@@ -319,8 +406,6 @@ export default function Entretiens() {
                     </div>
                     <div style={{ fontSize: 11, color: '#6D28D9', opacity: 0.7, marginTop: 6 }}>{nbSemaines()} semaines écoulées × 8 = {objectifRdv} RDV attendus</div>
                   </div>
-
-                  {/* Autres stats */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
                     {[
                       { label: 'Présentations', val: totalYTD('presentations'), color: '#0369A1', bg: '#E0F2FE' },
@@ -333,8 +418,6 @@ export default function Entretiens() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Notation YTD */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '20px', border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 16 }}>Notation globale YTD</div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -383,8 +466,6 @@ export default function Entretiens() {
               {/* ── ACTIONS ── */}
               {menuActif === 'actions' && (
                 <div className="fade-in">
-
-                  {/* Compteurs pills */}
                   <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                     <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEF9C3', color: '#854D0E', fontSize: 13, fontWeight: 700 }}>
                       ⏳ {actions.filter(a => a.statut === 'en_cours').length} en cours
@@ -394,20 +475,18 @@ export default function Entretiens() {
                     </div>
                   </div>
 
-                  {/* Formulaire ajout */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 16, padding: '20px', border: `2px dashed ${couleurIA.color}44`, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: couleurIA.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>+</div>
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>Nouvelle action</span>
                     </div>
                     <input
-                      placeholder={`Décris l'action à mener…`}
+                      placeholder="Décris l'action à mener…"
                       value={nouvelleAction.description}
                       onChange={e => setNouvelleAction({ ...nouvelleAction, description: e.target.value })}
                       onKeyDown={e => e.key === 'Enter' && ajouterAction()}
                       style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
                     />
-                    {/* Responsable toggle */}
                     <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                       {['ia', 'manager'].map(r => (
                         <button key={r} onClick={() => setNouvelleAction({ ...nouvelleAction, responsable: r })}
@@ -426,7 +505,6 @@ export default function Entretiens() {
                     </div>
                   </div>
 
-                  {/* Actions en cours */}
                   {actions.filter(a => a.statut === 'en_cours').length > 0 && (
                     <div style={{ marginBottom: 24 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>⏳ En cours</div>
@@ -437,7 +515,6 @@ export default function Entretiens() {
                         const echeanceUrgente = joursRestants !== null && joursRestants <= 3
                         return (
                           <div key={a.id} style={{ borderRadius: 14, padding: '14px 16px', marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start', background: isIA ? '#EDE9FE' : '#FFF7ED', border: `1.5px solid ${isIA ? '#C4B5FD' : '#FED7AA'}` }}>
-                            {/* Avatar responsable */}
                             <div style={{ width: 36, height: 36, borderRadius: '50%', background: isIA ? '#6D28D9' : '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
                               {isIA ? iaSelectionnee.nom.slice(0, 2).toUpperCase() : 'MG'}
                             </div>
@@ -450,7 +527,7 @@ export default function Entretiens() {
                                 {echeanceDate && (
                                   <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: echeanceUrgente ? '#FEE2E2' : '#F3F4F6', color: echeanceUrgente ? '#991B1B' : '#6B7280' }}>
                                     {echeanceUrgente ? '🔴 ' : '📅 '}{echeanceDate.toLocaleDateString('fr-FR')}
-                                    {joursRestants === 0 ? ' · Aujourd\'hui' : joursRestants === 1 ? ' · Demain' : joursRestants < 0 ? ` · ${Math.abs(joursRestants)}j de retard` : ''}
+                                    {joursRestants === 0 ? " · Aujourd'hui" : joursRestants === 1 ? ' · Demain' : joursRestants < 0 ? ` · ${Math.abs(joursRestants)}j de retard` : ''}
                                   </span>
                                 )}
                               </div>
@@ -471,7 +548,6 @@ export default function Entretiens() {
                     </div>
                   )}
 
-                  {/* Actions terminées */}
                   {actions.filter(a => a.statut === 'fait').length > 0 && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>✅ Terminées</div>
@@ -499,17 +575,87 @@ export default function Entretiens() {
                   )}
                 </div>
               )}
+
+              {/* ── CR ── */}
+              {menuActif === 'cr' && (
+                <div className="fade-in">
+                  {/* Intro */}
+                  <div style={{ background: `${couleurIA.color}12`, border: `1.5px solid ${couleurIA.color}30`, borderRadius: 14, padding: '16px 20px', marginBottom: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: couleurIA.color, marginBottom: 4 }}>Compte-rendu du point individuel</div>
+                    <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                      Génère automatiquement un CR basé sur les notations, les actions et les stats de {iaSelectionnee.nom}, puis envoie-le par email.
+                    </div>
+                  </div>
+
+                  {/* Récap avant génération */}
+                  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Données du point</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {[
+                        { label: 'RDV', val: notations['rdv'] },
+                        { label: 'Présentation', val: notations['presentation'] },
+                        { label: 'Signature', val: notations['signature'] },
+                      ].map(n => {
+                        const colorMap = { insuffisant: '#FEE2E2', moyen: '#FEF9C3', bon: '#D1FAE5', RAS: '#F3F4F6', excellent: '#D1FAE5' }
+                        const textMap = { insuffisant: '#991B1B', moyen: '#854D0E', bon: '#065F46', RAS: '#374151', excellent: '#065F46' }
+                        return (
+                          <div key={n.label} style={{ padding: '6px 12px', borderRadius: 10, background: n.val ? colorMap[n.val] : '#F3F4F6', fontSize: 12, fontWeight: 600, color: n.val ? textMap[n.val] : '#9CA3AF' }}>
+                            {n.label} : {n.val || '—'}
+                          </div>
+                        )
+                      })}
+                      <div style={{ padding: '6px 12px', borderRadius: 10, background: '#EDE9FE', fontSize: 12, fontWeight: 600, color: '#6D28D9' }}>
+                        {actions.filter(a => a.statut === 'en_cours').length} action(s)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bouton générer */}
+                  {!crGenere && (
+                    <button onClick={genererCR} disabled={loadingCR}
+                      style={{ width: '100%', padding: '14px', background: loadingCR ? '#9CA3AF' : couleurIA.color, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loadingCR ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
+                      {loadingCR ? (
+                        <span className="pulse">✨ Génération en cours…</span>
+                      ) : '✨ Générer le CR avec Claude'}
+                    </button>
+                  )}
+
+                  {/* CR généré */}
+                  {crGenere && (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                        CR généré — modifiable avant envoi
+                      </div>
+                      <textarea
+                        value={crGenere}
+                        onChange={e => setCrGenere(e.target.value)}
+                        style={{ width: '100%', padding: '14px', borderRadius: 12, border: `1.5px solid ${couleurIA.color}40`, background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, minHeight: 220, boxSizing: 'border-box', lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }}
+                      />
+                      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                        <button onClick={genererCR} disabled={loadingCR}
+                          style={{ flex: 1, padding: '11px', background: 'none', color: couleurIA.color, border: `1.5px solid ${couleurIA.color}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                          🔄 Régénérer
+                        </button>
+                        <button onClick={envoyerCR} disabled={crEnvoye}
+                          style={{ flex: 2, padding: '11px', background: crEnvoye ? '#D1FAE5' : '#065F46', color: crEnvoye ? '#065F46' : '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: crEnvoye ? 'not-allowed' : 'pointer' }}>
+                          {crEnvoye ? `✅ Envoyé à ${iaSelectionnee.nom}` : `📨 Envoyer à ${iaSelectionnee.nom}`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* NAV BOTTOM (MOBILE) */}
             <div className="bottom-nav" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)', padding: '8px 16px 20px', justifyContent: 'space-around', zIndex: 100 }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: 10,
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 10,
                     color: menuActif === m.id ? couleurIA.color : 'var(--color-text-secondary)',
                     fontWeight: menuActif === m.id ? 700 : 400
                   }}>
-                  <span style={{ fontSize: 20 }}>{m.icon}</span>
+                  <span style={{ fontSize: 18 }}>{m.icon}</span>
                   <span style={{ fontSize: 10, fontWeight: 600 }}>{m.label}</span>
                 </button>
               ))}
