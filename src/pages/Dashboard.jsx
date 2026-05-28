@@ -230,7 +230,7 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
   return (
     <>
       <div style={{ marginBottom: 16 }}>
-  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12, fontWeight: 500 }}>Sélectionne un Business Engineer</div>
+  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12, fontWeight: 500 }}>Sélectionne un ingénieur d'affaires </div>
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
     {iaList.map((ia, i) => {
       const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
