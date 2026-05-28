@@ -238,7 +238,12 @@ Utilise le vouvoiement. Sois concis et direct.`
         body: JSON.stringify({
           email: iaSelectionnee.email,
           nom: iaSelectionnee.nom,
-          cr: crGenere,
+          cr: crGenere
+  .replace(/### (.*?)(\n|$)/g, '<h3>$1</h3>')
+  .replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>')
+  .replace(/# (.*?)(\n|$)/g, '<h1>$1</h1>')
+  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+  .replace(/\n/g, '<br/>'),
           date: new Date().toLocaleDateString('fr-FR')
         })
       })
