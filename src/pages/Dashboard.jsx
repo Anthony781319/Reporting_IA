@@ -229,21 +229,27 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
 
   return (
     <>
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10, fontWeight: 500 }}>Selectionne un ingenieur d affaires</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
-          {iaList.map((ia, i) => {
-            const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
-            const isSelected = selectedIa && selectedIa.id === ia.id
-            return (
-              <div key={ia.id} onClick={() => setSelectedIa(ia)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: isSelected ? '2px solid #534AB7' : '0.5px solid var(--color-border-tertiary)', background: isSelected ? '#EEEDFE' : 'transparent', transition: 'all 0.15s' }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600, flexShrink: 0 }}>{ia.nom.slice(0,2).toUpperCase()}</div>
-                <span style={{ fontSize: 12, fontWeight: isSelected ? 600 : 400, color: isSelected ? '#3C3489' : 'var(--color-text-primary)' }}>{ia.nom}</span>
-              </div>
-            )
-          })}
+      <div style={{ marginBottom: 16 }}>
+  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12, fontWeight: 500 }}>Sélectionne un Business Engineer</div>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
+    {iaList.map((ia, i) => {
+      const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
+      const isSelected = selectedIa && selectedIa.id === ia.id
+      return (
+        <div key={ia.id} onClick={() => setSelectedIa(ia)}
+          style={{ background: isSelected ? fg : bg, borderRadius: 16, padding: '16px 10px', cursor: 'pointer', textAlign: 'center', transition: 'transform 0.15s, box-shadow 0.15s', boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)', transform: isSelected ? 'translateY(-2px)' : 'none' }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.1)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = isSelected ? 'translateY(-2px)' : 'none'; e.currentTarget.style.boxShadow = isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : '0 1px 4px rgba(0,0,0,0.06)' }}
+        >
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: isSelected ? 'rgba(255,255,255,0.3)' : fg, margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#fff' : '#fff', fontWeight: 800, fontSize: 14 }}>
+            {ia.nom.slice(0, 2).toUpperCase()}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: isSelected ? '#fff' : fg }}>{ia.nom}</div>
         </div>
-      </div>
+      )
+    })}
+  </div>
+</div>
 
       {!selectedIa ? (
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '32px 0' }}>👆 Selectionne un IA pour voir son detail</div>
