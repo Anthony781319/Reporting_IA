@@ -15,6 +15,13 @@ const AVATAR_COLORS = [
   ['#FEF9C3','#854D0E'],
 ]
 
+const DETAIL_CONFIG = {
+  signature:    { label: 'Signatures',      color: '#9D174D', bg: '#FCE7F3', icon: '✍️' },
+  presentation: { label: 'Présentations',   color: '#1E40AF', bg: '#DBEAFE', icon: '📋' },
+  demarrage:    { label: 'Démarrages',      color: '#065F46', bg: '#D1FAE5', icon: '🚀' },
+  fin_mission:  { label: 'Fins de mission', color: '#92400E', bg: '#FEF3C7', icon: '🏁' },
+}
+
 const Trend = ({ current, previous }) => {
   if (previous === undefined || previous === null) return null
   const diff = current - previous
@@ -23,6 +30,7 @@ const Trend = ({ current, previous }) => {
   return <span style={{ fontSize: 12, fontWeight: 700, color: up ? '#065F46' : '#991B1B' }}>{up ? '↑ +' : '↓ '}{diff}</span>
 }
 
+// KPI card normale
 const KpiCard = ({ label, value, color, bg, previous }) => (
   <div style={{ background: bg || color + '12', borderRadius: 12, padding: '12px 14px' }}>
     <div style={{ fontSize: 11, color, fontWeight: 600, opacity: 0.75, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</div>
@@ -33,6 +41,70 @@ const KpiCard = ({ label, value, color, bg, previous }) => (
     {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 4 }}>Préc. : {previous}</div>}
   </div>
 )
+
+// KPI card cliquable avec drawer détail
+const KpiCardDetail = ({ label, value, color, bg, previous, type, iaId, semaine, annee }) => {
+  const [open, setOpen] = useState(false)
+  const [details, setDetails] = useState([])
+  const [loaded, setLoaded] = useState(false)
+
+  const handleClick = async () => {
+    if (value === 0) return
+    if (!loaded) {
+      const { data } = await supabase.from('details_resultats').select('*')
+        .eq('ia_id', iaId).eq('semaine', semaine).eq('annee', annee).eq('type', type).order('created_at')
+      setDetails(data || [])
+      setLoaded(true)
+    }
+    setOpen(o => !o)
+  }
+
+  return (
+    <div style={{ gridColumn: 'span 2' }}>
+      <div onClick={handleClick}
+        style={{ background: bg, borderRadius: open ? '12px 12px 0 0' : 12, padding: '12px 14px', cursor: value > 0 ? 'pointer' : 'default', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color, fontWeight: 600, opacity: 0.75, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+            <div style={{ paddingBottom: 3 }}><Trend current={value} previous={previous} /></div>
+          </div>
+          {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 4 }}>Préc. : {previous}</div>}
+        </div>
+        {value > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color, fontWeight: 600, opacity: 0.7 }}>Détail</span>
+            <span style={{ fontSize: 14, color, fontWeight: 700 }}>{open ? '▲' : '▼'}</span>
+          </div>
+        )}
+      </div>
+
+      {open && (
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 12 }}>
+          {details.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '8px 0', fontStyle: 'italic' }}>
+              Aucun détail renseigné
+            </div>
+          ) : details.map(d => (
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: bg, borderRadius: 8, marginBottom: 6 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>
+                {d.nom_prenom ? d.nom_prenom.slice(0, 2).toUpperCase() : '?'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color }}>{d.nom_prenom || '—'}</div>
+                <div style={{ fontSize: 11, color, opacity: 0.7, display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                  {d.client && <span>🏢 {d.client}</span>}
+                  {d.tjm && <span>💰 {d.tjm}</span>}
+                  {d.date && <span>📅 {new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const SectionHeader = ({ title, subtitle, color, icon }) => (
   <div style={{ marginBottom: 12, marginTop: 12 }}>
@@ -108,13 +180,11 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
     { label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
     { label: 'Solutions envoyées', key: 'cv_envoyes', color: '#166534', bg: '#DCFCE7' },
     { label: 'Besoins détectés', key: 'besoins_detectes', color: '#9F1239', bg: '#FFE4E6' },
-    { label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
     { label: 'Prés. à monter', key: 'presentations_a_monter', color: '#374151', bg: '#F3F4F6' },
   ]
 
   return (
     <>
-      {/* KPIs */}
       <SectionHeader title="Indicateurs clés" color="#6D28D9" icon="📊" subtitle={'Semaine ' + selectedWeek + (selectedWeek > 1 ? ' — vs S' + (selectedWeek - 1) : '')} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 }}>
         {kpis.map(k => (
@@ -128,7 +198,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
           previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
       </div>
 
-      {/* Graphique */}
       <SectionHeader title="Activité commerciale" color="#1E40AF" icon="📈" subtitle={'6 semaines autour de S' + selectedWeek} />
       <div style={{ background: '#DBEAFE', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 14, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -151,7 +220,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
         </ResponsiveContainer>
       </div>
 
-      {/* Classement */}
       <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="1 RDV=1pt · 1 Prez=2pts · 1 Sign.=3pts" />
       <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
         {ranking.length === 0 ? (
@@ -169,7 +237,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
         ))}
       </div>
 
-      {/* Pipe */}
       <SectionHeader title="État du pipe" color="#92400E" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
       <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
         {[
@@ -190,7 +257,6 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
         ))}
       </div>
 
-      {/* P1 */}
       {validP1ThisWeek.length > 0 && (
         <>
           <SectionHeader title={'Priorités P1 — Semaine ' + selectedWeek} color="#6D28D9" icon="🎯" subtitle={validP1ThisWeek.length + ' priorité(s) active(s)'} />
@@ -239,21 +305,25 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
   const p = (key) => selectedWeek > 1 ? sum(iaPrev, key) : undefined
   const couleur = selectedIa ? AVATAR_COLORS[iaIndex % AVATAR_COLORS.length] : null
 
-  const kpisSemaine = [
+  // KPIs normaux (pas cliquables)
+  const kpisNormaux = [
     { label: 'RDV', key: 'total_rdv', color: '#6D28D9', bg: '#EDE9FE' },
-    { label: 'Présentations', key: 'presentations', color: '#1E40AF', bg: '#DBEAFE' },
-    { label: 'Signatures', key: 'signatures', color: '#9D174D', bg: '#FCE7F3' },
-    { label: 'Démarrages', key: 'demarrages', color: '#065F46', bg: '#D1FAE5' },
     { label: 'Solutions', key: 'cv_envoyes', color: '#166534', bg: '#DCFCE7' },
     { label: 'Besoins détectés', key: 'besoins_detectes', color: '#9F1239', bg: '#FFE4E6' },
     { label: 'Pipe total', key: null, color: '#92400E', bg: '#FEF3C7' },
-    { label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
     { label: 'Prés. à monter', key: 'presentations_a_monter', color: '#374151', bg: '#F3F4F6' },
+  ]
+
+  // KPIs avec détail cliquable
+  const kpisDetail = [
+    { label: 'Présentations', type: 'presentation', key: 'presentations', color: '#1E40AF', bg: '#DBEAFE' },
+    { label: 'Signatures', type: 'signature', key: 'signatures', color: '#9D174D', bg: '#FCE7F3' },
+    { label: 'Démarrages', type: 'demarrage', key: 'demarrages', color: '#065F46', bg: '#D1FAE5' },
+    { label: 'Fins de mission', type: 'fin_mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
   ]
 
   return (
     <>
-      {/* Sélection IA */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {selectedIa ? '' : "Sélectionne un Ingénieur d'Affaires"}
@@ -296,7 +366,6 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
 
       {selectedIa && (
         <>
-          {/* Toggle semaine / annuel */}
           <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 12, padding: 4, marginBottom: 20, border: '1px solid var(--color-border-tertiary)' }}>
             {[['semaine', '📅 Semaine'], ['annuel', '📊 Cumulé annuel']].map(([id, label]) => (
               <button key={id} onClick={() => setViewMode(id)} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: viewMode === id ? 700 : 400, background: viewMode === id ? couleur[1] : 'transparent', color: viewMode === id ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -307,11 +376,24 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
 
           {viewMode === 'semaine' ? (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 }}>
-                {kpisSemaine.map(k => (
+              {/* KPIs normaux */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 10 }}>
+                {kpisNormaux.map(k => (
                   <KpiCard key={k.label} label={k.label} color={k.color} bg={k.bg}
                     value={k.key ? sum(iaData, k.key) : sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')}
                     previous={k.key ? p(k.key) : selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined}
+                  />
+                ))}
+              </div>
+
+              {/* KPIs avec détail cliquable — pleine largeur */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 10, marginBottom: 24 }}>
+                {kpisDetail.map(k => (
+                  <KpiCardDetail key={k.type}
+                    label={k.label} type={k.type} color={k.color} bg={k.bg}
+                    value={sum(iaData, k.key)}
+                    previous={p(k.key)}
+                    iaId={selectedIa.id} semaine={selectedWeek} annee={annee}
                   />
                 ))}
               </div>
@@ -424,13 +506,10 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: '14px 16px' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>Vue d'ensemble</div>
         <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />
       </div>
-
-      {/* Toggle Équipe / Focus IA */}
       <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 12, padding: 4, marginBottom: 20, border: '1px solid var(--color-border-tertiary)' }}>
         {[['equipe', "👥 Équipe"], ['focus', "👤 Focus IA"]].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400, background: view === id ? '#6D28D9' : 'transparent', color: view === id ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -438,7 +517,6 @@ export default function Dashboard() {
           </button>
         ))}
       </div>
-
       {view === 'equipe' ? (
         <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} />
       ) : (
