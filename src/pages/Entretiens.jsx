@@ -174,7 +174,7 @@ export default function Entretiens() {
         sign: acc.sign + (s.signatures || 0),
       }), { rdv: 0, pres: 0, besoins: 0, sign: 0 })
 
-      const prompt = `Tu es un assistant manager bienveillant et professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Business Engineer dans une ESN spécialisée IT/Télécom/Cybersécurité.
+      const prompt = `Tu es un assistant manager bienveillant et professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Ingénieur d'affaires dans une ESN spécialisée IT/Télécom/Cybersécurité.
 
 DONNÉES DE LA SEMAINE (semaine ${semaineCourante}) :
 - RDV réalisés : ${semSaisie.rdv}
@@ -305,7 +305,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
           ) : (
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.5px', marginBottom: 4 }}>🤝 Points Individuels</div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Sélectionne un Business Engineer</div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Sélectionne un ingénieur d'affaires </div>
             </div>
           )}
         </div>
