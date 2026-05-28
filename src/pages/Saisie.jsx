@@ -21,10 +21,10 @@ const Counter = ({ label, value, onChange, color }) => (
     <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>{label}</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <button onClick={() => onChange(Math.max(0, value - 1))}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color: color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
-      <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center', color: color }}>{value}</span>
+        style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
+      <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center', color }}>{value}</span>
       <button onClick={() => onChange(value + 1)}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color: color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
+        style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
     </div>
   </div>
 )
@@ -32,9 +32,125 @@ const Counter = ({ label, value, onChange, color }) => (
 const TotalField = ({ label, value, color }) => (
   <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid ' + color + '20', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
     <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{label}</span>
-    <span style={{ fontSize: 16, fontWeight: 600, color: color }}>{value}</span>
+    <span style={{ fontSize: 16, fontWeight: 600, color }}>{value}</span>
   </div>
 )
+
+// Champs par type
+const DETAIL_FIELDS = {
+  signature:    [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'tjm', label: 'TJM', placeholder: 'Ex: 550€' }, { key: 'date', label: 'Date de démarrage', type: 'date' }],
+  presentation: [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'date', label: 'Date de présentation', type: 'date' }],
+  demarrage:    [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'tjm', label: 'TJM', placeholder: 'Ex: 550€' }, { key: 'date', label: 'Date de démarrage', type: 'date' }],
+  fin_mission:  [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'date', label: 'Date de fin de mission', type: 'date' }],
+}
+
+const DETAIL_CONFIG = {
+  signature:    { label: 'Signatures',       color: '#9D174D', bg: '#FCE7F3', icon: '✍️' },
+  presentation: { label: 'Présentations',    color: '#1E40AF', bg: '#DBEAFE', icon: '📋' },
+  demarrage:    { label: 'Démarrages',       color: '#065F46', bg: '#D1FAE5', icon: '🚀' },
+  fin_mission:  { label: 'Fins de mission',  color: '#92400E', bg: '#FEF3C7', icon: '🏁' },
+}
+
+const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
+  const [open, setOpen] = useState(false)
+  const [details, setDetails] = useState([])
+  const [form, setForm] = useState({})
+  const [saving, setSaving] = useState(false)
+  const cfg = DETAIL_CONFIG[type]
+  const fields = DETAIL_FIELDS[type]
+
+  useEffect(() => {
+    if (count > 0) fetchDetails()
+  }, [count, semaine])
+
+  const fetchDetails = async () => {
+    const { data } = await supabase.from('details_resultats').select('*').eq('ia_id', iaId).eq('semaine', semaine).eq('annee', annee).eq('type', type).order('created_at')
+    if (data) setDetails(data)
+  }
+
+  const addDetail = async () => {
+    const required = fields.filter(f => f.key === 'nom_prenom' || f.key === 'client')
+    if (required.some(f => !form[f.key]?.trim())) return
+    setSaving(true)
+    const { data } = await supabase.from('details_resultats').insert({ ia_id: iaId, semaine, annee, type, ...form }).select().single()
+    if (data) setDetails(d => [...d, data])
+    setForm({})
+    setSaving(false)
+  }
+
+  const removeDetail = async (id) => {
+    await supabase.from('details_resultats').delete().eq('id', id)
+    setDetails(d => d.filter(x => x.id !== id))
+  }
+
+  if (count === 0) return null
+
+  return (
+    <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}40` }}>
+      {/* Header accordion */}
+      <div onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: cfg.bg, cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>{cfg.icon}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>Détail {cfg.label}</span>
+          <span style={{ padding: '2px 8px', borderRadius: 20, background: cfg.color, color: '#fff', fontSize: 11, fontWeight: 700 }}>
+            {details.length}/{count}
+          </span>
+        </div>
+        <span style={{ fontSize: 18, color: cfg.color, fontWeight: 700 }}>{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        <div style={{ background: 'var(--color-background-primary)', padding: 14 }}>
+
+          {/* Liste des détails existants */}
+          {details.map(d => (
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: cfg.bg, borderRadius: 10, marginBottom: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>{d.nom_prenom}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {d.client && <span>🏢 {d.client}</span>}
+                  {d.tjm && <span>💰 {d.tjm}</span>}
+                  {d.date && <span>📅 {new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                </div>
+              </div>
+              <button onClick={() => removeDetail(d.id)}
+                style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12 }}>✕</button>
+            </div>
+          ))}
+
+          {/* Formulaire ajout */}
+          {details.length < count && (
+            <div style={{ background: `${cfg.color}08`, borderRadius: 10, padding: 12, border: `1px dashed ${cfg.color}40` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                + Ajouter un détail ({details.length + 1}/{count})
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: fields.length > 2 ? '1fr 1fr' : '1fr', gap: 8 }}>
+                {fields.map(f => (
+                  <input key={f.key} type={f.type || 'text'} placeholder={f.placeholder || f.label}
+                    value={form[f.key] || ''}
+                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box' }}
+                  />
+                ))}
+              </div>
+              <button onClick={addDetail} disabled={saving}
+                style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                {saving ? 'Ajout...' : '+ Ajouter'}
+              </button>
+            </div>
+          )}
+
+          {details.length >= count && details.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: cfg.color, fontWeight: 600 }}>
+              ✅ Tous les détails sont renseignés
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const emptyForm = {
   decouvertes: 0, prospects: 0, clients: 0, presentations: 0,
@@ -77,36 +193,11 @@ const P1Card = ({ p, onRemove }) => {
         {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#534AB7', fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
       </div>
       <div style={{ padding: '10px 12px', background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        {p.experience && (
-          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
-            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.experience}</div>
-          </div>
-        )}
-        {p.salaire_max && (
-          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
-            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.salaire_max}</div>
-          </div>
-        )}
-        {p.technologies && (
-          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}>
-            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.technologies}</div>
-          </div>
-        )}
-        {p.langues && (
-          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
-            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.langues}</div>
-          </div>
-        )}
-        {p.lieu && (
-          <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}>
-            <div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.lieu}</div>
-          </div>
-        )}
+        {p.experience && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.experience}</div></div>}
+        {p.salaire_max && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.salaire_max}</div></div>}
+        {p.technologies && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.technologies}</div></div>}
+        {p.langues && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.langues}</div></div>}
+        {p.lieu && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.lieu}</div></div>}
       </div>
     </div>
   )
@@ -130,7 +221,7 @@ export default function Saisie({ iaId, iaName }) {
 
   const totalRdv = form.decouvertes + form.prospects + form.clients + form.presentations
   const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
-  const p1Complete = P1_STEPS.every(function(s) { return newP1[s.key] && newP1[s.key].trim() })
+  const p1Complete = P1_STEPS.every(s => newP1[s.key] && newP1[s.key].trim())
 
   useEffect(() => {
     if (!iaId) return
@@ -157,12 +248,12 @@ export default function Saisie({ iaId, iaName }) {
     load()
   }, [iaId, selectedWeek])
 
-  const set = function(key) { return function(val) { setForm(function(f) { return Object.assign({}, f, { [key]: val }) }) } }
+  const set = key => val => setForm(f => ({ ...f, [key]: val }))
 
   const handleSave = async () => {
     setSaving(true)
     await supabase.from('saisies').upsert(
-      Object.assign({ ia_id: iaId, semaine: selectedWeek, annee }, form, { total_rdv: totalRdv, presentation_planifiee: totalPipe }),
+      { ia_id: iaId, semaine: selectedWeek, annee, ...form, total_rdv: totalRdv, presentation_planifiee: totalPipe },
       { onConflict: 'ia_id,semaine,annee' }
     )
     setSaving(false)
@@ -173,17 +264,15 @@ export default function Saisie({ iaId, iaName }) {
   const addP1 = async () => {
     if (!p1Complete) return
     setSavingP1(true)
-    const { data } = await supabase.from('p1').insert(
-      Object.assign({ ia_id: iaId, semaine: selectedWeek, annee }, newP1)
-    ).select().single()
-    if (data) setP1List(function(l) { return l.concat([data]) })
+    const { data } = await supabase.from('p1').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newP1 }).select().single()
+    if (data) setP1List(l => [...l, data])
     setNewP1(emptyP1)
     setSavingP1(false)
   }
 
   const removeP1 = async (id) => {
     await supabase.from('p1').delete().eq('id', id)
-    setP1List(function(l) { return l.filter(function(p) { return p.id !== id }) })
+    setP1List(l => l.filter(p => p.id !== id))
   }
 
   if (!iaId) return (
@@ -199,10 +288,8 @@ export default function Saisie({ iaId, iaName }) {
           <div style={{ fontSize: 15, fontWeight: 500 }}>Bonjour {iaName} 👋</div>
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{annee}</div>
         </div>
-        <select value={selectedWeek} onChange={function(e) { setSelectedWeek(parseInt(e.target.value)) }} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}>
-          {allowedWeeks.map(function(w) {
-            return <option key={w.value} value={w.value}>{w.label}</option>
-          })}
+        <select value={selectedWeek} onChange={e => setSelectedWeek(parseInt(e.target.value))} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}>
+          {allowedWeeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
         </select>
       </div>
 
@@ -218,6 +305,8 @@ export default function Saisie({ iaId, iaName }) {
               <Counter label="Presentations" value={form.presentations} onChange={set('presentations')} color="#534AB7" />
             </div>
             <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
+            {/* Accordion détail présentations */}
+            <DetailAccordion type="presentation" count={form.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56">
@@ -234,27 +323,28 @@ export default function Saisie({ iaId, iaName }) {
 
           <Section title="Resultats" color="#993556">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Signatures"            value={form.signatures}            onChange={set('signatures')}            color="#993556" />
-              <Counter label="Demarrages"            value={form.demarrages}            onChange={set('demarrages')}            color="#993556" />
-              <Counter label="Fins de mission"       value={form.fins_de_mission}       onChange={set('fins_de_mission')}       color="#993556" />
-              <Counter label="Pres. a monter"        value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
+              <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
+              <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
+              <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
+              <Counter label="Pres. a monter"  value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
             </div>
+            {/* Accordions détails résultats */}
+            <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
+          {/* P1 */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#BA7517', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Priorites P1
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: '#BA7517', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Priorites P1</div>
             <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
-
-              {p1List.filter(function(p) { return (p.profil && p.profil.trim()) || (p.description && p.description.trim()) }).map(function(p) {
-                return <P1Card key={p.id} p={p} onRemove={function() { removeP1(p.id) }} />
-              })}
-
+              {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
+                <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
+              ))}
               <div style={{ marginBottom: 12 }}>
-                {P1_STEPS.map(function(step) {
+                {P1_STEPS.map(step => {
                   if (step.key === 'langues') return null
-                  const langStep = P1_STEPS.find(function(s) { return s.key === 'langues' })
+                  const langStep = P1_STEPS.find(s => s.key === 'langues')
                   const isSalaireLangues = step.key === 'salaire_max'
                   return (
                     <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: '1.5px solid ' + step.color }}>
@@ -265,27 +355,17 @@ export default function Saisie({ iaId, iaName }) {
                         <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
                         {isSalaireLangues ? (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <input type="text" value={newP1[step.key]}
-                              onChange={function(e) { setNewP1(function(prev) { return Object.assign({}, prev, { [step.key]: e.target.value }) }) }}
-                              placeholder={step.placeholder}
-                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                            <input type="text" value={newP1['langues']}
-                              onChange={function(e) { setNewP1(function(prev) { return Object.assign({}, prev, { langues: e.target.value }) }) }}
-                              placeholder={langStep.placeholder}
-                              style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                            <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                            <input type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
                           </div>
                         ) : (
-                          <input type="text" value={newP1[step.key]}
-                            onChange={function(e) { setNewP1(function(prev) { return Object.assign({}, prev, { [step.key]: e.target.value }) }) }}
-                            placeholder={step.placeholder}
-                            style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                          <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                         )}
                       </div>
                     </div>
                   )
                 })}
               </div>
-
               <button onClick={addP1} disabled={savingP1 || !p1Complete}
                 style={{ width: '100%', padding: '11px', background: p1Complete ? '#BA7517' : 'var(--color-background-secondary)', color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
                 {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
