@@ -72,25 +72,17 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
           ) : details.map(d => (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: bg, borderRadius: 10, marginBottom: 6 }}>
               <i className="ti ti-user" style={{ fontSize: 16, color, flexShrink: 0 }} aria-hidden="true" />
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color }}>
-                {d.nom_prenom || '—'}
-                {d.ia?.nom && <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.6, marginLeft: 6 }}>· {d.ia.nom}</span>}
-              </span>
-              {d.client && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color, opacity: 0.75 }}>
-                  <i className="ti ti-building" style={{ fontSize: 13 }} aria-hidden="true" />{d.client}
-                </span>
-              )}
-              {d.tjm && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color, opacity: 0.75 }}>
-                  <i className="ti ti-coin" style={{ fontSize: 13 }} aria-hidden="true" />{d.tjm}
-                </span>
-              )}
-              {d.date && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color, opacity: 0.75 }}>
-                  <i className="ti ti-calendar" style={{ fontSize: 13 }} aria-hidden="true" />{new Date(d.date).toLocaleDateString('fr-FR')}
-                </span>
-              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color, display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</span>
+                  {d.ia?.nom && <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.6, flexShrink: 0 }}>· {d.ia.nom}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
+                  {d.client && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-building" style={{ fontSize: 12 }} aria-hidden="true" />{d.client}</span>}
+                  {d.tjm && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-coin" style={{ fontSize: 12 }} aria-hidden="true" />{d.tjm}</span>}
+                  {d.date && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} aria-hidden="true" />{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                </div>
+              </div>
             </div>
           ))}
         </div>
