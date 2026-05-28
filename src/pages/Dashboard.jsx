@@ -247,6 +247,7 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
     { label: 'Solutions', key: 'cv_envoyes', color: '#166534', bg: '#DCFCE7' },
     { label: 'Besoins détectés', key: 'besoins_detectes', color: '#9F1239', bg: '#FFE4E6' },
     { label: 'Pipe total', key: null, color: '#92400E', bg: '#FEF3C7' },
+    { label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
     { label: 'Prés. à monter', key: 'presentations_a_monter', color: '#374151', bg: '#F3F4F6' },
   ]
 
