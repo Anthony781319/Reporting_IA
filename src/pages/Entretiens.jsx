@@ -202,7 +202,7 @@ Rédige un CR structuré et professionnel avec :
 3. Les actions à mener avec les responsables et échéances
 4. Un mot de conclusion positif et motivant
 
-Utilise le vouvoiement. Sois concis et direct.`
+Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme excessif ni de formules de politesse creuses. Va droit au but.`
 
       const response = await fetch('/api/generate-cr', {
         method: 'POST',
