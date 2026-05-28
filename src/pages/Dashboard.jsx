@@ -24,25 +24,22 @@ const Trend = ({ current, previous }) => {
 }
 
 const KpiCard = ({ label, value, color, bg, previous }) => (
-  <div style={{ background: bg || color + '12', borderRadius: 14, padding: '16px 18px' }}>
-    <div style={{ fontSize: 11, color: color, fontWeight: 600, opacity: 0.8, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</div>
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
-      <div style={{ fontSize: 34, fontWeight: 800, color, letterSpacing: '-1px', lineHeight: 1 }}>{value}</div>
-      <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>
+  <div style={{ background: bg || color + '12', borderRadius: 12, padding: '12px 14px' }}>
+    <div style={{ fontSize: 11, color, fontWeight: 600, opacity: 0.75, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</div>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+      <div style={{ fontSize: 26, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+      <div style={{ paddingBottom: 3 }}><Trend current={value} previous={previous} /></div>
     </div>
-    {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 6 }}>Préc. : {previous}</div>}
+    {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 4 }}>Préc. : {previous}</div>}
   </div>
 )
 
 const SectionHeader = ({ title, subtitle, color, icon }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 8 }}>
-    <div>
-      <div style={{ fontSize: 14, fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>{title}
-      </div>
-      {subtitle && <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{subtitle}</div>}
+  <div style={{ marginBottom: 12, marginTop: 12 }}>
+    <div style={{ fontSize: 17, fontWeight: 800, color, display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.3px' }}>
+      <span style={{ fontSize: 18 }}>{icon}</span>{title}
     </div>
-    <div style={{ width: 32, height: 4, borderRadius: 2, background: color + '40' }} />
+    {subtitle && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 3, fontWeight: 500 }}>{subtitle}</div>}
   </div>
 )
 
