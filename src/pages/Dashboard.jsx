@@ -174,10 +174,10 @@ function VueEquipe({ saisies, selectedWeek, setSelectedWeek, semaine, annee, p1D
 
   const kpis = [
     { label: 'RDV', key: 'total_rdv', color: '#6D28D9', bg: '#EDE9FE' },
-    { label: 'Présentations', key: 'presentations', color: '#1E40AF', bg: '#DBEAFE' },
-    { label: 'Signatures', key: 'signatures', color: '#9D174D', bg: '#FCE7F3' },
-    { label: 'Démarrages', key: 'demarrages', color: '#065F46', bg: '#D1FAE5' },
-    { label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
+    { label: 'Présentations', key: 'presentations', color: '#1E40AF', bg: '#DBEAFE', detail: true },
+{ label: 'Signatures', key: 'signatures', color: '#9D174D', bg: '#FCE7F3', detail: true },
+{ label: 'Démarrages', key: 'demarrages', color: '#065F46', bg: '#D1FAE5', detail: true },
+{ label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7', detail: true },
     { label: 'Solutions envoyées', key: 'cv_envoyes', color: '#166534', bg: '#DCFCE7' },
     { label: 'Besoins détectés', key: 'besoins_detectes', color: '#9F1239', bg: '#FFE4E6' },
     { label: 'Prés. à monter', key: 'presentations_a_monter', color: '#374151', bg: '#F3F4F6' },
