@@ -105,17 +105,26 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
 
           {/* Liste des détails existants */}
           {details.map(d => (
-            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: cfg.bg, borderRadius: 10, marginBottom: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>{d.nom_prenom}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  {d.client && <span>🏢 {d.client}</span>}
-                  {d.tjm && <span>💰 {d.tjm}</span>}
-                  {d.date && <span>📅 {new Date(d.date).toLocaleDateString('fr-FR')}</span>}
-                </div>
-              </div>
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: cfg.bg, borderRadius: 10, marginBottom: 6 }}>
+              <i className="ti ti-user" style={{ fontSize: 16, color: cfg.color, flexShrink: 0 }} aria-hidden="true" />
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: cfg.color }}>{d.nom_prenom || '—'}</span>
+              {d.client && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: cfg.color, opacity: 0.75 }}>
+                  <i className="ti ti-building" style={{ fontSize: 13 }} aria-hidden="true" />{d.client}
+                </span>
+              )}
+              {d.tjm && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: cfg.color, opacity: 0.75 }}>
+                  <i className="ti ti-coin" style={{ fontSize: 13 }} aria-hidden="true" />{d.tjm}
+                </span>
+              )}
+              {d.date && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: cfg.color, opacity: 0.75 }}>
+                  <i className="ti ti-calendar" style={{ fontSize: 13 }} aria-hidden="true" />{new Date(d.date).toLocaleDateString('fr-FR')}
+                </span>
+              )}
               <button onClick={() => removeDetail(d.id)}
-                style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12 }}>✕</button>
+                style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12, flexShrink: 0 }}>✕</button>
             </div>
           ))}
 
