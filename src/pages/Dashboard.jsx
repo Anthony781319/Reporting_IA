@@ -444,8 +444,8 @@ export default function Dashboard() {
   const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (showLoading = false) => {
+    if (showLoading) setLoading(true)
     const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
       supabase.from('ia').select('*').order('nom'),
@@ -454,10 +454,10 @@ export default function Dashboard() {
     setSaisies(all || [])
     setIaList(ia || [])
     setP1Data(p1 || [])
-    setLoading(false)
+    if (showLoading) setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(true) }, [])
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
