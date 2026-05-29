@@ -148,7 +148,7 @@ const P1Card = ({ p }) => {
   )
 }
 
-function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data }) {
+function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }) {
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
@@ -179,10 +179,10 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data }) {
           previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
 
         {/* Cards cliquables avec détail */}
-        <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} />
-        <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} />
-        <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} />
-        <KpiCardDetail label="Fins de mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} />
+        <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`presentation-${selectedWeek}-${refreshKey}`} />
+        <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`signature-${selectedWeek}-${refreshKey}`} />
+        <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`demarrage-${selectedWeek}-${refreshKey}`} />
+        <KpiCardDetail label="Fins de mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} key={`fin_mission-${selectedWeek}-${refreshKey}`} />
       </div>
 
       <SectionHeader title="Activité commerciale" color="#1E40AF" icon="📈" subtitle={'6 semaines autour de S' + selectedWeek} />
@@ -271,7 +271,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data }) {
   )
 }
 
-function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
+function VueFocusIA({ saisies, iaList, selectedWeek, semaine, refreshKey }) {
   const annee = new Date().getFullYear()
   const [selectedIa, setSelectedIa] = useState(null)
   const [iaIndex, setIaIndex] = useState(0)
@@ -356,9 +356,9 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine }) {
                 <KpiCard label="Prés. à monter" value={sum(iaData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
                 <KpiCard label="Fins de mission" value={sum(iaData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} />
 
-                <KpiCardDetail label="Présentations" value={sum(iaData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee_val} iaId={selectedIa.id} />
-                <KpiCardDetail label="Signatures" value={sum(iaData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee_val} iaId={selectedIa.id} />
-                <KpiCardDetail label="Démarrages" value={sum(iaData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee_val} iaId={selectedIa.id} />
+                <KpiCardDetail label="Présentations" value={sum(iaData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee_val} iaId={selectedIa.id} key={`pres-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
+                <KpiCardDetail label="Signatures" value={sum(iaData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee_val} iaId={selectedIa.id} key={`sign-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
+                <KpiCardDetail label="Démarrages" value={sum(iaData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee_val} iaId={selectedIa.id} key={`dem-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
               </div>
 
               <SectionHeader title="Évolution RDV & Signatures" color="#1E40AF" icon="📈" subtitle="6 dernières semaines" />
@@ -443,6 +443,7 @@ export default function Dashboard() {
   const [iaList, setIaList] = useState([])
   const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const load = async (showLoading = false) => {
     if (showLoading) setLoading(true)
@@ -471,7 +472,7 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>Vue d'ensemble</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={load} style={{ padding: '4px 10px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
+          <button onClick={() => { load(); setRefreshKey(k => k + 1) }} style={{ padding: '4px 10px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
             🔄
           </button>
           <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />
@@ -485,9 +486,9 @@ export default function Dashboard() {
         ))}
       </div>
       {view === 'equipe' ? (
-        <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} />
+        <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} refreshKey={refreshKey} />
       ) : (
-        <VueFocusIA saisies={saisies} iaList={iaList} selectedWeek={selectedWeek} semaine={semaine} />
+        <VueFocusIA saisies={saisies} iaList={iaList} selectedWeek={selectedWeek} semaine={semaine} refreshKey={refreshKey} />
       )}
     </div>
   )
