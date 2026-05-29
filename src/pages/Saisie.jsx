@@ -204,10 +204,12 @@ const P1Card = ({ p, onRemove }) => {
   )
 }
 
-export default function Saisie({ iaId, iaName }) {
+export default function Saisie({ iaId, iaName, managerMode = false }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
-  const allowedWeeks = semaine > 1
+  const allowedWeeks = managerMode
+  ? Array.from({ length: semaine }, (_, i) => ({ value: semaine - i, label: semaine - i === semaine ? 'Semaine ' + semaine + ' (en cours)' : 'Semaine ' + (semaine - i) }))
+  : semaine > 1
     ? [{ value: semaine, label: 'Semaine ' + semaine + ' (en cours)' }, { value: semaine - 1, label: 'Semaine ' + (semaine - 1) + ' (precedente)' }]
     : [{ value: semaine, label: 'Semaine ' + semaine + ' (en cours)' }]
 
