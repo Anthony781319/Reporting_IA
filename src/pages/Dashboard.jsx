@@ -39,6 +39,12 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
 
+  useEffect(() => {
+    setLoaded(false)
+    setOpen(false)
+    setDetails([])
+  }, [semaine, iaId])
+
   const handleClick = async () => {
     if (value === 0) return
     if (!loaded) {
@@ -438,20 +444,20 @@ export default function Dashboard() {
   const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const load = async () => {
-      const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
-        supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
-        supabase.from('ia').select('*').order('nom'),
-        supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
-      ])
-      setSaisies(all || [])
-      setIaList(ia || [])
-      setP1Data(p1 || [])
-      setLoading(false)
-    }
-    load()
-  }, [])
+  const load = async () => {
+    setLoading(true)
+    const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
+      supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
+      supabase.from('ia').select('*').order('nom'),
+      supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
+    ])
+    setSaisies(all || [])
+    setIaList(ia || [])
+    setP1Data(p1 || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-secondary)' }}>
@@ -464,7 +470,12 @@ export default function Dashboard() {
     <div style={{ padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>Vue d'ensemble</div>
-        <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={load} style={{ padding: '4px 10px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
+            🔄
+          </button>
+          <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />
+        </div>
       </div>
       <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 12, padding: 4, marginBottom: 20, border: '1px solid var(--color-border-tertiary)' }}>
         {[['equipe', "👥 Équipe"], ['focus', "👤 Focus IA"]].map(([id, label]) => (
