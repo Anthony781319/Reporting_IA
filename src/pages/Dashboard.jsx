@@ -159,7 +159,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
     return { name: 'S' + w, RDV: ws.reduce((s, d) => s + (d.total_rdv || 0), 0), Presentations: ws.reduce((s, d) => s + (d.presentations || 0), 0), Signatures: ws.reduce((s, d) => s + (d.signatures || 0), 0) }
   })
 
-  const ranking = [...weekData].map(d => ({ name: d.ia && d.ia.nom || '?', score: (d.total_rdv || 0) * 1 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
+  const ranking = [...weekData].map(d => ({ name: d.ia && d.ia.nom || '?', score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 3 + (d.signatures || 0) * 6 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
   const p = (key) => selectedWeek > 1 ? sum(prevData, key) : undefined
   const validP1ThisWeek = p1Data.filter(p => p.semaine === selectedWeek && isValidP1(p))
 
@@ -207,7 +207,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
         </ResponsiveContainer>
       </div>
 
-      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="1 RDV=1pt · 1 Prez=2pts · 1 Sign.=3pts" />
+      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="1 RDV=0,5pt · 1 Prez=3pts · 1 Sign.=6pts" />
       <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
         {ranking.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#9D174D', fontSize: 13, padding: '12px 0', opacity: 0.7 }}>Aucune saisie cette semaine</div>
