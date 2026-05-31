@@ -222,6 +222,36 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
 
       
       {/* État du pipe */}
+{/* Classement semaine */}
+{(() => {
+  const ranking = [...weekData]
+    .filter(d => d.ia?.nom && !d.ia.nom.toLowerCase().includes('p1'))
+    .map(d => ({ name: d.ia.nom, score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 1 + (d.signatures || 0) * 2 + (d.demarrages || 0) * 4 }))
+    .filter(d => d.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+  return (
+    <>
+      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
+      <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
+        {ranking.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#9D174D', fontSize: 13, padding: '12px 0', opacity: 0.7 }}>Aucune saisie cette semaine</div>
+        ) : ranking.map((r, i) => (
+          <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', marginBottom: 6, background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
+            <span style={{ fontSize: 16, width: 28, textAlign: 'center' }}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.'}</span>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
+            <span style={{ flex: 1, fontSize: 13, fontWeight: i < 3 ? 700 : 400, color: '#1F2937' }}>{r.name}</span>
+            <div style={{ flex: 2, height: 8, background: 'rgba(157,23,77,0.15)', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', borderRadius: 4, background: '#9D174D', width: Math.round((r.score / (ranking[0]?.score || 1)) * 100) + '%', transition: 'width 0.5s ease' }} />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, width: 48, textAlign: 'right', color: '#9D174D' }}>{r.score}pts</span>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+})()}
+      
       <SectionHeader title="État du pipe" color="#92400E" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
       <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
         {[
