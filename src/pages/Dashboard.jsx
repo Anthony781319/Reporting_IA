@@ -451,7 +451,7 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
 
   // Nouvelle formule : Prez=1 · Sign=2 · Dém=4 · Fin=-1
   const top5 = Object.values(ytdByIa)
-    .map(ia => ({ ...ia, score: ia.prez * 1 + ia.sign * 2 + ia.dem * 4 + ia.fin * -1 }))
+    .map(ia => ({ ...ia, score: ia.rdv * 0.5 + ia.prez * 1 + ia.sign * 2 + ia.dem * 4 }))
     .filter(ia => ia.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
@@ -460,7 +460,7 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
 
   return (
     <>
-      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="1pt Prez · 2pts Sign. · 4pts Dém. · -1pt Fin" />
+      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
       {top5.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
