@@ -160,9 +160,36 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
     return { name: 'S' + w, RDV: ws.reduce((s, d) => s + (d.total_rdv || 0), 0), Presentations: ws.reduce((s, d) => s + (d.presentations || 0), 0), Signatures: ws.reduce((s, d) => s + (d.signatures || 0), 0) }
   })
 
-  const ranking = [...weekData].map(d => ({ name: d.ia && d.ia.nom || '?', score: (d.total_rdv || 0) * 1 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
   const p = (key) => selectedWeek > 1 ? sum(prevData, key) : undefined
   const validP1ThisWeek = p1Data.filter(p => p.semaine === selectedWeek && isValidP1(p))
+
+  // Classement YTD — exclure P1 of the week, top 5 uniquement
+  // Grouper par IA sur toute l'année
+  const ytdByIa = {}
+  saisies.forEach(s => {
+    const nom = s.ia?.nom
+    if (!nom || nom.toLowerCase().includes('p1')) return
+    if (!ytdByIa[nom]) ytdByIa[nom] = { nom, rdv: 0, prez: 0, sign: 0, dem: 0, fin: 0 }
+    ytdByIa[nom].rdv  += s.total_rdv || 0
+    ytdByIa[nom].prez += s.presentations || 0
+    ytdByIa[nom].sign += s.signatures || 0
+    ytdByIa[nom].dem  += s.demarrages || 0
+    ytdByIa[nom].fin  += s.fins_de_mission || 0
+  })
+
+  const top5 = Object.values(ytdByIa)
+    .map(ia => ({ ...ia, score: ia.rdv * 0.5 + ia.prez * 3 + ia.sign * 6 }))
+    .filter(ia => ia.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+
+  const podiumColors = [
+    { bg: '#FEF9C3', color: '#854D0E', medal: '🥇' },
+    { bg: '#F3F4F6', color: '#374151', medal: '🥈' },
+    { bg: '#FEF3C7', color: '#92400E', medal: '🥉' },
+    { bg: '#EDE9FE', color: '#6D28D9', medal: '4.' },
+    { bg: '#D1FAE5', color: '#065F46', medal: '5.' },
+  ]
 
   return (
     <>
@@ -178,8 +205,6 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
         <KpiCard label="P1 actifs" color="#0369A1" bg="#E0F2FE"
           value={validP1ThisWeek.length}
           previous={p1Data.filter(p => p.semaine === selectedWeek - 1 && isValidP1(p)).length} />
-
-        {/* Cards cliquables avec détail */}
         <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`presentation-${selectedWeek}-${refreshKey}`} />
         <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`signature-${selectedWeek}-${refreshKey}`} />
         <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`demarrage-${selectedWeek}-${refreshKey}`} />
@@ -208,23 +233,58 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
         </ResponsiveContainer>
       </div>
 
-      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="1 RDV=1pt · 1 Prez=2pts · 1 Sign.=3pts" />
-      <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
-        {ranking.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#9D174D', fontSize: 13, padding: '12px 0', opacity: 0.7 }}>Aucune saisie cette semaine</div>
-        ) : ranking.map((r, i) => (
-          <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', marginBottom: 6, background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
-            <span style={{ fontSize: 16, width: 28, textAlign: 'center' }}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.'}</span>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
-            <span style={{ flex: 1, fontSize: 13, fontWeight: i < 3 ? 700 : 400, color: '#1F2937' }}>{r.name}</span>
-            <div style={{ flex: 2, height: 8, background: 'rgba(157,23,77,0.15)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: 4, background: '#9D174D', width: Math.round((r.score / (ranking[0] && ranking[0].score || 1)) * 100) + '%', transition: 'width 0.5s ease' }} />
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, width: 44, textAlign: 'right', color: '#9D174D' }}>{r.score}pts</span>
-          </div>
-        ))}
-      </div>
+      {/* Classement YTD Top 5 */}
+      <SectionHeader title="🏆 Top 5 — Year to Date" color="#854D0E" icon="" subtitle="0.5pt RDV · 3pts Prez · 6pts Sign." />
+      {top5.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '24px 0' }}>Aucune donnée YTD</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+          {top5.map((ia, i) => {
+            const pc = podiumColors[i]
+            const maxScore = top5[0].score
+            return (
+              <div key={ia.nom} style={{ background: pc.bg, borderRadius: 16, padding: '16px 18px', border: `1.5px solid ${pc.color}20` }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <span style={{ fontSize: i < 3 ? 24 : 16, width: 32, textAlign: 'center', flexShrink: 0 }}>{pc.medal}</span>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: pc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                    {ia.nom.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: pc.color, letterSpacing: '-0.3px' }}>{ia.nom}</div>
+                    <div style={{ fontSize: 12, color: pc.color, opacity: 0.7, fontWeight: 600 }}>{ia.score.toFixed(1)} pts</div>
+                  </div>
+                  {/* Barre progression */}
+                  <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ height: 8, borderRadius: 4, background: `${pc.color}20`, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 4, background: pc.color, width: `${Math.round((ia.score / maxScore) * 100)}%`, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: pc.color, opacity: 0.6, textAlign: 'right' }}>{Math.round((ia.score / maxScore) * 100)}%</div>
+                  </div>
+                </div>
+                {/* Détail stats */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'RDV', val: ia.rdv, pts: (ia.rdv * 0.5).toFixed(1) },
+                    { label: 'Préz.', val: ia.prez, pts: (ia.prez * 3).toFixed(0) },
+                    { label: 'Sign.', val: ia.sign, pts: (ia.sign * 6).toFixed(0) },
+                    { label: 'Dém.', val: ia.dem, pts: null },
+                    { label: 'Fins', val: ia.fin, pts: null },
+                  ].map(stat => (
+                    <div key={stat.label} style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '6px 10px', textAlign: 'center', minWidth: 52 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: pc.color }}>{stat.val}</div>
+                      <div style={{ fontSize: 10, color: pc.color, opacity: 0.7 }}>{stat.label}</div>
+                      {stat.pts && <div style={{ fontSize: 10, color: pc.color, fontWeight: 600 }}>+{stat.pts}pts</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
+      {/* État du pipe */}
       <SectionHeader title="État du pipe" color="#92400E" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
       <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
         {[
