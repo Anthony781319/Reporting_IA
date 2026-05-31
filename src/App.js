@@ -2,7 +2,6 @@ import Entretiens from './pages/Entretiens'
 import { useState } from 'react'
 import Dashboard from './pages/Dashboard'
 import Saisie from './pages/Saisie'
-import Equipe from './pages/Equipe'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
 import P1Page from './pages/P1Page'
@@ -50,11 +49,11 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />
 
   const adminTabs = [
-    { id: 'dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
-    { id: 'saisie',    icon: 'ti-edit',             label: 'Ma saisie' },
-    { id: 'equipe',    icon: 'ti-users',             label: 'Équipe' },
-    { id: 'admin',     icon: 'ti-settings',          label: 'Admin' },
-    { id: 'entretiens', icon: 'ti-messages', label: '1:1' }
+    { id: 'dashboard',  icon: 'ti-layout-dashboard', label: 'Dashboard' },
+    { id: 'saisie',     icon: 'ti-edit',             label: 'Ma saisie' },
+    { id: 'ytd',        icon: 'ti-chart-bar',         label: 'Year to Date' },
+    { id: 'admin',      icon: 'ti-settings',          label: 'Admin' },
+    { id: 'entretiens', icon: 'ti-messages',          label: '1:1' },
   ]
   const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
@@ -107,12 +106,12 @@ export default function App() {
       <div className="content">
         {tab === 'dashboard'    && <Dashboard />}
         {tab === 'saisie'       && <Saisie iaId={user.id} iaName={user.nom} />}
-        {tab === 'equipe'       && <Equipe />}
-        {tab === 'admin'        && <Admin />}
+        {tab === 'ytd'          && <Dashboard ytdOnly={true} />}
+        {tab === 'admin'        && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
         {tab === 'p1'           && <P1Page />}
         {tab === 'saisie-cr'    && <SaisieCR crNom={user.nom} />}
         {tab === 'dashboard-rh' && <DashboardRH />}
-{tab === 'entretiens'   && <Entretiens />}
+        {tab === 'entretiens'   && <Entretiens />}
       </div>
     </div>
   )
