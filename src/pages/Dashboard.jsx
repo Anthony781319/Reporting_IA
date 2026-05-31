@@ -177,19 +177,6 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
     ytdByIa[nom].fin  += s.fins_de_mission || 0
   })
 
-  const top5 = Object.values(ytdByIa)
-    .map(ia => ({ ...ia, score: ia.rdv * 0.5 + ia.prez * 3 + ia.sign * 6 }))
-    .filter(ia => ia.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-
-  const podiumColors = [
-    { bg: '#FEF9C3', color: '#854D0E', medal: '🥇' },
-    { bg: '#F3F4F6', color: '#374151', medal: '🥈' },
-    { bg: '#FEF3C7', color: '#92400E', medal: '🥉' },
-    { bg: '#EDE9FE', color: '#6D28D9', medal: '4.' },
-    { bg: '#D1FAE5', color: '#065F46', medal: '5.' },
-  ]
 
   return (
     <>
@@ -233,57 +220,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
         </ResponsiveContainer>
       </div>
 
-      {/* Classement YTD Top 5 */}
-      <SectionHeader title="🏆 Top 5 — Year to Date" color="#854D0E" icon="" subtitle="0.5pt RDV · 3pts Prez · 6pts Sign." />
-      {top5.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '24px 0' }}>Aucune donnée YTD</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-          {top5.map((ia, i) => {
-            const pc = podiumColors[i]
-            const maxScore = top5[0].score
-            return (
-              <div key={ia.nom} style={{ background: pc.bg, borderRadius: 16, padding: '16px 18px', border: `1.5px solid ${pc.color}20` }}>
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <span style={{ fontSize: i < 3 ? 24 : 16, width: 32, textAlign: 'center', flexShrink: 0 }}>{pc.medal}</span>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: pc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
-                    {ia.nom.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: pc.color, letterSpacing: '-0.3px' }}>{ia.nom}</div>
-                    <div style={{ fontSize: 12, color: pc.color, opacity: 0.7, fontWeight: 600 }}>{ia.score.toFixed(1)} pts</div>
-                  </div>
-                  {/* Barre progression */}
-                  <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ height: 8, borderRadius: 4, background: `${pc.color}20`, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 4, background: pc.color, width: `${Math.round((ia.score / maxScore) * 100)}%`, transition: 'width 0.6s ease' }} />
-                    </div>
-                    <div style={{ fontSize: 10, color: pc.color, opacity: 0.6, textAlign: 'right' }}>{Math.round((ia.score / maxScore) * 100)}%</div>
-                  </div>
-                </div>
-                {/* Détail stats */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[
-                    { label: 'RDV', val: ia.rdv, pts: (ia.rdv * 0.5).toFixed(1) },
-                    { label: 'Préz.', val: ia.prez, pts: (ia.prez * 3).toFixed(0) },
-                    { label: 'Sign.', val: ia.sign, pts: (ia.sign * 6).toFixed(0) },
-                    { label: 'Dém.', val: ia.dem, pts: null },
-                    { label: 'Fins', val: ia.fin, pts: null },
-                  ].map(stat => (
-                    <div key={stat.label} style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '6px 10px', textAlign: 'center', minWidth: 52 }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: pc.color }}>{stat.val}</div>
-                      <div style={{ fontSize: 10, color: pc.color, opacity: 0.7 }}>{stat.label}</div>
-                      {stat.pts && <div style={{ fontSize: 10, color: pc.color, fontWeight: 600 }}>+{stat.pts}pts</div>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
+      
       {/* État du pipe */}
       <SectionHeader title="État du pipe" color="#92400E" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
       <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
