@@ -34,7 +34,7 @@ const KpiCard = ({ label, value, color, bg, previous }) => (
   </div>
 )
 
-const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId }) => {
+const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false }) => {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -48,8 +48,9 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
   const handleClick = async () => {
     if (value === 0) return
     if (!loaded) {
-      let query = supabase.from('details_resultats').select('*, ia(nom)').eq('semaine', semaine).eq('annee', annee).eq('type', type).order('created_at')
+      let query = supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', type).order('date')
       if (iaId) query = query.eq('ia_id', iaId)
+      if (!allYear && semaine) query = query.eq('semaine', semaine)
       const { data } = await query
       setDetails(data || [])
       setLoaded(true)
@@ -159,7 +160,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
     return { name: 'S' + w, RDV: ws.reduce((s, d) => s + (d.total_rdv || 0), 0), Presentations: ws.reduce((s, d) => s + (d.presentations || 0), 0), Signatures: ws.reduce((s, d) => s + (d.signatures || 0), 0) }
   })
 
-  const ranking = [...weekData].map(d => ({ name: d.ia && d.ia.nom || '?', score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 3 + (d.signatures || 0) * 6 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
+  const ranking = [...weekData].map(d => ({ name: d.ia && d.ia.nom || '?', score: (d.total_rdv || 0) * 1 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3 })).filter(d => d.score > 0).sort((a, b) => b.score - a.score).slice(0, 6)
   const p = (key) => selectedWeek > 1 ? sum(prevData, key) : undefined
   const validP1ThisWeek = p1Data.filter(p => p.semaine === selectedWeek && isValidP1(p))
 
@@ -207,7 +208,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
         </ResponsiveContainer>
       </div>
 
-      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="1 RDV=0,5pt · 1 Prez=3pts · 1 Sign.=6pts" />
+      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="1 RDV=1pt · 1 Prez=2pts · 1 Sign.=3pts" />
       <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
         {ranking.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#9D174D', fontSize: 13, padding: '12px 0', opacity: 0.7 }}>Aucune saisie cette semaine</div>
@@ -398,20 +399,15 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine, refreshKey }) {
           ) : (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 }}>
-                {[
-                  { label: 'RDV total', key: 'total_rdv', color: '#6D28D9', bg: '#EDE9FE' },
-                  { label: 'Présentations', key: 'presentations', color: '#1E40AF', bg: '#DBEAFE' },
-                  { label: 'Signatures', key: 'signatures', color: '#9D174D', bg: '#FCE7F3' },
-                  { label: 'Démarrages', key: 'demarrages', color: '#065F46', bg: '#D1FAE5' },
-                  { label: 'Solutions', key: 'cv_envoyes', color: '#166534', bg: '#DCFCE7' },
-                  { label: 'Besoins détectés', key: 'besoins_detectes', color: '#9F1239', bg: '#FFE4E6' },
-                  { label: 'Fins de mission', key: 'fins_de_mission', color: '#92400E', bg: '#FEF3C7' },
-                  { label: 'Pipe total', key: null, color: '#854D0E', bg: '#FEF9C3' },
-                ].map(k => (
-                  <KpiCard key={k.label} label={k.label} color={k.color} bg={k.bg}
-                    value={k.key ? sum(iaAnnuel, k.key) : sum(iaAnnuel, 'besoins_sans_solution') + sum(iaAnnuel, 'attente_retour') + sum(iaAnnuel, 'attente_retour_prez')}
-                  />
-                ))}
+                <KpiCard label="RDV total" value={sum(iaAnnuel, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" />
+                <KpiCard label="Solutions" value={sum(iaAnnuel, 'cv_envoyes')} color="#166534" bg="#DCFCE7" />
+                <KpiCard label="Besoins détectés" value={sum(iaAnnuel, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" />
+                <KpiCard label="Pipe total" color="#854D0E" bg="#FEF9C3"
+                  value={sum(iaAnnuel, 'besoins_sans_solution') + sum(iaAnnuel, 'attente_retour') + sum(iaAnnuel, 'attente_retour_prez')} />
+                <KpiCardDetail label="Présentations" value={sum(iaAnnuel, 'presentations')} color="#1E40AF" bg="#DBEAFE" type="presentation" semaine={null} annee={annee_val} iaId={selectedIa.id} key={`ann-pres-${selectedIa.id}-${refreshKey}`} allYear={true} />
+                <KpiCardDetail label="Signatures" value={sum(iaAnnuel, 'signatures')} color="#9D174D" bg="#FCE7F3" type="signature" semaine={null} annee={annee_val} iaId={selectedIa.id} key={`ann-sign-${selectedIa.id}-${refreshKey}`} allYear={true} />
+                <KpiCardDetail label="Démarrages" value={sum(iaAnnuel, 'demarrages')} color="#065F46" bg="#D1FAE5" type="demarrage" semaine={null} annee={annee_val} iaId={selectedIa.id} key={`ann-dem-${selectedIa.id}-${refreshKey}`} allYear={true} />
+                <KpiCardDetail label="Fins de mission" value={sum(iaAnnuel, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" type="fin_mission" semaine={null} annee={annee_val} iaId={selectedIa.id} key={`ann-fin-${selectedIa.id}-${refreshKey}`} allYear={true} />
               </div>
               <SectionHeader title="Évolution RDV & Signatures" color="#1E40AF" icon="📈" subtitle="6 dernières semaines" />
               <div style={{ background: '#DBEAFE', borderRadius: 14, padding: 16, marginBottom: 24 }}>
