@@ -226,13 +226,13 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
 {(() => {
   const ranking = [...weekData]
     .filter(d => d.ia?.nom && !d.ia.nom.toLowerCase().includes('p1'))
-    .map(d => ({ name: d.ia.nom, score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 1 + (d.signatures || 0) * 2 + (d.demarrages || 0) * 4 }))
+    .map(d => ({ name: d.ia.nom, score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3}))
     .filter(d => d.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
   return (
     <>
-      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
+      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="0.5pt RDV · 2pts Prez · 3pts Sign." />
       <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
         {ranking.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#9D174D', fontSize: 13, padding: '12px 0', opacity: 0.7 }}>Aucune saisie cette semaine</div>
