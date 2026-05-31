@@ -178,7 +178,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
   })
 
   const top5 = Object.values(ytdByIa)
-    .map(ia => ({ ...ia, score: ia.prez * 1 + ia.sign * 2 + ia.dem * 4 + ia.fin * -1 }))
+    .map(ia => ({ ...ia, score: ia.rdv * 0.5 + ia.prez * 3 + ia.sign * 6 }))
     .filter(ia => ia.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
@@ -234,7 +234,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
       </div>
 
       {/* Classement YTD Top 5 */}
-      <SectionHeader title="🏆 Top 5 — Year to Date" color="#854D0E" icon="" subtitle="1pt Prez · 2pts Sign. · 4pts Dém. · -1pt Fin" />
+      <SectionHeader title="🏆 Top 5 — Year to Date" color="#854D0E" icon="" subtitle="0.5pt RDV · 3pts Prez · 6pts Sign." />
       {top5.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '24px 0' }}>Aucune donnée YTD</div>
       ) : (
@@ -490,7 +490,92 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine, refreshKey }) {
   )
 }
 
-export default function Dashboard() {
+function VueYTD({ saisies, iaList, refreshKey, annee }) {
+  const podiumColors = [
+    { bg: '#FEF9C3', color: '#854D0E', medal: '🥇' },
+    { bg: '#F3F4F6', color: '#374151', medal: '🥈' },
+    { bg: '#FEF3C7', color: '#92400E', medal: '🥉' },
+    { bg: '#EDE9FE', color: '#6D28D9', medal: '4.' },
+    { bg: '#D1FAE5', color: '#065F46', medal: '5.' },
+  ]
+
+  // Grouper par IA sur toute l'année — exclure P1 of the week
+  const ytdByIa = {}
+  saisies.forEach(s => {
+    const nom = s.ia?.nom
+    if (!nom || nom.toLowerCase().includes('p1')) return
+    if (!ytdByIa[nom]) ytdByIa[nom] = { nom, rdv: 0, prez: 0, sign: 0, dem: 0, fin: 0 }
+    ytdByIa[nom].rdv  += s.total_rdv || 0
+    ytdByIa[nom].prez += s.presentations || 0
+    ytdByIa[nom].sign += s.signatures || 0
+    ytdByIa[nom].dem  += s.demarrages || 0
+    ytdByIa[nom].fin  += s.fins_de_mission || 0
+  })
+
+  // Nouvelle formule : Prez=1 · Sign=2 · Dém=4 · Fin=-1
+  const top5 = Object.values(ytdByIa)
+    .map(ia => ({ ...ia, score: ia.prez * 1 + ia.sign * 2 + ia.dem * 4 + ia.fin * -1 }))
+    .filter(ia => ia.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+
+  const maxScore = top5[0]?.score || 1
+
+  return (
+    <>
+      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="1pt Prez · 2pts Sign. · 4pts Dém. · -1pt Fin" />
+      {top5.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+          Aucune donnée YTD
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+          {top5.map((ia, i) => {
+            const pc = podiumColors[i]
+            return (
+              <div key={ia.nom} style={{ background: pc.bg, borderRadius: 16, padding: '16px 18px', border: `1.5px solid ${pc.color}20` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <span style={{ fontSize: i < 3 ? 24 : 16, width: 32, textAlign: 'center', flexShrink: 0 }}>{pc.medal}</span>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: pc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                    {ia.nom.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: pc.color, letterSpacing: '-0.3px' }}>{ia.nom}</div>
+                    <div style={{ fontSize: 12, color: pc.color, opacity: 0.7, fontWeight: 600 }}>{ia.score.toFixed(1)} pts</div>
+                  </div>
+                  <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ height: 8, borderRadius: 4, background: `${pc.color}20`, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 4, background: pc.color, width: `${Math.round((ia.score / maxScore) * 100)}%`, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: pc.color, opacity: 0.6, textAlign: 'right' }}>{Math.round((ia.score / maxScore) * 100)}%</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'RDV', val: ia.rdv, pts: null },
+                    { label: 'Préz.', val: ia.prez, pts: ia.prez * 1 },
+                    { label: 'Sign.', val: ia.sign, pts: ia.sign * 2 },
+                    { label: 'Dém.', val: ia.dem, pts: ia.dem * 4 },
+                    { label: 'Fins', val: ia.fin, pts: ia.fin > 0 ? ia.fin * -1 : null },
+                  ].map(stat => (
+                    <div key={stat.label} style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '6px 10px', textAlign: 'center', minWidth: 52 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: pc.color }}>{stat.val}</div>
+                      <div style={{ fontSize: 10, color: pc.color, opacity: 0.7 }}>{stat.label}</div>
+                      {stat.pts !== null && <div style={{ fontSize: 10, color: pc.color, fontWeight: 600 }}>{stat.pts > 0 ? '+' : ''}{stat.pts}pts</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
+export default function Dashboard({ ytdOnly = false }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
   const [view, setView] = useState('equipe')
@@ -526,25 +611,34 @@ export default function Dashboard() {
   return (
     <div style={{ padding: '14px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>Vue d'ensemble</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+          {ytdOnly ? 'Year to Date' : "Vue d'ensemble"}
+        </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => { load(); setRefreshKey(k => k + 1) }} style={{ padding: '4px 10px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 12, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
             🔄
           </button>
-          <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />
+          {!ytdOnly && <WeekSelector selectedWeek={selectedWeek} semaine={semaine} onChange={setSelectedWeek} />}
         </div>
       </div>
-      <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 12, padding: 4, marginBottom: 20, border: '1px solid var(--color-border-tertiary)' }}>
-        {[['equipe', "📊 Year to Date"], ['focus', "👤 Focus IA"]].map(([id, label]) => (
-          <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400, background: view === id ? '#6D28D9' : 'transparent', color: view === id ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {view === 'equipe' ? (
-        <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} refreshKey={refreshKey} />
+
+      {ytdOnly ? (
+        <VueYTD saisies={saisies} iaList={iaList} refreshKey={refreshKey} annee={annee} />
       ) : (
-        <VueFocusIA saisies={saisies} iaList={iaList} selectedWeek={selectedWeek} semaine={semaine} refreshKey={refreshKey} />
+        <>
+          <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 12, padding: 4, marginBottom: 20, border: '1px solid var(--color-border-tertiary)' }}>
+            {[['equipe', "📊 Équipe"], ['focus', "👤 Focus IA"]].map(([id, label]) => (
+              <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400, background: view === id ? '#6D28D9' : 'transparent', color: view === id ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {view === 'equipe' ? (
+            <VueEquipe saisies={saisies} selectedWeek={selectedWeek} setSelectedWeek={setSelectedWeek} semaine={semaine} annee={annee} p1Data={p1Data} refreshKey={refreshKey} />
+          ) : (
+            <VueFocusIA saisies={saisies} iaList={iaList} selectedWeek={selectedWeek} semaine={semaine} refreshKey={refreshKey} />
+          )}
+        </>
       )}
     </div>
   )
