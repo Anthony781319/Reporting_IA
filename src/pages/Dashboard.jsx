@@ -178,7 +178,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
   })
 
   const top5 = Object.values(ytdByIa)
-    .map(ia => ({ ...ia, score: ia.rdv * 0.5 + ia.prez * 3 + ia.sign * 6 }))
+    .map(ia => ({ ...ia, score: ia.prez * 1 + ia.sign * 2 + ia.dem * 4 + ia.fin * -1 }))
     .filter(ia => ia.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
@@ -234,7 +234,7 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
       </div>
 
       {/* Classement YTD Top 5 */}
-      <SectionHeader title="🏆 Top 5 — Year to Date" color="#854D0E" icon="" subtitle="0.5pt RDV · 3pts Prez · 6pts Sign." />
+      <SectionHeader title="🏆 Top 5 — Year to Date" color="#854D0E" icon="" subtitle="1pt Prez · 2pts Sign. · 4pts Dém. · -1pt Fin" />
       {top5.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '24px 0' }}>Aucune donnée YTD</div>
       ) : (
@@ -535,7 +535,7 @@ export default function Dashboard() {
         </div>
       </div>
       <div style={{ display: 'flex', background: 'var(--color-background-secondary)', borderRadius: 12, padding: 4, marginBottom: 20, border: '1px solid var(--color-border-tertiary)' }}>
-        {[['equipe', "👥 Équipe"], ['focus', "👤 Focus IA"]].map(([id, label]) => (
+        {[['equipe', "📊 Year to Date"], ['focus', "👤 Focus IA"]].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400, background: view === id ? '#6D28D9' : 'transparent', color: view === id ? '#fff' : 'var(--color-text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
             {label}
           </button>
