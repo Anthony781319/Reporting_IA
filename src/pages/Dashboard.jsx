@@ -213,69 +213,11 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
           .filter(d => d.score > 0)
           .sort((a, b) => b.score - a.score)
           .slice(0, 5)
-
         if (ranking.length === 0) return null
-
-        const maxScore = ranking[0]?.score || 1
-        const top3 = ranking.slice(0, 3)
-        const rest = ranking.slice(3)
-
-        // Ordre podium : 2ème, 1er, 3ème
-        const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean)
-        const podiumHeights = { 0: 80, 1: 110, 2: 60 } // hauteur des blocs (2e, 1er, 3e)
-        const podiumColors2 = ['#C0C0C0', '#FFD700', '#CD7F32']
-        const podiumBg = ['#F3F4F6', '#FEF9C3', '#FEF3C7']
-        const podiumText = ['#374151', '#854D0E', '#92400E']
-
         return (
           <>
             <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="0.5pt RDV · 2pts Prez · 3pts Sign." />
-            <div style={{ background: '#FCE7F3', borderRadius: 16, padding: '20px 16px', marginBottom: 24 }}>
-
-              {/* Podium visuel */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8, marginBottom: 20 }}>
-                {podiumOrder.map((r, idx) => {
-                  const realRank = idx === 0 ? 1 : idx === 1 ? 0 : 2
-                  const height = [80, 110, 60][idx]
-                  const color = podiumColors2[realRank]
-                  const bg = podiumBg[realRank]
-                  const textColor = podiumText[realRank]
-                  const medal = ['🥈', '🥇', '🥉'][idx]
-                  return (
-                    <div key={r.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                      {/* Avatar */}
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>{medal}</div>
-                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, marginBottom: 4, boxShadow: `0 4px 12px ${color}60` }}>
-                        {r.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: textColor, marginBottom: 4, textAlign: 'center' }}>{r.name}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: textColor, opacity: 0.8, marginBottom: 6 }}>{r.score}pts</div>
-                      {/* Bloc podium */}
-                      <div style={{ width: '100%', height, background: `linear-gradient(180deg, ${color}40, ${color}20)`, border: `2px solid ${color}60`, borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 22, fontWeight: 900, color, opacity: 0.5 }}>{realRank + 1}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Positions 4 et 5 */}
-              {rest.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {rest.map((r, i) => (
-                    <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#9D174D', width: 20 }}>{i + 4}.</span>
-                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
-                      <span style={{ flex: 1, fontSize: 13, color: '#1F2937' }}>{r.name}</span>
-                      <div style={{ flex: 2, height: 6, background: 'rgba(157,23,77,0.15)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 3, background: '#9D174D', width: Math.round((r.score / maxScore) * 100) + '%' }} />
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#9D174D', width: 44, textAlign: 'right' }}>{r.score}pts</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <PodiumVisuel ranking={ranking} />
           </>
         )
       })()}
@@ -486,15 +428,67 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine, refreshKey }) {
   )
 }
 
-function VueYTD({ saisies, iaList, refreshKey, annee }) {
-  const podiumColors = [
-    { bg: '#FEF9C3', color: '#854D0E', medal: '🥇' },
-    { bg: '#F3F4F6', color: '#374151', medal: '🥈' },
-    { bg: '#FEF3C7', color: '#92400E', medal: '🥉' },
-    { bg: '#EDE9FE', color: '#6D28D9', medal: '4.' },
-    { bg: '#D1FAE5', color: '#065F46', medal: '5.' },
-  ]
+function PodiumVisuel({ ranking, subtitle }) {
+  if (ranking.length === 0) return (
+    <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0' }}>
+      <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+      Aucune donnée disponible
+    </div>
+  )
 
+  const top3 = ranking.slice(0, 3)
+  const rest = ranking.slice(3)
+  const maxScore = ranking[0]?.score || 1
+
+  // Ordre visuel podium : 2ème - 1er - 3ème
+  const podiumOrder = [
+    { data: top3[1], rank: 2, height: 80, color: '#C0C0C0', shadow: 'rgba(192,192,192,0.5)', medal: '🥈' },
+    { data: top3[0], rank: 1, height: 110, color: '#FFD700', shadow: 'rgba(255,215,0,0.5)', medal: '🥇' },
+    { data: top3[2], rank: 3, height: 60, color: '#CD7F32', shadow: 'rgba(205,127,50,0.5)', medal: '🥉' },
+  ].filter(p => p.data)
+
+  return (
+    <div style={{ background: '#FCE7F3', borderRadius: 16, padding: '20px 16px', marginBottom: 24 }}>
+      {subtitle && <div style={{ fontSize: 11, color: '#9D174D', fontWeight: 600, textAlign: 'center', marginBottom: 16, opacity: 0.7 }}>{subtitle}</div>}
+
+      {/* Podium visuel */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+        {podiumOrder.map((p) => (
+          <div key={p.data.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{p.medal}</div>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 15, marginBottom: 6, boxShadow: `0 4px 14px ${p.shadow}` }}>
+              {p.data.name.slice(0, 2).toUpperCase()}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#1F2937', textAlign: 'center', marginBottom: 2 }}>{p.data.name}</div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: '#9D174D', marginBottom: 8 }}>{p.data.score % 1 === 0 ? p.data.score : p.data.score.toFixed(1)}pts</div>
+            <div style={{ width: '100%', height: p.height, background: `linear-gradient(180deg, ${p.color}50, ${p.color}20)`, border: `2px solid ${p.color}80`, borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 24, fontWeight: 900, color: p.color, opacity: 0.6 }}>{p.rank}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Positions 4 et 5 */}
+      {rest.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rest.map((r, i) => (
+            <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#9D174D', width: 20 }}>{i + 4}.</span>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
+              <span style={{ flex: 1, fontSize: 13, color: '#1F2937' }}>{r.name}</span>
+              <div style={{ flex: 2, height: 6, background: 'rgba(157,23,77,0.15)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 3, background: '#9D174D', width: Math.round((r.score / maxScore) * 100) + '%' }} />
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#9D174D', width: 44, textAlign: 'right' }}>{r.score % 1 === 0 ? r.score : r.score.toFixed(1)}pts</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VueYTD({ saisies, iaList, refreshKey, annee }) {
   // Grouper par IA sur toute l'année — exclure P1 of the week
   const ytdByIa = {}
   saisies.forEach(s => {
@@ -508,65 +502,17 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
     ytdByIa[nom].fin  += s.fins_de_mission || 0
   })
 
-  // Nouvelle formule : Prez=1 · Sign=2 · Dém=4 · Fin=-1
+  // Formule YTD : 0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém.
   const top5 = Object.values(ytdByIa)
-    .map(ia => ({ ...ia, score: ia.prez * 1 + ia.sign * 2 + ia.dem * 4 + ia.fin * -1 }))
+    .map(ia => ({ name: ia.nom, score: ia.rdv * 0.5 + ia.prez * 1 + ia.sign * 2 + ia.dem * 4, ...ia }))
     .filter(ia => ia.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
 
-  const maxScore = top5[0]?.score || 1
-
   return (
     <>
-      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="1pt Prez · 2pts Sign. · 4pts Dém. · -1pt Fin" />
-      {top5.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
-          Aucune donnée YTD
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-          {top5.map((ia, i) => {
-            const pc = podiumColors[i]
-            return (
-              <div key={ia.nom} style={{ background: pc.bg, borderRadius: 16, padding: '16px 18px', border: `1.5px solid ${pc.color}20` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <span style={{ fontSize: i < 3 ? 24 : 16, width: 32, textAlign: 'center', flexShrink: 0 }}>{pc.medal}</span>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: pc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
-                    {ia.nom.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: pc.color, letterSpacing: '-0.3px' }}>{ia.nom}</div>
-                    <div style={{ fontSize: 12, color: pc.color, opacity: 0.7, fontWeight: 600 }}>{ia.score.toFixed(1)} pts</div>
-                  </div>
-                  <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ height: 8, borderRadius: 4, background: `${pc.color}20`, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 4, background: pc.color, width: `${Math.round((ia.score / maxScore) * 100)}%`, transition: 'width 0.6s ease' }} />
-                    </div>
-                    <div style={{ fontSize: 10, color: pc.color, opacity: 0.6, textAlign: 'right' }}>{Math.round((ia.score / maxScore) * 100)}%</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[
-                    { label: 'RDV', val: ia.rdv, pts: null },
-                    { label: 'Préz.', val: ia.prez, pts: ia.prez * 1 },
-                    { label: 'Sign.', val: ia.sign, pts: ia.sign * 2 },
-                    { label: 'Dém.', val: ia.dem, pts: ia.dem * 4 },
-                    { label: 'Fins', val: ia.fin, pts: ia.fin > 0 ? ia.fin * -1 : null },
-                  ].map(stat => (
-                    <div key={stat.label} style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '6px 10px', textAlign: 'center', minWidth: 52 }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: pc.color }}>{stat.val}</div>
-                      <div style={{ fontSize: 10, color: pc.color, opacity: 0.7 }}>{stat.label}</div>
-                      {stat.pts !== null && <div style={{ fontSize: 10, color: pc.color, fontWeight: 600 }}>{stat.pts > 0 ? '+' : ''}{stat.pts}pts</div>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
+      <PodiumVisuel ranking={top5} subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
     </>
   )
 }
