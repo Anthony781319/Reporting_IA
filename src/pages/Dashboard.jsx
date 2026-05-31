@@ -163,21 +163,6 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
   const p = (key) => selectedWeek > 1 ? sum(prevData, key) : undefined
   const validP1ThisWeek = p1Data.filter(p => p.semaine === selectedWeek && isValidP1(p))
 
-  // Classement YTD — exclure P1 of the week, top 5 uniquement
-  // Grouper par IA sur toute l'année
-  const ytdByIa = {}
-  saisies.forEach(s => {
-    const nom = s.ia?.nom
-    if (!nom || nom.toLowerCase().includes('p1')) return
-    if (!ytdByIa[nom]) ytdByIa[nom] = { nom, rdv: 0, prez: 0, sign: 0, dem: 0, fin: 0 }
-    ytdByIa[nom].rdv  += s.total_rdv || 0
-    ytdByIa[nom].prez += s.presentations || 0
-    ytdByIa[nom].sign += s.signatures || 0
-    ytdByIa[nom].dem  += s.demarrages || 0
-    ytdByIa[nom].fin  += s.fins_de_mission || 0
-  })
-
-
   return (
     <>
       <SectionHeader title="Indicateurs clés" color="#6D28D9" icon="📊" subtitle={'Semaine ' + selectedWeek + (selectedWeek > 1 ? ' — vs S' + (selectedWeek - 1) : '')} />
@@ -220,38 +205,82 @@ function VueEquipe({ saisies, selectedWeek, semaine, annee, p1Data, refreshKey }
         </ResponsiveContainer>
       </div>
 
-      
-      {/* État du pipe */}
-{/* Classement semaine */}
-{(() => {
-  const ranking = [...weekData]
-    .filter(d => d.ia?.nom && !d.ia.nom.toLowerCase().includes('p1'))
-    .map(d => ({ name: d.ia.nom, score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3}))
-    .filter(d => d.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-  return (
-    <>
-      <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="0.5pt RDV · 2pts Prez · 3pts Sign." />
-      <div style={{ background: '#FCE7F3', borderRadius: 14, padding: '16px', marginBottom: 24 }}>
-        {ranking.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#9D174D', fontSize: 13, padding: '12px 0', opacity: 0.7 }}>Aucune saisie cette semaine</div>
-        ) : ranking.map((r, i) => (
-          <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', marginBottom: 6, background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
-            <span style={{ fontSize: 16, width: 28, textAlign: 'center' }}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.'}</span>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
-            <span style={{ flex: 1, fontSize: 13, fontWeight: i < 3 ? 700 : 400, color: '#1F2937' }}>{r.name}</span>
-            <div style={{ flex: 2, height: 8, background: 'rgba(157,23,77,0.15)', borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: 4, background: '#9D174D', width: Math.round((r.score / (ranking[0]?.score || 1)) * 100) + '%', transition: 'width 0.5s ease' }} />
+      {/* Classement semaine avec podium */}
+      {(() => {
+        const ranking = [...weekData]
+          .filter(d => d.ia?.nom && !d.ia.nom.toLowerCase().includes('p1'))
+          .map(d => ({ name: d.ia.nom, score: (d.total_rdv || 0) * 0.5 + (d.presentations || 0) * 2 + (d.signatures || 0) * 3 }))
+          .filter(d => d.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 5)
+
+        if (ranking.length === 0) return null
+
+        const maxScore = ranking[0]?.score || 1
+        const top3 = ranking.slice(0, 3)
+        const rest = ranking.slice(3)
+
+        // Ordre podium : 2ème, 1er, 3ème
+        const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean)
+        const podiumHeights = { 0: 80, 1: 110, 2: 60 } // hauteur des blocs (2e, 1er, 3e)
+        const podiumColors2 = ['#C0C0C0', '#FFD700', '#CD7F32']
+        const podiumBg = ['#F3F4F6', '#FEF9C3', '#FEF3C7']
+        const podiumText = ['#374151', '#854D0E', '#92400E']
+
+        return (
+          <>
+            <SectionHeader title={'Classement S' + selectedWeek} color="#9D174D" icon="🏆" subtitle="0.5pt RDV · 2pts Prez · 3pts Sign." />
+            <div style={{ background: '#FCE7F3', borderRadius: 16, padding: '20px 16px', marginBottom: 24 }}>
+
+              {/* Podium visuel */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8, marginBottom: 20 }}>
+                {podiumOrder.map((r, idx) => {
+                  const realRank = idx === 0 ? 1 : idx === 1 ? 0 : 2
+                  const height = [80, 110, 60][idx]
+                  const color = podiumColors2[realRank]
+                  const bg = podiumBg[realRank]
+                  const textColor = podiumText[realRank]
+                  const medal = ['🥈', '🥇', '🥉'][idx]
+                  return (
+                    <div key={r.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                      {/* Avatar */}
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>{medal}</div>
+                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, marginBottom: 4, boxShadow: `0 4px 12px ${color}60` }}>
+                        {r.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: textColor, marginBottom: 4, textAlign: 'center' }}>{r.name}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: textColor, opacity: 0.8, marginBottom: 6 }}>{r.score}pts</div>
+                      {/* Bloc podium */}
+                      <div style={{ width: '100%', height, background: `linear-gradient(180deg, ${color}40, ${color}20)`, border: `2px solid ${color}60`, borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 22, fontWeight: 900, color, opacity: 0.5 }}>{realRank + 1}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Positions 4 et 5 */}
+              {rest.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {rest.map((r, i) => (
+                    <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#9D174D', width: 20 }}>{i + 4}.</span>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
+                      <span style={{ flex: 1, fontSize: 13, color: '#1F2937' }}>{r.name}</span>
+                      <div style={{ flex: 2, height: 6, background: 'rgba(157,23,77,0.15)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 3, background: '#9D174D', width: Math.round((r.score / maxScore) * 100) + '%' }} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#9D174D', width: 44, textAlign: 'right' }}>{r.score}pts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, width: 48, textAlign: 'right', color: '#9D174D' }}>{r.score}pts</span>
-          </div>
-        ))}
-      </div>
-    </>
-  )
-})()}
-      
+          </>
+        )
+      })()}
+
+      {/* État du pipe */}
       <SectionHeader title="État du pipe" color="#92400E" icon="🎯" subtitle={'Photo de la semaine ' + selectedWeek} />
       <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 24 }}>
         {[
@@ -481,7 +510,7 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
 
   // Nouvelle formule : Prez=1 · Sign=2 · Dém=4 · Fin=-1
   const top5 = Object.values(ytdByIa)
-    .map(ia => ({ ...ia, score: ia.rdv * 0.5 + ia.prez * 1 + ia.sign * 2 + ia.dem * 4 }))
+    .map(ia => ({ ...ia, score: ia.prez * 1 + ia.sign * 2 + ia.dem * 4 + ia.fin * -1 }))
     .filter(ia => ia.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
@@ -490,7 +519,7 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
 
   return (
     <>
-      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
+      <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="1pt Prez · 2pts Sign. · 4pts Dém. · -1pt Fin" />
       {top5.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
