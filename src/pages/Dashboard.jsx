@@ -430,9 +430,9 @@ function VueFocusIA({ saisies, iaList, selectedWeek, semaine, refreshKey }) {
 
 function PodiumVisuel({ ranking, subtitle }) {
   if (ranking.length === 0) return (
-    <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0' }}>
+    <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, padding: '40px 0', background: '#FCE7F3', borderRadius: 16, marginBottom: 24 }}>
       <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
-      Aucune donnée disponible
+      Aucune saisie cette semaine
     </div>
   )
 
@@ -440,46 +440,46 @@ function PodiumVisuel({ ranking, subtitle }) {
   const rest = ranking.slice(3)
   const maxScore = ranking[0]?.score || 1
 
-  // Ordre visuel podium : 2ème - 1er - 3ème
   const podiumOrder = [
-    { data: top3[1], rank: 2, height: 80, color: '#C0C0C0', shadow: 'rgba(192,192,192,0.5)', medal: '🥈' },
-    { data: top3[0], rank: 1, height: 110, color: '#FFD700', shadow: 'rgba(255,215,0,0.5)', medal: '🥇' },
-    { data: top3[2], rank: 3, height: 60, color: '#CD7F32', shadow: 'rgba(205,127,50,0.5)', medal: '🥉' },
+    { data: top3[1], rank: 2, height: 80, color: '#94A3B8', colorDark: '#475569', medal: '🥈' },
+    { data: top3[0], rank: 1, height: 120, color: '#F59E0B', colorDark: '#92400E', medal: '🥇' },
+    { data: top3[2], rank: 3, height: 55, color: '#B45309', colorDark: '#78350F', medal: '🥉' },
   ].filter(p => p.data)
 
   return (
-    <div style={{ background: '#FCE7F3', borderRadius: 16, padding: '20px 16px', marginBottom: 24 }}>
-      {subtitle && <div style={{ fontSize: 11, color: '#9D174D', fontWeight: 600, textAlign: 'center', marginBottom: 16, opacity: 0.7 }}>{subtitle}</div>}
-
+    <div style={{ background: 'linear-gradient(180deg, #FFF1F2 0%, #FCE7F3 100%)', borderRadius: 16, padding: '20px 16px', marginBottom: 24, border: '1px solid #FECDD3' }}>
       {/* Podium visuel */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 10, marginBottom: 24 }}>
         {podiumOrder.map((p) => (
           <div key={p.data.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-            <div style={{ fontSize: 22, marginBottom: 6 }}>{p.medal}</div>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 15, marginBottom: 6, boxShadow: `0 4px 14px ${p.shadow}` }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{p.medal}</div>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: `linear-gradient(135deg, ${p.color}, ${p.colorDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, marginBottom: 8, boxShadow: `0 6px 20px ${p.color}60` }}>
               {p.data.name.slice(0, 2).toUpperCase()}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#1F2937', textAlign: 'center', marginBottom: 2 }}>{p.data.name}</div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#9D174D', marginBottom: 8 }}>{p.data.score % 1 === 0 ? p.data.score : p.data.score.toFixed(1)}pts</div>
-            <div style={{ width: '100%', height: p.height, background: `linear-gradient(180deg, ${p.color}50, ${p.color}20)`, border: `2px solid ${p.color}80`, borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 24, fontWeight: 900, color: p.color, opacity: 0.6 }}>{p.rank}</span>
+            <div style={{ fontSize: 13, fontWeight: 700, color: p.colorDark, textAlign: 'center', marginBottom: 2 }}>{p.data.name}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: p.colorDark, opacity: 0.8, marginBottom: 10 }}>{p.data.score % 1 === 0 ? p.data.score : p.data.score.toFixed(1)}pts</div>
+            <div style={{ width: '100%', height: p.height, background: `linear-gradient(180deg, ${p.color}CC, ${p.color}44)`, border: `2px solid ${p.color}`, borderBottom: 'none', borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 -4px 12px ${p.color}30` }}>
+              <span style={{ fontSize: 28, fontWeight: 900, color: '#fff', opacity: 0.8, textShadow: `0 2px 4px ${p.colorDark}60` }}>{p.rank}</span>
             </div>
           </div>
         ))}
       </div>
 
+      {/* Sol du podium */}
+      <div style={{ height: 4, background: 'linear-gradient(90deg, #FECDD3, #F9A8D4, #FECDD3)', borderRadius: 2, marginBottom: 16, opacity: 0.6 }} />
+
       {/* Positions 4 et 5 */}
       {rest.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rest.map((r, i) => (
-            <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.6)', borderRadius: 10 }}>
+            <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.7)', borderRadius: 10, border: '1px solid #FECDD3' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#9D174D', width: 20 }}>{i + 4}.</span>
-              <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#9D174D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
-              <span style={{ flex: 1, fontSize: 13, color: '#1F2937' }}>{r.name}</span>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #BE185D, #9D174D)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#1F2937' }}>{r.name}</span>
               <div style={{ flex: 2, height: 6, background: 'rgba(157,23,77,0.15)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ height: '100%', borderRadius: 3, background: '#9D174D', width: Math.round((r.score / maxScore) * 100) + '%' }} />
+                <div style={{ height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, #BE185D, #9D174D)', width: Math.round((r.score / maxScore) * 100) + '%' }} />
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#9D174D', width: 44, textAlign: 'right' }}>{r.score % 1 === 0 ? r.score : r.score.toFixed(1)}pts</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#9D174D', width: 48, textAlign: 'right' }}>{r.score % 1 === 0 ? r.score : r.score.toFixed(1)}pts</span>
             </div>
           ))}
         </div>
