@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -488,7 +488,17 @@ function PodiumVisuel({ ranking, subtitle }) {
   )
 }
 
+// Charge Chart.js dynamiquement
+if (typeof window !== 'undefined' && !window.Chart) {
+  const script = document.createElement('script')
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
+  document.head.appendChild(script)
+}
+
 function VueYTD({ saisies, iaList, refreshKey, annee }) {
+  const chartRef = useRef(null)
+  const chartInstance = useRef(null)
+
   // Grouper par IA sur toute l'année — exclure P1 of the week
   const ytdByIa = {}
   saisies.forEach(s => {
@@ -509,25 +519,94 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
 
+  // Totaux YTD
+  const totalPrez = Object.values(ytdByIa).reduce((a, ia) => a + ia.prez, 0)
+  const totalSign = Object.values(ytdByIa).reduce((a, ia) => a + ia.sign, 0)
+  const totalDem  = Object.values(ytdByIa).reduce((a, ia) => a + ia.dem,  0)
+  const totalFin  = Object.values(ytdByIa).reduce((a, ia) => a + ia.fin,  0)
+
+  // Données mensuelles (via semaine → mois approximatif)
+  const monthLabels = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
+  const monthly = Array.from({ length: 12 }, () => ({ prez: 0, sign: 0, dem: 0, fin: 0 }))
+  saisies.forEach(s => {
+    if (!s.ia?.nom || s.ia.nom.toLowerCase().includes('p1')) return
+    const month = Math.min(11, Math.floor(((s.semaine || 1) - 1) / 4.33))
+    monthly[month].prez += s.presentations || 0
+    monthly[month].sign += s.signatures || 0
+    monthly[month].dem  += s.demarrages || 0
+    monthly[month].fin  += s.fins_de_mission || 0
+  })
+  const currentMonth = new Date().getMonth()
+  const activeMonths = monthly.slice(0, currentMonth + 1)
+  const activeLabels = monthLabels.slice(0, currentMonth + 1)
+
+  useEffect(() => {
+    if (!chartRef.current) return
+    if (chartInstance.current) chartInstance.current.destroy()
+
+    const ctx = chartRef.current.getContext('2d')
+    chartInstance.current = new window.Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: activeLabels,
+        datasets: [
+          { label: 'Présentations', data: activeMonths.map(m => m.prez), backgroundColor: '#1E40AF' },
+          { label: 'Signatures',    data: activeMonths.map(m => m.sign), backgroundColor: '#9D174D' },
+          { label: 'Démarrages',    data: activeMonths.map(m => m.dem),  backgroundColor: '#065F46' },
+          { label: 'Fins mission',  data: activeMonths.map(m => m.fin),  backgroundColor: '#92400E' },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: false }
+        },
+        scales: {
+          x: { ticks: { font: { size: 11 }, autoSkip: false }, grid: { display: false } },
+          y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+    })
+    return () => { if (chartInstance.current) chartInstance.current.destroy() }
+  }, [saisies])
+
   return (
     <>
+      {/* Podium Top 5 */}
       <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
       <PodiumVisuel ranking={top5} />
 
-      {/* Récap activité YTD équipe */}
-      <SectionHeader title="Activité équipe — Year to Date" color="#1E40AF" icon="📊" subtitle="Cumul depuis le début de l'année" />
+      {/* Récap YTD */}
+      <SectionHeader title="Activité équipe — YTD" color="#1E40AF" icon="📊" subtitle="Cumul depuis le début de l'année" />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 }}>
         {[
-          { label: 'Présentations', color: '#1E40AF', bg: '#DBEAFE', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.prez, 0) },
-          { label: 'Signatures', color: '#9D174D', bg: '#FCE7F3', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.sign, 0) },
-          { label: 'Démarrages', color: '#065F46', bg: '#D1FAE5', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.dem, 0) },
-          { label: 'Fins de mission', color: '#92400E', bg: '#FEF3C7', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.fin, 0) },
+          { label: 'Présentations', color: '#1E40AF', bg: '#DBEAFE', val: totalPrez },
+          { label: 'Signatures',    color: '#9D174D', bg: '#FCE7F3', val: totalSign },
+          { label: 'Démarrages',    color: '#065F46', bg: '#D1FAE5', val: totalDem  },
+          { label: 'Fins mission',  color: '#92400E', bg: '#FEF3C7', val: totalFin  },
         ].map(k => (
           <div key={k.label} style={{ background: k.bg, borderRadius: 12, padding: '14px 16px' }}>
             <div style={{ fontSize: 11, color: k.color, fontWeight: 600, opacity: 0.75, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{k.label}</div>
             <div style={{ fontSize: 30, fontWeight: 800, color: k.color, letterSpacing: '-1px' }}>{k.val}</div>
           </div>
         ))}
+      </div>
+
+      {/* Graphique mensuel */}
+      <SectionHeader title="Évolution mensuelle" color="#1E40AF" icon="📅" subtitle="Activité mois par mois" />
+      <div style={{ background: '#DBEAFE', borderRadius: 14, padding: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          {[['#1E40AF','Présentations'],['#9D174D','Signatures'],['#065F46','Démarrages'],['#92400E','Fins mission']].map(([c,l]) => (
+            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: c, fontWeight: 600 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: c }}></div>{l}
+            </div>
+          ))}
+        </div>
+        <div style={{ position: 'relative', width: '100%', height: 260 }}>
+          <canvas ref={chartRef} id="ytdMonthlyChart" role="img" aria-label="Activité mensuelle par type">Activité mensuelle équipe.</canvas>
+        </div>
       </div>
     </>
   )
