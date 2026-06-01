@@ -512,7 +512,23 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
   return (
     <>
       <SectionHeader title="Top 5 — Year to Date" color="#854D0E" icon="🏆" subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
-      <PodiumVisuel ranking={top5} subtitle="0.5pt RDV · 1pt Prez · 2pts Sign. · 4pts Dém." />
+      <PodiumVisuel ranking={top5} />
+
+      {/* Récap activité YTD équipe */}
+      <SectionHeader title="Activité équipe — Year to Date" color="#1E40AF" icon="📊" subtitle="Cumul depuis le début de l'année" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10, marginBottom: 24 }}>
+        {[
+          { label: 'Présentations', color: '#1E40AF', bg: '#DBEAFE', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.prez, 0) },
+          { label: 'Signatures', color: '#9D174D', bg: '#FCE7F3', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.sign, 0) },
+          { label: 'Démarrages', color: '#065F46', bg: '#D1FAE5', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.dem, 0) },
+          { label: 'Fins de mission', color: '#92400E', bg: '#FEF3C7', val: Object.values(ytdByIa).reduce((a, ia) => a + ia.fin, 0) },
+        ].map(k => (
+          <div key={k.label} style={{ background: k.bg, borderRadius: 12, padding: '14px 16px' }}>
+            <div style={{ fontSize: 11, color: k.color, fontWeight: 600, opacity: 0.75, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{k.label}</div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: k.color, letterSpacing: '-1px' }}>{k.val}</div>
+          </div>
+        ))}
+      </div>
     </>
   )
 }
