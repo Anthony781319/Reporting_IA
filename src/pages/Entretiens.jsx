@@ -29,15 +29,8 @@ const SelectNotation = ({ value, options, onChange }) => {
   }
   const c = value ? colorMap[value] : { bg: '#F9FAFB', color: '#6B7280', border: '#E5E7EB' }
   return (
-    <select
-      value={value || ''}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${c.border}`,
-        background: c.bg, color: c.color, fontSize: 13, fontWeight: 600,
-        cursor: 'pointer', outline: 'none', appearance: 'none', minWidth: 140, textAlign: 'center'
-      }}
-    >
+    <select value={value || ''} onChange={e => onChange(e.target.value)}
+      style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${c.border}`, background: c.bg, color: c.color, fontSize: 13, fontWeight: 600, cursor: 'pointer', outline: 'none', appearance: 'none', minWidth: 140, textAlign: 'center' }}>
       <option value="">— Choisir —</option>
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
@@ -62,6 +55,8 @@ export default function Entretiens() {
   const [crEnvoye, setCrEnvoye] = useState(false)
   const [crPrecedent, setCrPrecedent] = useState('')
   const [showCrPrecedent, setShowCrPrecedent] = useState(false)
+  const [showRetardInput, setShowRetardInput] = useState({})
+  const [retardForm, setRetardForm] = useState({})
 
   useEffect(() => { fetchIas() }, [])
 
@@ -79,7 +74,6 @@ export default function Entretiens() {
       const notMap = {}
       e.forEach(ent => { if (ent.notations) { try { Object.assign(notMap, JSON.parse(ent.notations)) } catch(err) {} } })
       setNotations(notMap)
-      // Auto-charger le dernier CR si disponible
       const dernierCR = e.find(ent => ent.cr_genere)
       if (dernierCR?.cr_genere) setCrPrecedent(dernierCR.cr_genere)
     }
@@ -89,33 +83,20 @@ export default function Entretiens() {
 
   const handleSelectIA = (ia, index) => {
     setAnimating(true)
-    setCrGenere('')
-    setCrEnvoye(false)
-    setCrPrecedent('')
-    setShowCrPrecedent(false)
+    setCrGenere(''); setCrEnvoye(false); setCrPrecedent(''); setShowCrPrecedent(false)
+    setShowRetardInput({}); setRetardForm({})
     setTimeout(() => {
-      setIaSelectionnee(ia)
-      setIaIndex(index)
-      setMenuActif('semaine')
-      setMsg('')
-      fetchData(ia.id)
-      setAnimating(false)
+      setIaSelectionnee(ia); setIaIndex(index); setMenuActif('semaine'); setMsg('')
+      fetchData(ia.id); setAnimating(false)
     }, 200)
   }
 
   const handleRetour = () => {
     setAnimating(true)
     setTimeout(() => {
-      setIaSelectionnee(null)
-      setSaisies([])
-      setEntretiens([])
-      setNotations({})
-      setActions([])
-      setCrGenere('')
-      setCrEnvoye(false)
-      setCrPrecedent('')
-      setShowCrPrecedent(false)
-      setAnimating(false)
+      setIaSelectionnee(null); setSaisies([]); setEntretiens([]); setNotations({}); setActions([])
+      setCrGenere(''); setCrEnvoye(false); setCrPrecedent(''); setShowCrPrecedent(false)
+      setShowRetardInput({}); setRetardForm({}); setAnimating(false)
     }, 200)
   }
 
@@ -125,6 +106,14 @@ export default function Entretiens() {
   const tauxKPI = (num, den) => { const n = totalYTD(num), d = totalYTD(den); return d ? Math.round((n / d) * 100) : 0 }
   const semaineCourante = Math.ceil((new Date() - new Date(new Date().getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000))
   const saisiesSemaine = saisies.filter(s => s.semaine === semaineCourante)
+
+  // KPI Signatures semestre
+  const currentSemestre = semaineCourante <= 26 ? 1 : 2
+  const semaineDebutSemestre = currentSemestre === 1 ? 1 : 27
+  const saisiesSemestre = saisies.filter(s => s.semaine >= semaineDebutSemestre && s.semaine <= semaineCourante)
+  const totalSignaturesSemestre = saisiesSemestre.reduce((acc, s) => acc + (s.signatures || 0), 0)
+  const objectifSignatures = 10
+  const pctSignatures = Math.min(Math.round((totalSignaturesSemestre / objectifSignatures) * 100), 100)
 
   const sauvegarderNotations = async () => {
     setSaving(true)
@@ -145,19 +134,25 @@ export default function Entretiens() {
   const ajouterAction = async () => {
     if (!nouvelleAction.description.trim()) return
     await supabase.from('actions_1to1').insert({
-      ia_id: iaSelectionnee.id,
-      entretien_id: entretiens[0]?.id || null,
-      description: nouvelleAction.description,
-      responsable: nouvelleAction.responsable,
-      echeance: nouvelleAction.echeance || null,
-      statut: 'en_cours'
+      ia_id: iaSelectionnee.id, entretien_id: entretiens[0]?.id || null,
+      description: nouvelleAction.description, responsable: nouvelleAction.responsable,
+      echeance: nouvelleAction.echeance || null, statut: 'en_cours'
     })
     setNouvelleAction({ description: '', responsable: 'ia', echeance: '' })
     fetchData(iaSelectionnee.id)
   }
 
   const toggleStatut = async (id, statut) => {
-    await supabase.from('actions_1to1').update({ statut: statut === 'en_cours' ? 'fait' : 'en_cours' }).eq('id', id)
+    await supabase.from('actions_1to1').update({ statut: statut === 'en_cours' || statut === 'en_retard' ? 'fait' : 'en_cours', motif_retard: null }).eq('id', id)
+    fetchData(iaSelectionnee.id)
+  }
+
+  const marquerEnRetard = async (id) => {
+    const motif = retardForm[id] || ''
+    if (!motif.trim()) return
+    await supabase.from('actions_1to1').update({ statut: 'en_retard', motif_retard: motif }).eq('id', id)
+    setShowRetardInput(prev => ({ ...prev, [id]: false }))
+    setRetardForm(prev => ({ ...prev, [id]: '' }))
     fetchData(iaSelectionnee.id)
   }
 
@@ -167,20 +162,21 @@ export default function Entretiens() {
   }
 
   const genererCR = async () => {
-    setLoadingCR(true)
-    setCrGenere('')
-    setMsg('')
+    setLoadingCR(true); setCrGenere(''); setMsg('')
     try {
       const actionsTexte = actions
         .filter(a => a.statut === 'en_cours')
         .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${new Date(a.echeance).toLocaleDateString('fr-FR')}` : ''}`)
         .join('\n')
 
+      const actionsEnRetard = actions
+        .filter(a => a.statut === 'en_retard')
+        .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}) — MOTIF DU RETARD : ${a.motif_retard || 'non précisé'}`)
+        .join('\n')
+
       const semSaisie = saisiesSemaine.reduce((acc, s) => ({
-        rdv: acc.rdv + (s.total_rdv || 0),
-        pres: acc.pres + (s.presentations || 0),
-        besoins: acc.besoins + (s.besoins_detectes || 0),
-        sign: acc.sign + (s.signatures || 0),
+        rdv: acc.rdv + (s.total_rdv || 0), pres: acc.pres + (s.presentations || 0),
+        besoins: acc.besoins + (s.besoins_detectes || 0), sign: acc.sign + (s.signatures || 0),
       }), { rdv: 0, pres: 0, besoins: 0, sign: 0 })
 
       const contextePrecedent = crPrecedent.trim()
@@ -206,37 +202,33 @@ STATS YTD :
 - Taux besoins/RDV : ${tauxKPI('besoins_detectes', 'total_rdv')}%
 - Taux présentations/besoins : ${tauxKPI('presentations', 'besoins_detectes')}%
 - Taux signatures/présentations : ${tauxKPI('signatures', 'presentations')}%
+- Signatures semestre ${currentSemestre} : ${totalSignaturesSemestre} / objectif ${objectifSignatures}
 
-ACTIONS DÉFINIES LORS DU POINT :
-${actionsTexte || 'Aucune action définie'}
+ACTIONS EN COURS :
+${actionsTexte || 'Aucune action en cours'}
+
+ACTIONS EN RETARD (à mentionner explicitement — peut révéler un manque de sérieux) :
+${actionsEnRetard || 'Aucune action en retard'}
 
 Rédige un CR structuré et professionnel avec :
 1. Un résumé du point (2-3 phrases)${crPrecedent.trim() ? ' en faisant référence à l\'évolution depuis le point précédent' : ''}
 2. Analyse de la performance de la semaine
-3. Les actions à mener avec les responsables et échéances
-4. Un mot de conclusion positif et motivant
+3. Les actions à mener avec responsables et échéances
+4. Si des actions sont en retard, mentionne-les clairement avec leur motif et ce que ça implique
+5. Un mot de conclusion positif et motivant
 
-Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme excessif ni de formules de politesse creuses. Va droit au but.`
+Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont en retard, sois ferme mais constructif.`
 
       const response = await fetch('/api/generate-cr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }]
-        })
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
       })
       const data = await response.json()
       const texte = data.content?.[0]?.text
-      if (texte) {
-        setCrGenere(texte)
-      } else {
-        setMsg('❌ Erreur lors de la génération.')
-      }
-    } catch (e) {
-      setMsg('❌ Erreur lors de la génération du CR.')
-    }
+      if (texte) setCrGenere(texte)
+      else setMsg('❌ Erreur lors de la génération.')
+    } catch (e) { setMsg('❌ Erreur lors de la génération du CR.') }
     setLoadingCR(false)
   }
 
@@ -247,14 +239,8 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: iaSelectionnee.email,
-          nom: iaSelectionnee.nom,
-          cr: crGenere
-            .replace(/### (.*?)(\n|$)/g, '<h3>$1</h3>')
-            .replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>')
-            .replace(/# (.*?)(\n|$)/g, '<h1>$1</h1>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n/g, '<br/>'),
+          email: iaSelectionnee.email, nom: iaSelectionnee.nom,
+          cr: crGenere.replace(/### (.*?)(\n|$)/g, '<h3>$1</h3>').replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>').replace(/# (.*?)(\n|$)/g, '<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>'),
           date: new Date().toLocaleDateString('fr-FR')
         })
       })
@@ -265,12 +251,9 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
       } else {
         await supabase.from('entretiens').insert({ ia_id: iaSelectionnee.id, date_entretien: today, cr_genere: crGenere, cr_envoye: true, notations: JSON.stringify(notations) })
       }
-      setCrEnvoye(true)
-      setMsg(`✅ CR envoyé à ${iaSelectionnee.nom} !`)
+      setCrEnvoye(true); setMsg(`✅ CR envoyé à ${iaSelectionnee.nom} !`)
       fetchData(iaSelectionnee.id)
-    } catch (e) {
-      setMsg('❌ Erreur lors de l\'envoi.')
-    }
+    } catch (e) { setMsg('❌ Erreur lors de l\'envoi.') }
   }
 
   const menus = [
@@ -354,10 +337,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
             <div className="top-nav" style={{ display: 'none', gap: 6, marginBottom: 24, background: 'var(--color-background-secondary)', padding: 6, borderRadius: 14, border: '1px solid var(--color-border-tertiary)' }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
-                  style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.15s',
-                    background: menuActif === m.id ? couleurIA.color : 'transparent',
-                    color: menuActif === m.id ? '#fff' : 'var(--color-text-secondary)'
-                  }}>
+                  style={{ flex: 1, padding: '10px 8px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13, transition: 'all 0.15s', background: menuActif === m.id ? couleurIA.color : 'transparent', color: menuActif === m.id ? '#fff' : 'var(--color-text-secondary)' }}>
                   {m.icon} {m.label}
                 </button>
               ))}
@@ -470,6 +450,32 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                       </div>
                     )
                   })}
+
+                  {/* ── 4ème KPI : Signatures semestre ── */}
+                  <div style={{ background: '#FFF7ED', borderRadius: 14, padding: '18px 20px', marginBottom: 12, border: '1.5px solid #FED7AA' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#C2410C', opacity: 0.8, marginBottom: 4 }}>
+                          Signatures S{currentSemestre} — objectif {objectifSignatures}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                          <div style={{ fontSize: 34, fontWeight: 800, color: '#C2410C', letterSpacing: '-1px' }}>{totalSignaturesSemestre}</div>
+                          <div style={{ fontSize: 14, color: '#C2410C', opacity: 0.6 }}>/ {objectifSignatures}</div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: '#C2410C' }}>{pctSignatures}%</div>
+                        <div style={{ fontSize: 11, color: '#C2410C', opacity: 0.7 }}>de l'objectif</div>
+                      </div>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 3, background: '#FED7AA' }}>
+                      <div style={{ height: '100%', borderRadius: 3, width: `${pctSignatures}%`, transition: 'width 0.5s ease', background: pctSignatures >= 80 ? '#16A34A' : pctSignatures >= 50 ? '#ECC94B' : '#DC2626' }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#C2410C', opacity: 0.7, marginTop: 6 }}>
+                      Semestre {currentSemestre} · {objectifSignatures - totalSignaturesSemestre > 0 ? `${objectifSignatures - totalSignaturesSemestre} signature(s) restante(s)` : '🎯 Objectif atteint !'}
+                    </div>
+                  </div>
+
                   <button onClick={sauvegarderNotations} disabled={saving}
                     style={{ width: '100%', padding: '12px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
                     {saving ? 'Sauvegarde…' : '💾 Sauvegarder les notations'}
@@ -480,27 +486,28 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
               {/* ── ACTIONS ── */}
               {menuActif === 'actions' && (
                 <div className="fade-in">
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
                     <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEF9C3', color: '#854D0E', fontSize: 13, fontWeight: 700 }}>
                       ⏳ {actions.filter(a => a.statut === 'en_cours').length} en cours
+                    </div>
+                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEE2E2', color: '#991B1B', fontSize: 13, fontWeight: 700 }}>
+                      🔴 {actions.filter(a => a.statut === 'en_retard').length} en retard
                     </div>
                     <div style={{ padding: '6px 14px', borderRadius: 20, background: '#D1FAE5', color: '#065F46', fontSize: 13, fontWeight: 700 }}>
                       ✅ {actions.filter(a => a.statut === 'fait').length} terminées
                     </div>
                   </div>
 
+                  {/* Nouvelle action */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 16, padding: '20px', border: `2px dashed ${couleurIA.color}44`, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: couleurIA.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>+</div>
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>Nouvelle action</span>
                     </div>
-                    <input
-                      placeholder="Décris l'action à mener…"
-                      value={nouvelleAction.description}
+                    <input placeholder="Décris l'action à mener…" value={nouvelleAction.description}
                       onChange={e => setNouvelleAction({ ...nouvelleAction, description: e.target.value })}
                       onKeyDown={e => e.key === 'Enter' && ajouterAction()}
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
-                    />
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }} />
                     <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                       {['ia', 'manager'].map(r => (
                         <button key={r} onClick={() => setNouvelleAction({ ...nouvelleAction, responsable: r })}
@@ -519,6 +526,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                     </div>
                   </div>
 
+                  {/* Actions en cours */}
                   {actions.filter(a => a.statut === 'en_cours').length > 0 && (
                     <div style={{ marginBottom: 24 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>⏳ En cours</div>
@@ -528,33 +536,110 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                         const joursRestants = echeanceDate ? Math.ceil((echeanceDate - new Date()) / (1000 * 60 * 60 * 24)) : null
                         const echeanceUrgente = joursRestants !== null && joursRestants <= 3
                         return (
-                          <div key={a.id} style={{ borderRadius: 14, padding: '14px 16px', marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start', background: isIA ? '#EDE9FE' : '#FFF7ED', border: `1.5px solid ${isIA ? '#C4B5FD' : '#FED7AA'}` }}>
-                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: isIA ? '#6D28D9' : '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
-                              {isIA ? iaSelectionnee.nom.slice(0, 2).toUpperCase() : 'MG'}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 6, lineHeight: 1.4 }}>{a.description}</div>
-                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                                <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: isIA ? '#DDD6FE' : '#FFEDD5', color: isIA ? '#5B21B6' : '#C2410C' }}>
-                                  {isIA ? iaSelectionnee.nom : 'Manager'}
-                                </span>
-                                {echeanceDate && (
-                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: echeanceUrgente ? '#FEE2E2' : '#F3F4F6', color: echeanceUrgente ? '#991B1B' : '#6B7280' }}>
-                                    {echeanceUrgente ? '🔴 ' : '📅 '}{echeanceDate.toLocaleDateString('fr-FR')}
-                                    {joursRestants === 0 ? " · Aujourd'hui" : joursRestants === 1 ? ' · Demain' : joursRestants < 0 ? ` · ${Math.abs(joursRestants)}j de retard` : ''}
+                          <div key={a.id} style={{ borderRadius: 14, padding: '14px 16px', marginBottom: 10, background: isIA ? '#EDE9FE' : '#FFF7ED', border: `1.5px solid ${isIA ? '#C4B5FD' : '#FED7AA'}` }}>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: isIA ? '#6D28D9' : '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                                {isIA ? iaSelectionnee.nom.slice(0, 2).toUpperCase() : 'MG'}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 6, lineHeight: 1.4 }}>{a.description}</div>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: isIA ? '#DDD6FE' : '#FFEDD5', color: isIA ? '#5B21B6' : '#C2410C' }}>
+                                    {isIA ? iaSelectionnee.nom : 'Manager'}
                                   </span>
-                                )}
+                                  {echeanceDate && (
+                                    <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: echeanceUrgente ? '#FEE2E2' : '#F3F4F6', color: echeanceUrgente ? '#991B1B' : '#6B7280' }}>
+                                      {echeanceUrgente ? '🔴 ' : '📅 '}{echeanceDate.toLocaleDateString('fr-FR')}
+                                      {joursRestants === 0 ? " · Aujourd'hui" : joursRestants === 1 ? ' · Demain' : joursRestants < 0 ? ` · ${Math.abs(joursRestants)}j de retard` : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+                                <button onClick={() => toggleStatut(a.id, a.statut)}
+                                  style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  ✓ Fait
+                                </button>
+                                <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: !prev[a.id] }))}
+                                  style={{ padding: '5px 10px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  🔴 Retard
+                                </button>
+                                <button onClick={() => supprimerAction(a.id)}
+                                  style={{ padding: '5px 10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                                  ✕
+                                </button>
                               </div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-                              <button onClick={() => toggleStatut(a.id, a.statut)}
-                                style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                ✓ Fait
-                              </button>
-                              <button onClick={() => supprimerAction(a.id)}
-                                style={{ padding: '5px 10px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-                                ✕
-                              </button>
+                            {/* Formulaire motif retard */}
+                            {showRetardInput[a.id] && (
+                              <div style={{ marginTop: 12, padding: '12px', background: '#FEE2E2', borderRadius: 10, border: '1px solid #FCA5A5' }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#991B1B', marginBottom: 8 }}>🔴 Motif du retard (obligatoire)</div>
+                                <input
+                                  placeholder="Explique pourquoi cette action est en retard…"
+                                  value={retardForm[a.id] || ''}
+                                  onChange={e => setRetardForm(prev => ({ ...prev, [a.id]: e.target.value }))}
+                                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #FCA5A5', background: '#fff', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
+                                />
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button onClick={() => marquerEnRetard(a.id)}
+                                    style={{ flex: 1, padding: '8px', background: '#991B1B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                                    Confirmer le retard
+                                  </button>
+                                  <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: false }))}
+                                    style={{ padding: '8px 14px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                                    Annuler
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Actions en retard */}
+                  {actions.filter(a => a.statut === 'en_retard').length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>🔴 En retard</div>
+                      {actions.filter(a => a.statut === 'en_retard').map(a => {
+                        const isIA = a.responsable === 'ia'
+                        return (
+                          <div key={a.id} style={{ borderRadius: 14, padding: '14px 16px', marginBottom: 10, background: '#FFF1F2', border: '1.5px solid #FCA5A5' }}>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                                {isIA ? iaSelectionnee.nom.slice(0, 2).toUpperCase() : 'MG'}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 4, lineHeight: 1.4 }}>{a.description}</div>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#FEE2E2', color: '#991B1B' }}>
+                                    🔴 En retard
+                                  </span>
+                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#F3F4F6', color: '#374151' }}>
+                                    {isIA ? iaSelectionnee.nom : 'Manager'}
+                                  </span>
+                                </div>
+                                {a.motif_retard && (
+                                  <div style={{ fontSize: 12, color: '#991B1B', background: '#FEE2E2', padding: '6px 10px', borderRadius: 8, fontStyle: 'italic' }}>
+                                    💬 {a.motif_retard}
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+                                <button onClick={() => toggleStatut(a.id, a.statut)}
+                                  style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  ✓ Fait
+                                </button>
+                                <button onClick={async () => { await supabase.from('actions_1to1').update({ statut: 'en_cours', motif_retard: null }).eq('id', a.id); fetchData(iaSelectionnee.id) }}
+                                  style={{ padding: '5px 10px', background: '#FEF9C3', color: '#854D0E', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  ↩ En cours
+                                </button>
+                                <button onClick={() => supprimerAction(a.id)}
+                                  style={{ padding: '5px 10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
+                                  ✕
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )
@@ -562,6 +647,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                     </div>
                   )}
 
+                  {/* Actions terminées */}
                   {actions.filter(a => a.statut === 'fait').length > 0 && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>✅ Terminées</div>
@@ -600,31 +686,24 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                     </div>
                   </div>
 
-                  {/* ── CR PRÉCÉDENT ── */}
+                  {/* CR précédent */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showCrPrecedent ? 12 : 0 }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                          🕐 CR du point précédent
-                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)' }}>🕐 CR du point précédent</div>
                         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                           {crPrecedent ? '✅ Chargé automatiquement — modifiable' : 'Colle le CR précédent pour un meilleur contexte'}
                         </div>
                       </div>
-                      <button
-                        onClick={() => setShowCrPrecedent(!showCrPrecedent)}
-                        style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${couleurIA.color}40`, background: showCrPrecedent ? `${couleurIA.color}15` : 'none', color: couleurIA.color, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                      >
+                      <button onClick={() => setShowCrPrecedent(!showCrPrecedent)}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${couleurIA.color}40`, background: showCrPrecedent ? `${couleurIA.color}15` : 'none', color: couleurIA.color, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                         {showCrPrecedent ? '▲ Réduire' : '▼ Voir / Modifier'}
                       </button>
                     </div>
                     {showCrPrecedent && (
-                      <textarea
-                        value={crPrecedent}
-                        onChange={e => setCrPrecedent(e.target.value)}
+                      <textarea value={crPrecedent} onChange={e => setCrPrecedent(e.target.value)}
                         placeholder="Colle ici le CR du point précédent…"
-                        style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${couleurIA.color}30`, background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 12, minHeight: 150, boxSizing: 'border-box', lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit' }}
-                      />
+                        style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${couleurIA.color}30`, background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 12, minHeight: 150, boxSizing: 'border-box', lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit' }} />
                     )}
                     {crPrecedent && (
                       <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -654,30 +733,28 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                       <div style={{ padding: '6px 12px', borderRadius: 10, background: '#EDE9FE', fontSize: 12, fontWeight: 600, color: '#6D28D9' }}>
                         {actions.filter(a => a.statut === 'en_cours').length} action(s)
                       </div>
+                      {actions.filter(a => a.statut === 'en_retard').length > 0 && (
+                        <div style={{ padding: '6px 12px', borderRadius: 10, background: '#FEE2E2', fontSize: 12, fontWeight: 600, color: '#991B1B' }}>
+                          🔴 {actions.filter(a => a.statut === 'en_retard').length} en retard
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Bouton générer */}
                   {!crGenere && (
                     <button onClick={genererCR} disabled={loadingCR}
                       style={{ width: '100%', padding: '14px', background: loadingCR ? '#9CA3AF' : couleurIA.color, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loadingCR ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
-                      {loadingCR ? (
-                        <span className="pulse">✨ Génération en cours…</span>
-                      ) : crPrecedent ? '✨ Générer le CR (avec contexte précédent)' : '✨ Générer le CR avec Claude'}
+                      {loadingCR ? <span className="pulse">✨ Génération en cours…</span> : crPrecedent ? '✨ Générer le CR (avec contexte précédent)' : '✨ Générer le CR avec Claude'}
                     </button>
                   )}
 
-                  {/* CR généré */}
                   {crGenere && (
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
                         CR généré — modifiable avant envoi
                       </div>
-                      <textarea
-                        value={crGenere}
-                        onChange={e => setCrGenere(e.target.value)}
-                        style={{ width: '100%', padding: '14px', borderRadius: 12, border: `1.5px solid ${couleurIA.color}40`, background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, minHeight: 220, boxSizing: 'border-box', lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }}
-                      />
+                      <textarea value={crGenere} onChange={e => setCrGenere(e.target.value)}
+                        style={{ width: '100%', padding: '14px', borderRadius: 12, border: `1.5px solid ${couleurIA.color}40`, background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, minHeight: 220, boxSizing: 'border-box', lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit' }} />
                       <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                         <button onClick={genererCR} disabled={loadingCR}
                           style={{ flex: 1, padding: '11px', background: 'none', color: couleurIA.color, border: `1.5px solid ${couleurIA.color}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -698,10 +775,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
             <div className="bottom-nav" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)', padding: '8px 16px 20px', justifyContent: 'space-around', zIndex: 100 }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 10,
-                    color: menuActif === m.id ? couleurIA.color : 'var(--color-text-secondary)',
-                    fontWeight: menuActif === m.id ? 700 : 400
-                  }}>
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 10, color: menuActif === m.id ? couleurIA.color : 'var(--color-text-secondary)', fontWeight: menuActif === m.id ? 700 : 400 }}>
                   <span style={{ fontSize: 18 }}>{m.icon}</span>
                   <span style={{ fontSize: 10, fontWeight: 600 }}>{m.label}</span>
                 </button>
