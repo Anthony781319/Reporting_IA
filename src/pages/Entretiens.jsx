@@ -57,6 +57,7 @@ export default function Entretiens() {
   const [showCrPrecedent, setShowCrPrecedent] = useState(false)
   const [showRetardInput, setShowRetardInput] = useState({})
   const [retardForm, setRetardForm] = useState({})
+  const [orientationCR, setOrientationCR] = useState('factuel')
 
   useEffect(() => { fetchIas() }, [])
 
@@ -84,7 +85,7 @@ export default function Entretiens() {
   const handleSelectIA = (ia, index) => {
     setAnimating(true)
     setCrGenere(''); setCrEnvoye(false); setCrPrecedent(''); setShowCrPrecedent(false)
-    setShowRetardInput({}); setRetardForm({})
+    setShowRetardInput({}); setRetardForm({}); setOrientationCR('factuel')
     setTimeout(() => {
       setIaSelectionnee(ia); setIaIndex(index); setMenuActif('semaine'); setMsg('')
       fetchData(ia.id); setAnimating(false)
@@ -96,7 +97,7 @@ export default function Entretiens() {
     setTimeout(() => {
       setIaSelectionnee(null); setSaisies([]); setEntretiens([]); setNotations({}); setActions([])
       setCrGenere(''); setCrEnvoye(false); setCrPrecedent(''); setShowCrPrecedent(false)
-      setShowRetardInput({}); setRetardForm({}); setAnimating(false)
+      setShowRetardInput({}); setRetardForm({}); setOrientationCR('factuel'); setAnimating(false)
     }, 200)
   }
 
@@ -107,13 +108,27 @@ export default function Entretiens() {
   const semaineCourante = Math.ceil((new Date() - new Date(new Date().getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000))
   const saisiesSemaine = saisies.filter(s => s.semaine === semaineCourante)
 
-  // KPI Signatures semestre
+  // ── Analyse proratisée signatures semestre ──
   const currentSemestre = semaineCourante <= 26 ? 1 : 2
   const semaineDebutSemestre = currentSemestre === 1 ? 1 : 27
+  const weeksElapsed = Math.max(1, semaineCourante - semaineDebutSemestre + 1)
+  const weeksInSemester = 26
+  const objectifSignatures = 10
   const saisiesSemestre = saisies.filter(s => s.semaine >= semaineDebutSemestre && s.semaine <= semaineCourante)
   const totalSignaturesSemestre = saisiesSemestre.reduce((acc, s) => acc + (s.signatures || 0), 0)
-  const objectifSignatures = 10
-  const pctSignatures = Math.min(Math.round((totalSignaturesSemestre / objectifSignatures) * 100), 100)
+  const expectedSoFar = Math.round((weeksElapsed / weeksInSemester) * objectifSignatures * 10) / 10
+  const pctVsExpected = expectedSoFar > 0 ? Math.round((totalSignaturesSemestre / expectedSoFar) * 100) : 100
+  const pctVsObjectif = Math.min(Math.round((totalSignaturesSemestre / objectifSignatures) * 100), 100)
+
+  const getSignatureStatus = () => {
+    if (weeksElapsed <= 2) return { label: 'Début de semestre', color: '#6B7280', bg: '#F3F4F6', icon: '🏁' }
+    if (pctVsExpected >= 110) return { label: 'En avance', color: '#065F46', bg: '#D1FAE5', icon: '🚀' }
+    if (pctVsExpected >= 85) return { label: 'Dans les clous', color: '#065F46', bg: '#D1FAE5', icon: '✅' }
+    if (pctVsExpected >= 60) return { label: 'Légèrement en retard', color: '#854D0E', bg: '#FEF9C3', icon: '⚠️' }
+    if (pctVsExpected >= 35) return { label: 'En retard significatif', color: '#C2410C', bg: '#FFEDD5', icon: '🟠' }
+    return { label: 'Très en retard', color: '#991B1B', bg: '#FEE2E2', icon: '🔴' }
+  }
+  const sigStatus = getSignatureStatus()
 
   const sauvegarderNotations = async () => {
     setSaving(true)
@@ -150,10 +165,12 @@ export default function Entretiens() {
   const marquerEnRetard = async (id) => {
     const motif = retardForm[id] || ''
     if (!motif.trim()) return
-    await supabase.from('actions_1to1').update({ statut: 'en_retard', motif_retard: motif }).eq('id', id)
-    setShowRetardInput(prev => ({ ...prev, [id]: false }))
-    setRetardForm(prev => ({ ...prev, [id]: '' }))
-    fetchData(iaSelectionnee.id)
+    const { error } = await supabase.from('actions_1to1').update({ statut: 'en_retard', motif_retard: motif }).eq('id', id)
+    if (!error) {
+      setShowRetardInput(prev => ({ ...prev, [id]: false }))
+      setRetardForm(prev => ({ ...prev, [id]: '' }))
+      await fetchData(iaSelectionnee.id)
+    }
   }
 
   const supprimerAction = async (id) => {
@@ -161,17 +178,23 @@ export default function Entretiens() {
     fetchData(iaSelectionnee.id)
   }
 
+  const ORIENTATIONS = [
+    { id: 'encourageant', icon: '🌟', label: 'Encourageant', desc: 'Stats difficiles mais on booste le moral' },
+    { id: 'factuel',      icon: '⚖️', label: 'Factuel',       desc: 'Compte-rendu neutre et objectif' },
+    { id: 'ferme',        icon: '🔴', label: 'Ferme',          desc: 'Recadrage clair, documentation sous-performance' },
+  ]
+
   const genererCR = async () => {
     setLoadingCR(true); setCrGenere(''); setMsg('')
     try {
       const actionsTexte = actions
         .filter(a => a.statut === 'en_cours')
-        .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${new Date(a.echeance).toLocaleDateString('fr-FR')}` : ''}`)
+        .map((a, i) => `${i + 1}. ${a.description} (${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${new Date(a.echeance).toLocaleDateString('fr-FR')}` : ''}`)
         .join('\n')
 
       const actionsEnRetard = actions
         .filter(a => a.statut === 'en_retard')
-        .map((a, i) => `${i + 1}. ${a.description} (Responsable : ${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}) — MOTIF DU RETARD : ${a.motif_retard || 'non précisé'}`)
+        .map((a, i) => `${i + 1}. ${a.description} (${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}) — MOTIF : ${a.motif_retard || 'non précisé'}`)
         .join('\n')
 
       const semSaisie = saisiesSemaine.reduce((acc, s) => ({
@@ -180,44 +203,50 @@ export default function Entretiens() {
       }), { rdv: 0, pres: 0, besoins: 0, sign: 0 })
 
       const contextePrecedent = crPrecedent.trim()
-        ? `\nCONTEXTE — CR DU POINT PRÉCÉDENT :\n${crPrecedent.trim()}\n\nEn te basant sur ce CR précédent, fais référence à l'évolution depuis le dernier point : ce qui a progressé, ce qui reste à travailler, les actions qui ont été tenues ou non.`
+        ? `\nCONTEXTE — CR PRÉCÉDENT :\n${crPrecedent.trim()}\n\nFais référence à l'évolution depuis le dernier point : progrès, points restants à travailler, actions tenues ou non.`
         : ''
 
-      const prompt = `Tu es un assistant manager bienveillant et professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Ingénieur d'affaires dans une ESN spécialisée IT/Télécom/Cybersécurité.
+      const orientationInstructions = {
+        encourageant: `\nTON SOUHAITÉ : Encourageant et motivant. Même si les stats sont en deçà des attentes, valorise les efforts, identifie les signaux positifs et donne de l'élan pour la suite. Reste factuel mais termine sur une note d'espoir et de confiance.`,
+        factuel: `\nTON SOUHAITÉ : Neutre et factuel. Présente les faits tels qu'ils sont, sans sur-interpréter dans un sens ou dans l'autre. Direct et professionnel.`,
+        ferme: `\nTON SOUHAITÉ : Ferme et documenté. Les résultats sont insuffisants et doivent être nommés clairement. Ce CR peut servir de base à un suivi RH. Sois précis sur les manquements, les attentes non atteintes et les conséquences possibles si la situation ne s'améliore pas. Reste professionnel mais sans ambiguïté.`,
+      }
+
+      const prompt = `Tu es un assistant manager professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Ingénieur d'affaires dans une ESN spécialisée IT/Télécom/Cybersécurité.
+${orientationInstructions[orientationCR]}
 ${contextePrecedent}
 
-DONNÉES DE LA SEMAINE (semaine ${semaineCourante}) :
-- RDV réalisés : ${semSaisie.rdv}
-- Présentations : ${semSaisie.pres}
-- Besoins détectés : ${semSaisie.besoins}
-- Signatures : ${semSaisie.sign}
+DONNÉES SEMAINE ${semaineCourante} :
+- RDV : ${semSaisie.rdv} | Présentations : ${semSaisie.pres} | Besoins : ${semSaisie.besoins} | Signatures : ${semSaisie.sign}
 
-NOTATIONS DU MANAGER :
-- RDV : ${notations['rdv'] || 'non renseigné'}
-- Présentation : ${notations['presentation'] || 'non renseigné'}
-- Signature : ${notations['signature'] || 'non renseigné'}
+NOTATIONS MANAGER :
+- RDV : ${notations['rdv'] || 'non renseigné'} | Présentation : ${notations['presentation'] || 'non renseigné'} | Signature : ${notations['signature'] || 'non renseigné'}
 
 STATS YTD :
-- RDV total : ${totalYTD('total_rdv')} / objectif ${objectifRdv}
+- RDV : ${totalYTD('total_rdv')} / objectif ${objectifRdv} (${Math.round(totalYTD('total_rdv') / Math.max(objectifRdv, 1) * 100)}%)
 - Taux besoins/RDV : ${tauxKPI('besoins_detectes', 'total_rdv')}%
 - Taux présentations/besoins : ${tauxKPI('presentations', 'besoins_detectes')}%
 - Taux signatures/présentations : ${tauxKPI('signatures', 'presentations')}%
-- Signatures semestre ${currentSemestre} : ${totalSignaturesSemestre} / objectif ${objectifSignatures}
+
+SIGNATURES SEMESTRE ${currentSemestre} :
+- Réalisées : ${totalSignaturesSemestre} / objectif ${objectifSignatures}
+- Attendu à ce stade (semaine ${weeksElapsed}/${weeksInSemester} du semestre) : ${expectedSoFar}
+- Statut : ${sigStatus.label} (${pctVsExpected}% du rythme attendu)
 
 ACTIONS EN COURS :
-${actionsTexte || 'Aucune action en cours'}
+${actionsTexte || 'Aucune'}
 
-ACTIONS EN RETARD (à mentionner explicitement — peut révéler un manque de sérieux) :
-${actionsEnRetard || 'Aucune action en retard'}
+ACTIONS EN RETARD :
+${actionsEnRetard || 'Aucune'}
 
-Rédige un CR structuré et professionnel avec :
-1. Un résumé du point (2-3 phrases)${crPrecedent.trim() ? ' en faisant référence à l\'évolution depuis le point précédent' : ''}
-2. Analyse de la performance de la semaine
-3. Les actions à mener avec responsables et échéances
-4. Si des actions sont en retard, mentionne-les clairement avec leur motif et ce que ça implique
-5. Un mot de conclusion positif et motivant
+Structure du CR :
+1. Résumé du point (2-3 phrases)${crPrecedent ? ', avec référence à l\'évolution' : ''}
+2. Analyse de la performance semaine et tendance semestre
+3. Actions définies (responsables + échéances)
+4. Si actions en retard, les mentionner explicitement avec le motif
+5. Conclusion adaptée au ton demandé
 
-Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont en retard, sois ferme mais constructif.`
+Tutoiement. Sois direct et pragmatique.`
 
       const response = await fetch('/api/generate-cr', {
         method: 'POST',
@@ -228,7 +257,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
       const texte = data.content?.[0]?.text
       if (texte) setCrGenere(texte)
       else setMsg('❌ Erreur lors de la génération.')
-    } catch (e) { setMsg('❌ Erreur lors de la génération du CR.') }
+    } catch { setMsg('❌ Erreur lors de la génération du CR.') }
     setLoadingCR(false)
   }
 
@@ -236,8 +265,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
     if (!crGenere) return
     try {
       await fetch('https://default1d593042a69d49e08d1c0daf8ac171.7b.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/357caf7470f146f98e8fd5a4d037d9d0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fKdByb-sInxK81dYFVlHGLKzZFbKrZsc875yPXRxFFw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: iaSelectionnee.email, nom: iaSelectionnee.nom,
           cr: crGenere.replace(/### (.*?)(\n|$)/g, '<h3>$1</h3>').replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>').replace(/# (.*?)(\n|$)/g, '<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>'),
@@ -253,7 +281,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
       }
       setCrEnvoye(true); setMsg(`✅ CR envoyé à ${iaSelectionnee.nom} !`)
       fetchData(iaSelectionnee.id)
-    } catch (e) { setMsg('❌ Erreur lors de l\'envoi.') }
+    } catch { setMsg('❌ Erreur lors de l\'envoi.') }
   }
 
   const menus = [
@@ -303,7 +331,6 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
           )}
         </div>
 
-        {/* SÉLECTION IA */}
         {!iaSelectionnee && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
             {ias.map((ia, i) => {
@@ -312,8 +339,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                 <div key={ia.id} onClick={() => handleSelectIA(ia, i)}
                   style={{ background: c.bg, borderRadius: 16, padding: '20px 12px', cursor: 'pointer', textAlign: 'center', transition: 'transform 0.15s, box-shadow 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.1)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)' }}
-                >
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)' }}>
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: c.color, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16 }}>
                     {ia.nom.slice(0, 2).toUpperCase()}
                   </div>
@@ -324,7 +350,6 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
           </div>
         )}
 
-        {/* CONTENU IA */}
         {iaSelectionnee && (
           <>
             {msg && (
@@ -333,7 +358,6 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
               </div>
             )}
 
-            {/* NAV TOP */}
             <div className="top-nav" style={{ display: 'none', gap: 6, marginBottom: 24, background: 'var(--color-background-secondary)', padding: 6, borderRadius: 14, border: '1px solid var(--color-border-tertiary)' }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
@@ -369,7 +393,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                       { key: 'signature', label: 'Signature', options: NOTATION_SIGN },
                     ].map((item, i) => (
                       <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: i < 2 ? '1px solid var(--color-border-tertiary)' : 'none' }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>{item.label}</span>
+                        <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
                         <SelectNotation value={notations[item.key]} options={item.options} onChange={v => setNotations({ ...notations, [item.key]: v })} />
                       </div>
                     ))}
@@ -398,7 +422,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                     <div style={{ height: 8, borderRadius: 4, background: 'rgba(109,40,217,0.15)' }}>
                       <div style={{ height: '100%', borderRadius: 4, background: pctRdv >= 80 ? '#6D28D9' : pctRdv >= 60 ? '#ECC94B' : '#FC8181', width: `${pctRdv}%`, transition: 'width 0.5s ease' }} />
                     </div>
-                    <div style={{ fontSize: 11, color: '#6D28D9', opacity: 0.7, marginTop: 6 }}>{nbSemaines()} semaines écoulées × 8 = {objectifRdv} RDV attendus</div>
+                    <div style={{ fontSize: 11, color: '#6D28D9', opacity: 0.7, marginTop: 6 }}>{nbSemaines()} semaines × 8 = {objectifRdv} RDV attendus</div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
                     {[
@@ -451,29 +475,71 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                     )
                   })}
 
-                  {/* ── 4ème KPI : Signatures semestre ── */}
-                  <div style={{ background: '#FFF7ED', borderRadius: 14, padding: '18px 20px', marginBottom: 12, border: '1.5px solid #FED7AA' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  {/* ── 4ème KPI : Signatures semestre avec analyse proratisée ── */}
+                  <div style={{ background: sigStatus.bg, borderRadius: 14, padding: '18px 20px', marginBottom: 12, border: `1.5px solid ${sigStatus.color}30` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#C2410C', opacity: 0.8, marginBottom: 4 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: sigStatus.color, opacity: 0.8, marginBottom: 4 }}>
                           Signatures S{currentSemestre} — objectif {objectifSignatures}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                          <div style={{ fontSize: 34, fontWeight: 800, color: '#C2410C', letterSpacing: '-1px' }}>{totalSignaturesSemestre}</div>
-                          <div style={{ fontSize: 14, color: '#C2410C', opacity: 0.6 }}>/ {objectifSignatures}</div>
+                          <div style={{ fontSize: 34, fontWeight: 800, color: sigStatus.color, letterSpacing: '-1px' }}>{totalSignaturesSemestre}</div>
+                          <div style={{ fontSize: 14, color: sigStatus.color, opacity: 0.6 }}>/ {objectifSignatures}</div>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 20, fontWeight: 700, color: '#C2410C' }}>{pctSignatures}%</div>
-                        <div style={{ fontSize: 11, color: '#C2410C', opacity: 0.7 }}>de l'objectif</div>
+                        <div style={{ padding: '4px 10px', borderRadius: 20, background: sigStatus.color, color: '#fff', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                          {sigStatus.icon} {sigStatus.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: sigStatus.color, opacity: 0.7 }}>{pctVsObjectif}% de l'objectif final</div>
                       </div>
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: '#FED7AA' }}>
-                      <div style={{ height: '100%', borderRadius: 3, width: `${pctSignatures}%`, transition: 'width 0.5s ease', background: pctSignatures >= 80 ? '#16A34A' : pctSignatures >= 50 ? '#ECC94B' : '#DC2626' }} />
+
+                    {/* Barre vs objectif total */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: sigStatus.color, fontWeight: 600, marginBottom: 4 }}>Progression vs objectif final</div>
+                      <div style={{ height: 8, borderRadius: 4, background: `${sigStatus.color}22` }}>
+                        <div style={{ height: '100%', borderRadius: 4, background: sigStatus.color, width: `${pctVsObjectif}%`, transition: 'width 0.5s ease' }} />
+                      </div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#C2410C', opacity: 0.7, marginTop: 6 }}>
-                      Semestre {currentSemestre} · {objectifSignatures - totalSignaturesSemestre > 0 ? `${objectifSignatures - totalSignaturesSemestre} signature(s) restante(s)` : '🎯 Objectif atteint !'}
-                    </div>
+
+                    {/* Analyse proratisée */}
+                    {weeksElapsed > 2 && (
+                      <div style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: '10px 14px', border: `1px solid ${sigStatus.color}20` }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: sigStatus.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          📊 Analyse à date — S{weeksElapsed}/{weeksInSemester} du semestre
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: sigStatus.color }}>{totalSignaturesSemestre}</div>
+                            <div style={{ fontSize: 10, color: sigStatus.color, opacity: 0.7 }}>Réalisées</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: sigStatus.color }}>{expectedSoFar}</div>
+                            <div style={{ fontSize: 10, color: sigStatus.color, opacity: 0.7 }}>Attendues à date</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: sigStatus.color }}>{pctVsExpected}%</div>
+                            <div style={{ fontSize: 10, color: sigStatus.color, opacity: 0.7 }}>Du rythme attendu</div>
+                          </div>
+                        </div>
+                        {totalSignaturesSemestre < expectedSoFar && (
+                          <div style={{ marginTop: 8, fontSize: 11, color: sigStatus.color, fontStyle: 'italic' }}>
+                            ↳ Il manque {(expectedSoFar - totalSignaturesSemestre).toFixed(1)} signature(s) par rapport au rythme attendu à cette période
+                          </div>
+                        )}
+                        {totalSignaturesSemestre >= expectedSoFar && (
+                          <div style={{ marginTop: 8, fontSize: 11, color: sigStatus.color, fontStyle: 'italic' }}>
+                            ↳ {totalSignaturesSemestre === 0 ? 'Normal en début de semestre' : `${(totalSignaturesSemestre - expectedSoFar).toFixed(1)} signature(s) d'avance sur le rythme`}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {weeksElapsed <= 2 && (
+                      <div style={{ fontSize: 12, color: sigStatus.color, fontStyle: 'italic', marginTop: 4 }}>
+                        🏁 Semestre tout juste démarré — l'analyse de rythme sera disponible à partir de la semaine 3
+                      </div>
+                    )}
                   </div>
 
                   <button onClick={sauvegarderNotations} disabled={saving}
@@ -487,22 +553,15 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
               {menuActif === 'actions' && (
                 <div className="fade-in">
                   <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEF9C3', color: '#854D0E', fontSize: 13, fontWeight: 700 }}>
-                      ⏳ {actions.filter(a => a.statut === 'en_cours').length} en cours
-                    </div>
-                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEE2E2', color: '#991B1B', fontSize: 13, fontWeight: 700 }}>
-                      🔴 {actions.filter(a => a.statut === 'en_retard').length} en retard
-                    </div>
-                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#D1FAE5', color: '#065F46', fontSize: 13, fontWeight: 700 }}>
-                      ✅ {actions.filter(a => a.statut === 'fait').length} terminées
-                    </div>
+                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEF9C3', color: '#854D0E', fontSize: 13, fontWeight: 700 }}>⏳ {actions.filter(a => a.statut === 'en_cours').length} en cours</div>
+                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#FEE2E2', color: '#991B1B', fontSize: 13, fontWeight: 700 }}>🔴 {actions.filter(a => a.statut === 'en_retard').length} en retard</div>
+                    <div style={{ padding: '6px 14px', borderRadius: 20, background: '#D1FAE5', color: '#065F46', fontSize: 13, fontWeight: 700 }}>✅ {actions.filter(a => a.statut === 'fait').length} terminées</div>
                   </div>
 
-                  {/* Nouvelle action */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 16, padding: '20px', border: `2px dashed ${couleurIA.color}44`, marginBottom: 20 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: couleurIA.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>+</div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>Nouvelle action</span>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>Nouvelle action</span>
                     </div>
                     <input placeholder="Décris l'action à mener…" value={nouvelleAction.description}
                       onChange={e => setNouvelleAction({ ...nouvelleAction, description: e.target.value })}
@@ -519,14 +578,13 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input type="date" value={nouvelleAction.echeance} onChange={e => setNouvelleAction({ ...nouvelleAction, echeance: e.target.value })}
                         style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 13 }} />
-                      <button onClick={ajouterAction}
-                        style={{ flex: 1, padding: '8px 16px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                      <button onClick={ajouterAction} style={{ flex: 1, padding: '8px 16px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                         Ajouter →
                       </button>
                     </div>
                   </div>
 
-                  {/* Actions en cours */}
+                  {/* En cours */}
                   {actions.filter(a => a.statut === 'en_cours').length > 0 && (
                     <div style={{ marginBottom: 24 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>⏳ En cours</div>
@@ -543,7 +601,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 6, lineHeight: 1.4 }}>{a.description}</div>
-                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                   <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: isIA ? '#DDD6FE' : '#FFEDD5', color: isIA ? '#5B21B6' : '#C2410C' }}>
                                     {isIA ? iaSelectionnee.nom : 'Manager'}
                                   </span>
@@ -556,37 +614,23 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                                 </div>
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-                                <button onClick={() => toggleStatut(a.id, a.statut)}
-                                  style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                  ✓ Fait
-                                </button>
-                                <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: !prev[a.id] }))}
-                                  style={{ padding: '5px 10px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                  🔴 Retard
-                                </button>
-                                <button onClick={() => supprimerAction(a.id)}
-                                  style={{ padding: '5px 10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-                                  ✕
-                                </button>
+                                <button onClick={() => toggleStatut(a.id, a.statut)} style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>✓ Fait</button>
+                                <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: !prev[a.id] }))} style={{ padding: '5px 10px', background: '#FEE2E2', color: '#991B1B', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>🔴 Retard</button>
+                                <button onClick={() => supprimerAction(a.id)} style={{ padding: '5px 10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
                               </div>
                             </div>
-                            {/* Formulaire motif retard */}
                             {showRetardInput[a.id] && (
                               <div style={{ marginTop: 12, padding: '12px', background: '#FEE2E2', borderRadius: 10, border: '1px solid #FCA5A5' }}>
                                 <div style={{ fontSize: 12, fontWeight: 600, color: '#991B1B', marginBottom: 8 }}>🔴 Motif du retard (obligatoire)</div>
-                                <input
-                                  placeholder="Explique pourquoi cette action est en retard…"
+                                <input placeholder="Explique pourquoi cette action est en retard…"
                                   value={retardForm[a.id] || ''}
                                   onChange={e => setRetardForm(prev => ({ ...prev, [a.id]: e.target.value }))}
-                                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #FCA5A5', background: '#fff', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
-                                />
+                                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #FCA5A5', background: '#fff', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
                                 <div style={{ display: 'flex', gap: 8 }}>
-                                  <button onClick={() => marquerEnRetard(a.id)}
-                                    style={{ flex: 1, padding: '8px', background: '#991B1B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                                  <button onClick={() => marquerEnRetard(a.id)} style={{ flex: 1, padding: '8px', background: '#991B1B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                                     Confirmer le retard
                                   </button>
-                                  <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: false }))}
-                                    style={{ padding: '8px 14px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                                  <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: false }))} style={{ padding: '8px 14px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
                                     Annuler
                                   </button>
                                 </div>
@@ -598,7 +642,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                     </div>
                   )}
 
-                  {/* Actions en retard */}
+                  {/* En retard */}
                   {actions.filter(a => a.statut === 'en_retard').length > 0 && (
                     <div style={{ marginBottom: 24 }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>🔴 En retard</div>
@@ -613,12 +657,8 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 4, lineHeight: 1.4 }}>{a.description}</div>
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#FEE2E2', color: '#991B1B' }}>
-                                    🔴 En retard
-                                  </span>
-                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#F3F4F6', color: '#374151' }}>
-                                    {isIA ? iaSelectionnee.nom : 'Manager'}
-                                  </span>
+                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#FEE2E2', color: '#991B1B' }}>🔴 En retard</span>
+                                  <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#F3F4F6', color: '#374151' }}>{isIA ? iaSelectionnee.nom : 'Manager'}</span>
                                 </div>
                                 {a.motif_retard && (
                                   <div style={{ fontSize: 12, color: '#991B1B', background: '#FEE2E2', padding: '6px 10px', borderRadius: 8, fontStyle: 'italic' }}>
@@ -627,18 +667,9 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                                 )}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-                                <button onClick={() => toggleStatut(a.id, a.statut)}
-                                  style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                  ✓ Fait
-                                </button>
-                                <button onClick={async () => { await supabase.from('actions_1to1').update({ statut: 'en_cours', motif_retard: null }).eq('id', a.id); fetchData(iaSelectionnee.id) }}
-                                  style={{ padding: '5px 10px', background: '#FEF9C3', color: '#854D0E', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                  ↩ En cours
-                                </button>
-                                <button onClick={() => supprimerAction(a.id)}
-                                  style={{ padding: '5px 10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-                                  ✕
-                                </button>
+                                <button onClick={() => toggleStatut(a.id, a.statut)} style={{ padding: '5px 10px', background: '#D1FAE5', color: '#065F46', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>✓ Fait</button>
+                                <button onClick={async () => { await supabase.from('actions_1to1').update({ statut: 'en_cours', motif_retard: null }).eq('id', a.id); fetchData(iaSelectionnee.id) }} style={{ padding: '5px 10px', background: '#FEF9C3', color: '#854D0E', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>↩ En cours</button>
+                                <button onClick={() => supprimerAction(a.id)} style={{ padding: '5px 10px', background: '#F3F4F6', color: '#6B7280', border: 'none', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
                               </div>
                             </div>
                           </div>
@@ -647,7 +678,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                     </div>
                   )}
 
-                  {/* Actions terminées */}
+                  {/* Terminées */}
                   {actions.filter(a => a.statut === 'fait').length > 0 && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>✅ Terminées</div>
@@ -658,10 +689,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                             <div style={{ fontSize: 13, color: '#374151', textDecoration: 'line-through', opacity: 0.7 }}>{a.description}</div>
                             <div style={{ fontSize: 11, color: '#065F46', marginTop: 2, fontWeight: 500 }}>{a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}</div>
                           </div>
-                          <button onClick={() => toggleStatut(a.id, a.statut)}
-                            style={{ padding: '4px 10px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
-                            Réouvrir
-                          </button>
+                          <button onClick={() => toggleStatut(a.id, a.statut)} style={{ padding: '4px 10px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>Réouvrir</button>
                         </div>
                       ))}
                     </div>
@@ -682,7 +710,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                   <div style={{ background: `${couleurIA.color}12`, border: `1.5px solid ${couleurIA.color}30`, borderRadius: 14, padding: '16px 20px', marginBottom: 16 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: couleurIA.color, marginBottom: 4 }}>Compte-rendu du point individuel</div>
                     <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                      Génère automatiquement un CR basé sur les notations, les actions et les stats de {iaSelectionnee.nom}, puis envoie-le par email.
+                      Génère un CR basé sur les notations, les actions et les stats de {iaSelectionnee.nom}, puis envoie-le par email.
                     </div>
                   </div>
 
@@ -690,7 +718,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showCrPrecedent ? 12 : 0 }}>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)' }}>🕐 CR du point précédent</div>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>🕐 CR du point précédent</div>
                         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                           {crPrecedent ? '✅ Chargé automatiquement — modifiable' : 'Colle le CR précédent pour un meilleur contexte'}
                         </div>
@@ -701,8 +729,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                       </button>
                     </div>
                     {showCrPrecedent && (
-                      <textarea value={crPrecedent} onChange={e => setCrPrecedent(e.target.value)}
-                        placeholder="Colle ici le CR du point précédent…"
+                      <textarea value={crPrecedent} onChange={e => setCrPrecedent(e.target.value)} placeholder="Colle ici le CR du point précédent…"
                         style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${couleurIA.color}30`, background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 12, minHeight: 150, boxSizing: 'border-box', lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit' }} />
                     )}
                     {crPrecedent && (
@@ -713,15 +740,35 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                     )}
                   </div>
 
+                  {/* ── Orientation du CR ── */}
+                  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>🎯 Comment orienter ce CR ?</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {ORIENTATIONS.map(o => (
+                        <div key={o.id} onClick={() => setOrientationCR(o.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
+                            border: orientationCR === o.id ? `2px solid ${couleurIA.color}` : '1.5px solid var(--color-border-tertiary)',
+                            background: orientationCR === o.id ? `${couleurIA.color}10` : 'var(--color-background)' }}>
+                          <div style={{ fontSize: 22, flexShrink: 0 }}>{o.icon}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: orientationCR === o.id ? couleurIA.color : 'var(--color-text-primary)' }}>{o.label}</div>
+                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{o.desc}</div>
+                          </div>
+                          {orientationCR === o.id && (
+                            <div style={{ width: 18, height: 18, borderRadius: '50%', background: couleurIA.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <span style={{ color: '#fff', fontSize: 11 }}>✓</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Récap données */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Données du point</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {[
-                        { label: 'RDV', val: notations['rdv'] },
-                        { label: 'Présentation', val: notations['presentation'] },
-                        { label: 'Signature', val: notations['signature'] },
-                      ].map(n => {
+                      {[{ label: 'RDV', val: notations['rdv'] }, { label: 'Présentation', val: notations['presentation'] }, { label: 'Signature', val: notations['signature'] }].map(n => {
                         const colorMap = { insuffisant: '#FEE2E2', moyen: '#FEF9C3', bon: '#D1FAE5', RAS: '#F3F4F6', excellent: '#D1FAE5' }
                         const textMap = { insuffisant: '#991B1B', moyen: '#854D0E', bon: '#065F46', RAS: '#374151', excellent: '#065F46' }
                         return (
@@ -738,13 +785,18 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
                           🔴 {actions.filter(a => a.statut === 'en_retard').length} en retard
                         </div>
                       )}
+                      <div style={{ padding: '6px 12px', borderRadius: 10, background: sigStatus.bg, fontSize: 12, fontWeight: 600, color: sigStatus.color }}>
+                        {sigStatus.icon} Signatures S{currentSemestre} : {sigStatus.label}
+                      </div>
                     </div>
                   </div>
 
                   {!crGenere && (
                     <button onClick={genererCR} disabled={loadingCR}
                       style={{ width: '100%', padding: '14px', background: loadingCR ? '#9CA3AF' : couleurIA.color, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loadingCR ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
-                      {loadingCR ? <span className="pulse">✨ Génération en cours…</span> : crPrecedent ? '✨ Générer le CR (avec contexte précédent)' : '✨ Générer le CR avec Claude'}
+                      {loadingCR
+                        ? <span className="pulse">✨ Génération en cours…</span>
+                        : `✨ Générer le CR — Ton : ${ORIENTATIONS.find(o => o.id === orientationCR)?.label}`}
                     </button>
                   )}
 
@@ -771,7 +823,6 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Si des actions sont 
               )}
             </div>
 
-            {/* NAV BOTTOM */}
             <div className="bottom-nav" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)', padding: '8px 16px 20px', justifyContent: 'space-around', zIndex: 100 }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
