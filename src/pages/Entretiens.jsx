@@ -60,6 +60,8 @@ export default function Entretiens() {
   const [loadingCR, setLoadingCR] = useState(false)
   const [crGenere, setCrGenere] = useState('')
   const [crEnvoye, setCrEnvoye] = useState(false)
+  const [crPrecedent, setCrPrecedent] = useState('')
+  const [showCrPrecedent, setShowCrPrecedent] = useState(false)
 
   useEffect(() => { fetchIas() }, [])
 
@@ -77,6 +79,9 @@ export default function Entretiens() {
       const notMap = {}
       e.forEach(ent => { if (ent.notations) { try { Object.assign(notMap, JSON.parse(ent.notations)) } catch(err) {} } })
       setNotations(notMap)
+      // Auto-charger le dernier CR si disponible
+      const dernierCR = e.find(ent => ent.cr_genere)
+      if (dernierCR?.cr_genere) setCrPrecedent(dernierCR.cr_genere)
     }
     const { data: a } = await supabase.from('actions_1to1').select('*').eq('ia_id', iaId).order('created_at', { ascending: false })
     if (a) setActions(a)
@@ -86,6 +91,8 @@ export default function Entretiens() {
     setAnimating(true)
     setCrGenere('')
     setCrEnvoye(false)
+    setCrPrecedent('')
+    setShowCrPrecedent(false)
     setTimeout(() => {
       setIaSelectionnee(ia)
       setIaIndex(index)
@@ -106,6 +113,8 @@ export default function Entretiens() {
       setActions([])
       setCrGenere('')
       setCrEnvoye(false)
+      setCrPrecedent('')
+      setShowCrPrecedent(false)
       setAnimating(false)
     }, 200)
   }
@@ -174,7 +183,12 @@ export default function Entretiens() {
         sign: acc.sign + (s.signatures || 0),
       }), { rdv: 0, pres: 0, besoins: 0, sign: 0 })
 
+      const contextePrecedent = crPrecedent.trim()
+        ? `\nCONTEXTE — CR DU POINT PRÉCÉDENT :\n${crPrecedent.trim()}\n\nEn te basant sur ce CR précédent, fais référence à l'évolution depuis le dernier point : ce qui a progressé, ce qui reste à travailler, les actions qui ont été tenues ou non.`
+        : ''
+
       const prompt = `Tu es un assistant manager bienveillant et professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Ingénieur d'affaires dans une ESN spécialisée IT/Télécom/Cybersécurité.
+${contextePrecedent}
 
 DONNÉES DE LA SEMAINE (semaine ${semaineCourante}) :
 - RDV réalisés : ${semSaisie.rdv}
@@ -197,7 +211,7 @@ ACTIONS DÉFINIES LORS DU POINT :
 ${actionsTexte || 'Aucune action définie'}
 
 Rédige un CR structuré et professionnel avec :
-1. Un résumé du point (2-3 phrases)
+1. Un résumé du point (2-3 phrases)${crPrecedent.trim() ? ' en faisant référence à l\'évolution depuis le point précédent' : ''}
 2. Analyse de la performance de la semaine
 3. Les actions à mener avec les responsables et échéances
 4. Un mot de conclusion positif et motivant
@@ -206,10 +220,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
 
       const response = await fetch('/api/generate-cr', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1000,
@@ -239,15 +250,14 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
           email: iaSelectionnee.email,
           nom: iaSelectionnee.nom,
           cr: crGenere
-  .replace(/### (.*?)(\n|$)/g, '<h3>$1</h3>')
-  .replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>')
-  .replace(/# (.*?)(\n|$)/g, '<h1>$1</h1>')
-  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  .replace(/\n/g, '<br/>'),
+            .replace(/### (.*?)(\n|$)/g, '<h3>$1</h3>')
+            .replace(/## (.*?)(\n|$)/g, '<h2>$1</h2>')
+            .replace(/# (.*?)(\n|$)/g, '<h1>$1</h1>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br/>'),
           date: new Date().toLocaleDateString('fr-FR')
         })
       })
-      // Marquer CR comme envoyé
       const today = new Date().toISOString().split('T')[0]
       const { data: existing } = await supabase.from('entretiens').select('id').eq('ia_id', iaSelectionnee.id).eq('date_entretien', today).single()
       if (existing?.id) {
@@ -305,7 +315,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
           ) : (
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.5px', marginBottom: 4 }}>🤝 Points Individuels</div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Sélectionne un ingénieur d'affaires </div>
+              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Sélectionne un ingénieur d'affaires</div>
             </div>
           )}
         </div>
@@ -340,7 +350,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
               </div>
             )}
 
-            {/* NAV TOP (PC) */}
+            {/* NAV TOP */}
             <div className="top-nav" style={{ display: 'none', gap: 6, marginBottom: 24, background: 'var(--color-background-secondary)', padding: 6, borderRadius: 14, border: '1px solid var(--color-border-tertiary)' }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
@@ -583,7 +593,6 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
               {/* ── CR ── */}
               {menuActif === 'cr' && (
                 <div className="fade-in">
-                  {/* Intro */}
                   <div style={{ background: `${couleurIA.color}12`, border: `1.5px solid ${couleurIA.color}30`, borderRadius: 14, padding: '16px 20px', marginBottom: 16 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: couleurIA.color, marginBottom: 4 }}>Compte-rendu du point individuel</div>
                     <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
@@ -591,7 +600,41 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                     </div>
                   </div>
 
-                  {/* Récap avant génération */}
+                  {/* ── CR PRÉCÉDENT ── */}
+                  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showCrPrecedent ? 12 : 0 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                          🕐 CR du point précédent
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                          {crPrecedent ? '✅ Chargé automatiquement — modifiable' : 'Colle le CR précédent pour un meilleur contexte'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowCrPrecedent(!showCrPrecedent)}
+                        style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${couleurIA.color}40`, background: showCrPrecedent ? `${couleurIA.color}15` : 'none', color: couleurIA.color, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        {showCrPrecedent ? '▲ Réduire' : '▼ Voir / Modifier'}
+                      </button>
+                    </div>
+                    {showCrPrecedent && (
+                      <textarea
+                        value={crPrecedent}
+                        onChange={e => setCrPrecedent(e.target.value)}
+                        placeholder="Colle ici le CR du point précédent…"
+                        style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${couleurIA.color}30`, background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 12, minHeight: 150, boxSizing: 'border-box', lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit' }}
+                      />
+                    )}
+                    {crPrecedent && (
+                      <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#065F46' }} />
+                        <span style={{ fontSize: 11, color: '#065F46', fontWeight: 500 }}>Ce CR sera utilisé pour contextualiser la génération</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Récap données */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Données du point</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -620,7 +663,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
                       style={{ width: '100%', padding: '14px', background: loadingCR ? '#9CA3AF' : couleurIA.color, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loadingCR ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
                       {loadingCR ? (
                         <span className="pulse">✨ Génération en cours…</span>
-                      ) : '✨ Générer le CR avec Claude'}
+                      ) : crPrecedent ? '✨ Générer le CR (avec contexte précédent)' : '✨ Générer le CR avec Claude'}
                     </button>
                   )}
 
@@ -651,7 +694,7 @@ Utilise le tutoiement. Sois direct, pragmatique et factuel. Pas d'enthousiasme e
               )}
             </div>
 
-            {/* NAV BOTTOM (MOBILE) */}
+            {/* NAV BOTTOM */}
             <div className="bottom-nav" style={{ display: 'none', position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)', padding: '8px 16px 20px', justifyContent: 'space-around', zIndex: 100 }}>
               {menus.map(m => (
                 <button key={m.id} onClick={() => setMenuActif(m.id)}
