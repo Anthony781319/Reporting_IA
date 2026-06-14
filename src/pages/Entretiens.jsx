@@ -163,15 +163,28 @@ export default function Entretiens() {
   }
 
   const marquerEnRetard = async (id) => {
-    const motif = retardForm[id] || ''
-    if (!motif.trim()) return
-    const { error } = await supabase.from('actions_1to1').update({ statut: 'en_retard', motif_retard: motif }).eq('id', id)
-    if (!error) {
-      setShowRetardInput(prev => ({ ...prev, [id]: false }))
-      setRetardForm(prev => ({ ...prev, [id]: '' }))
-      await fetchData(iaSelectionnee.id)
-    }
+  const motif = (retardForm[id] || '').trim()
+  if (!motif) {
+    setMsg('❌ Le motif du retard est obligatoire')
+    return
   }
+  try {
+    const { error } = await supabase
+      .from('actions_1to1')
+      .update({ statut: 'en_retard', motif_retard: motif })
+      .eq('id', id)
+    if (error) {
+      setMsg('❌ Erreur Supabase : ' + error.message)
+      return
+    }
+    setShowRetardInput(prev => ({ ...prev, [id]: false }))
+    setRetardForm(prev => ({ ...prev, [id]: '' }))
+    setMsg('✅ Action marquée en retard')
+    await fetchData(iaSelectionnee.id)
+  } catch (e) {
+    setMsg('❌ Erreur : ' + e.message)
+  }
+}
 
   const supprimerAction = async (id) => {
     await supabase.from('actions_1to1').delete().eq('id', id)
