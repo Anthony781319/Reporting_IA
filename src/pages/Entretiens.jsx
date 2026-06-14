@@ -58,6 +58,7 @@ export default function Entretiens() {
   const [showRetardInput, setShowRetardInput] = useState({})
   const [retardForm, setRetardForm] = useState({})
   const [orientationCR, setOrientationCR] = useState('factuel')
+  const [contextLibre, setContextLibre] = useState('')
 
   useEffect(() => { fetchIas() }, [])
 
@@ -85,7 +86,7 @@ export default function Entretiens() {
   const handleSelectIA = (ia, index) => {
     setAnimating(true)
     setCrGenere(''); setCrEnvoye(false); setCrPrecedent(''); setShowCrPrecedent(false)
-    setShowRetardInput({}); setRetardForm({}); setOrientationCR('factuel')
+    setShowRetardInput({}); setRetardForm({}); setOrientationCR('factuel'); setContextLibre('')
     setTimeout(() => {
       setIaSelectionnee(ia); setIaIndex(index); setMenuActif('semaine'); setMsg('')
       fetchData(ia.id); setAnimating(false)
@@ -97,7 +98,8 @@ export default function Entretiens() {
     setTimeout(() => {
       setIaSelectionnee(null); setSaisies([]); setEntretiens([]); setNotations({}); setActions([])
       setCrGenere(''); setCrEnvoye(false); setCrPrecedent(''); setShowCrPrecedent(false)
-      setShowRetardInput({}); setRetardForm({}); setOrientationCR('factuel'); setAnimating(false)
+      setShowRetardInput({}); setRetardForm({}); setOrientationCR('factuel'); setContextLibre('')
+      setAnimating(false)
     }, 200)
   }
 
@@ -108,7 +110,6 @@ export default function Entretiens() {
   const semaineCourante = Math.ceil((new Date() - new Date(new Date().getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000))
   const saisiesSemaine = saisies.filter(s => s.semaine === semaineCourante)
 
-  // ── Analyse proratisée signatures semestre ──
   const currentSemestre = semaineCourante <= 26 ? 1 : 2
   const semaineDebutSemestre = currentSemestre === 1 ? 1 : 27
   const weeksElapsed = Math.max(1, semaineCourante - semaineDebutSemestre + 1)
@@ -163,28 +164,17 @@ export default function Entretiens() {
   }
 
   const marquerEnRetard = async (id) => {
-  const motif = (retardForm[id] || '').trim()
-  if (!motif) {
-    setMsg('❌ Le motif du retard est obligatoire')
-    return
+    const motif = (retardForm[id] || '').trim()
+    if (!motif) { setMsg('❌ Le motif du retard est obligatoire'); return }
+    try {
+      const { error } = await supabase.from('actions_1to1').update({ statut: 'en_retard', motif_retard: motif }).eq('id', id)
+      if (error) { setMsg('❌ Erreur Supabase : ' + error.message); return }
+      setShowRetardInput(prev => ({ ...prev, [id]: false }))
+      setRetardForm(prev => ({ ...prev, [id]: '' }))
+      setMsg('✅ Action marquée en retard')
+      await fetchData(iaSelectionnee.id)
+    } catch (e) { setMsg('❌ Erreur : ' + e.message) }
   }
-  try {
-    const { error } = await supabase
-      .from('actions_1to1')
-      .update({ statut: 'en_retard', motif_retard: motif })
-      .eq('id', id)
-    if (error) {
-      setMsg('❌ Erreur Supabase : ' + error.message)
-      return
-    }
-    setShowRetardInput(prev => ({ ...prev, [id]: false }))
-    setRetardForm(prev => ({ ...prev, [id]: '' }))
-    setMsg('✅ Action marquée en retard')
-    await fetchData(iaSelectionnee.id)
-  } catch (e) {
-    setMsg('❌ Erreur : ' + e.message)
-  }
-}
 
   const supprimerAction = async (id) => {
     await supabase.from('actions_1to1').delete().eq('id', id)
@@ -200,15 +190,11 @@ export default function Entretiens() {
   const genererCR = async () => {
     setLoadingCR(true); setCrGenere(''); setMsg('')
     try {
-      const actionsTexte = actions
-        .filter(a => a.statut === 'en_cours')
-        .map((a, i) => `${i + 1}. ${a.description} (${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${new Date(a.echeance).toLocaleDateString('fr-FR')}` : ''}`)
-        .join('\n')
+      const actionsTexte = actions.filter(a => a.statut === 'en_cours')
+        .map((a, i) => `${i + 1}. ${a.description} (${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'})${a.echeance ? ` — échéance : ${new Date(a.echeance).toLocaleDateString('fr-FR')}` : ''}`).join('\n')
 
-      const actionsEnRetard = actions
-        .filter(a => a.statut === 'en_retard')
-        .map((a, i) => `${i + 1}. ${a.description} (${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}) — MOTIF : ${a.motif_retard || 'non précisé'}`)
-        .join('\n')
+      const actionsEnRetard = actions.filter(a => a.statut === 'en_retard')
+        .map((a, i) => `${i + 1}. ${a.description} (${a.responsable === 'ia' ? iaSelectionnee.nom : 'Manager'}) — MOTIF : ${a.motif_retard || 'non précisé'}`).join('\n')
 
       const semSaisie = saisiesSemaine.reduce((acc, s) => ({
         rdv: acc.rdv + (s.total_rdv || 0), pres: acc.pres + (s.presentations || 0),
@@ -216,18 +202,23 @@ export default function Entretiens() {
       }), { rdv: 0, pres: 0, besoins: 0, sign: 0 })
 
       const contextePrecedent = crPrecedent.trim()
-        ? `\nCONTEXTE — CR PRÉCÉDENT :\n${crPrecedent.trim()}\n\nFais référence à l'évolution depuis le dernier point : progrès, points restants à travailler, actions tenues ou non.`
+        ? `\nCONTEXTE — CR PRÉCÉDENT :\n${crPrecedent.trim()}\n\nFais référence à l'évolution depuis le dernier point.`
+        : ''
+
+      const contexteAdditionnel = contextLibre.trim()
+        ? `\nCONTEXTE ADDITIONNEL DU MANAGER (important, à intégrer dans la rédaction) :\n${contextLibre.trim()}\n`
         : ''
 
       const orientationInstructions = {
-        encourageant: `\nTON SOUHAITÉ : Encourageant et motivant. Même si les stats sont en deçà des attentes, valorise les efforts, identifie les signaux positifs et donne de l'élan pour la suite. Reste factuel mais termine sur une note d'espoir et de confiance.`,
-        factuel: `\nTON SOUHAITÉ : Neutre et factuel. Présente les faits tels qu'ils sont, sans sur-interpréter dans un sens ou dans l'autre. Direct et professionnel.`,
-        ferme: `\nTON SOUHAITÉ : Ferme et documenté. Les résultats sont insuffisants et doivent être nommés clairement. Ce CR peut servir de base à un suivi RH. Sois précis sur les manquements, les attentes non atteintes et les conséquences possibles si la situation ne s'améliore pas. Reste professionnel mais sans ambiguïté.`,
+        encourageant: `\nTON : Encourageant et motivant. Même si les stats sont en deçà, valorise les efforts et donne de l'élan. Reste factuel mais termine sur une note de confiance.`,
+        factuel: `\nTON : Neutre et factuel. Présente les faits tels qu'ils sont, sans sur-interpréter. Direct et professionnel.`,
+        ferme: `\nTON : Ferme et documenté. Les résultats insuffisants doivent être nommés clairement. Ce CR peut servir de base à un suivi RH. Précis sur les manquements et les conséquences possibles. Professionnel mais sans ambiguïté.`,
       }
 
       const prompt = `Tu es un assistant manager professionnel. Rédige un compte-rendu de point individuel avec ${iaSelectionnee.nom}, Ingénieur d'affaires dans une ESN spécialisée IT/Télécom/Cybersécurité.
 ${orientationInstructions[orientationCR]}
 ${contextePrecedent}
+${contexteAdditionnel}
 
 DONNÉES SEMAINE ${semaineCourante} :
 - RDV : ${semSaisie.rdv} | Présentations : ${semSaisie.pres} | Besoins : ${semSaisie.besoins} | Signatures : ${semSaisie.sign}
@@ -243,7 +234,7 @@ STATS YTD :
 
 SIGNATURES SEMESTRE ${currentSemestre} :
 - Réalisées : ${totalSignaturesSemestre} / objectif ${objectifSignatures}
-- Attendu à ce stade (semaine ${weeksElapsed}/${weeksInSemester} du semestre) : ${expectedSoFar}
+- Attendu à ce stade (S${weeksElapsed}/${weeksInSemester}) : ${expectedSoFar}
 - Statut : ${sigStatus.label} (${pctVsExpected}% du rythme attendu)
 
 ACTIONS EN COURS :
@@ -252,18 +243,17 @@ ${actionsTexte || 'Aucune'}
 ACTIONS EN RETARD :
 ${actionsEnRetard || 'Aucune'}
 
-Structure du CR :
+Structure :
 1. Résumé du point (2-3 phrases)${crPrecedent ? ', avec référence à l\'évolution' : ''}
-2. Analyse de la performance semaine et tendance semestre
+2. Analyse performance semaine et tendance semestre
 3. Actions définies (responsables + échéances)
-4. Si actions en retard, les mentionner explicitement avec le motif
+4. Si actions en retard, les mentionner avec le motif
 5. Conclusion adaptée au ton demandé
 
-Tutoiement. Sois direct et pragmatique.`
+Tutoiement. Direct et pragmatique.`
 
       const response = await fetch('/api/generate-cr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
       })
       const data = await response.json()
@@ -323,7 +313,6 @@ Tutoiement. Sois direct et pragmatique.`
 
       <div className={animating ? 'fade-out' : 'fade-in'} style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
 
-        {/* HEADER */}
         <div style={{ marginBottom: 28 }}>
           {iaSelectionnee ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -488,13 +477,11 @@ Tutoiement. Sois direct et pragmatique.`
                     )
                   })}
 
-                  {/* ── 4ème KPI : Signatures semestre avec analyse proratisée ── */}
+                  {/* 4ème KPI signatures semestre */}
                   <div style={{ background: sigStatus.bg, borderRadius: 14, padding: '18px 20px', marginBottom: 12, border: `1.5px solid ${sigStatus.color}30` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: sigStatus.color, opacity: 0.8, marginBottom: 4 }}>
-                          Signatures S{currentSemestre} — objectif {objectifSignatures}
-                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: sigStatus.color, opacity: 0.8, marginBottom: 4 }}>Signatures S{currentSemestre} — objectif {objectifSignatures}</div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                           <div style={{ fontSize: 34, fontWeight: 800, color: sigStatus.color, letterSpacing: '-1px' }}>{totalSignaturesSemestre}</div>
                           <div style={{ fontSize: 14, color: sigStatus.color, opacity: 0.6 }}>/ {objectifSignatures}</div>
@@ -507,17 +494,13 @@ Tutoiement. Sois direct et pragmatique.`
                         <div style={{ fontSize: 11, color: sigStatus.color, opacity: 0.7 }}>{pctVsObjectif}% de l'objectif final</div>
                       </div>
                     </div>
-
-                    {/* Barre vs objectif total */}
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ fontSize: 11, color: sigStatus.color, fontWeight: 600, marginBottom: 4 }}>Progression vs objectif final</div>
                       <div style={{ height: 8, borderRadius: 4, background: `${sigStatus.color}22` }}>
                         <div style={{ height: '100%', borderRadius: 4, background: sigStatus.color, width: `${pctVsObjectif}%`, transition: 'width 0.5s ease' }} />
                       </div>
                     </div>
-
-                    {/* Analyse proratisée */}
-                    {weeksElapsed > 2 && (
+                    {weeksElapsed > 2 ? (
                       <div style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 10, padding: '10px 14px', border: `1px solid ${sigStatus.color}20` }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: sigStatus.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                           📊 Analyse à date — S{weeksElapsed}/{weeksInSemester} du semestre
@@ -536,19 +519,14 @@ Tutoiement. Sois direct et pragmatique.`
                             <div style={{ fontSize: 10, color: sigStatus.color, opacity: 0.7 }}>Du rythme attendu</div>
                           </div>
                         </div>
-                        {totalSignaturesSemestre < expectedSoFar && (
-                          <div style={{ marginTop: 8, fontSize: 11, color: sigStatus.color, fontStyle: 'italic' }}>
-                            ↳ Il manque {(expectedSoFar - totalSignaturesSemestre).toFixed(1)} signature(s) par rapport au rythme attendu à cette période
-                          </div>
-                        )}
-                        {totalSignaturesSemestre >= expectedSoFar && (
-                          <div style={{ marginTop: 8, fontSize: 11, color: sigStatus.color, fontStyle: 'italic' }}>
-                            ↳ {totalSignaturesSemestre === 0 ? 'Normal en début de semestre' : `${(totalSignaturesSemestre - expectedSoFar).toFixed(1)} signature(s) d'avance sur le rythme`}
-                          </div>
-                        )}
+                        <div style={{ marginTop: 8, fontSize: 11, color: sigStatus.color, fontStyle: 'italic' }}>
+                          {totalSignaturesSemestre < expectedSoFar
+                            ? `↳ Il manque ${(expectedSoFar - totalSignaturesSemestre).toFixed(1)} signature(s) par rapport au rythme attendu`
+                            : totalSignaturesSemestre === 0 ? '↳ Normal en début de semestre'
+                            : `↳ ${(totalSignaturesSemestre - expectedSoFar).toFixed(1)} signature(s) d'avance sur le rythme`}
+                        </div>
                       </div>
-                    )}
-                    {weeksElapsed <= 2 && (
+                    ) : (
                       <div style={{ fontSize: 12, color: sigStatus.color, fontStyle: 'italic', marginTop: 4 }}>
                         🏁 Semestre tout juste démarré — l'analyse de rythme sera disponible à partir de la semaine 3
                       </div>
@@ -591,9 +569,7 @@ Tutoiement. Sois direct et pragmatique.`
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input type="date" value={nouvelleAction.echeance} onChange={e => setNouvelleAction({ ...nouvelleAction, echeance: e.target.value })}
                         style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1.5px solid var(--color-border-tertiary)', background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 13 }} />
-                      <button onClick={ajouterAction} style={{ flex: 1, padding: '8px 16px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                        Ajouter →
-                      </button>
+                      <button onClick={ajouterAction} style={{ flex: 1, padding: '8px 16px', background: couleurIA.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Ajouter →</button>
                     </div>
                   </div>
 
@@ -640,12 +616,8 @@ Tutoiement. Sois direct et pragmatique.`
                                   onChange={e => setRetardForm(prev => ({ ...prev, [a.id]: e.target.value }))}
                                   style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #FCA5A5', background: '#fff', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
                                 <div style={{ display: 'flex', gap: 8 }}>
-                                  <button onClick={() => marquerEnRetard(a.id)} style={{ flex: 1, padding: '8px', background: '#991B1B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                                    Confirmer le retard
-                                  </button>
-                                  <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: false }))} style={{ padding: '8px 14px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-                                    Annuler
-                                  </button>
+                                  <button onClick={() => marquerEnRetard(a.id)} style={{ flex: 1, padding: '8px', background: '#991B1B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Confirmer le retard</button>
+                                  <button onClick={() => setShowRetardInput(prev => ({ ...prev, [a.id]: false }))} style={{ padding: '8px 14px', background: 'none', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Annuler</button>
                                 </div>
                               </div>
                             )}
@@ -753,11 +725,15 @@ Tutoiement. Sois direct et pragmatique.`
                     )}
                   </div>
 
-                  {/* ── Orientation du CR ── */}
+                  {/* Orientation */}
                   <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>🎯 Comment orienter ce CR ?</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {ORIENTATIONS.map(o => (
+                      {[
+                        { id: 'encourageant', icon: '🌟', label: 'Encourageant', desc: 'Stats difficiles mais on booste le moral' },
+                        { id: 'factuel',      icon: '⚖️', label: 'Factuel',       desc: 'Compte-rendu neutre et objectif' },
+                        { id: 'ferme',        icon: '🔴', label: 'Ferme',          desc: 'Recadrage clair, documentation sous-performance' },
+                      ].map(o => (
                         <div key={o.id} onClick={() => setOrientationCR(o.id)}
                           style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
                             border: orientationCR === o.id ? `2px solid ${couleurIA.color}` : '1.5px solid var(--color-border-tertiary)',
@@ -775,6 +751,26 @@ Tutoiement. Sois direct et pragmatique.`
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Contexte libre */}
+                  <div style={{ background: 'var(--color-background-secondary)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, border: '1px solid var(--color-border-tertiary)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>💬 Contexte additionnel (optionnel)</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
+                      Ajoute tout élément de contexte que tu veux que Claude prenne en compte lors de la génération
+                    </div>
+                    <textarea
+                      value={contextLibre}
+                      onChange={e => setContextLibre(e.target.value)}
+                      placeholder="Ex : cette personne traverse une période difficile personnellement, elle vient d'être recadrée formellement, elle est candidate à une promotion, elle a un entretien annuel la semaine prochaine…"
+                      style={{ width: '100%', padding: '12px', borderRadius: 10, border: `1.5px solid ${contextLibre ? couleurIA.color + '60' : 'var(--color-border-tertiary)'}`, background: 'var(--color-background)', color: 'var(--color-text-primary)', fontSize: 13, minHeight: 90, boxSizing: 'border-box', lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit', transition: 'border 0.2s' }}
+                    />
+                    {contextLibre && (
+                      <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: couleurIA.color }} />
+                        <span style={{ fontSize: 11, color: couleurIA.color, fontWeight: 500 }}>Ce contexte sera intégré dans la génération</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Récap données */}
@@ -799,7 +795,7 @@ Tutoiement. Sois direct et pragmatique.`
                         </div>
                       )}
                       <div style={{ padding: '6px 12px', borderRadius: 10, background: sigStatus.bg, fontSize: 12, fontWeight: 600, color: sigStatus.color }}>
-                        {sigStatus.icon} Signatures S{currentSemestre} : {sigStatus.label}
+                        {sigStatus.icon} S{currentSemestre} : {sigStatus.label}
                       </div>
                     </div>
                   </div>
@@ -809,7 +805,7 @@ Tutoiement. Sois direct et pragmatique.`
                       style={{ width: '100%', padding: '14px', background: loadingCR ? '#9CA3AF' : couleurIA.color, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: loadingCR ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
                       {loadingCR
                         ? <span className="pulse">✨ Génération en cours…</span>
-                        : `✨ Générer le CR — Ton : ${ORIENTATIONS.find(o => o.id === orientationCR)?.label}`}
+                        : `✨ Générer le CR — Ton : ${[{ id: 'encourageant', label: 'Encourageant' }, { id: 'factuel', label: 'Factuel' }, { id: 'ferme', label: 'Ferme' }].find(o => o.id === orientationCR)?.label}`}
                     </button>
                   )}
 
