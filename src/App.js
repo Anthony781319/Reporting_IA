@@ -10,7 +10,7 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import './App.css'
 
-const ADMIN_PASSWORD = 'Go'
+const  = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 
@@ -36,7 +36,7 @@ export default function App() {
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
-    if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
+    if (ia.nom === 'Anthony' && password === ) {
       resetRoles(); setUser(ia); setIsAdmin(true); setTab('dashboard-manager'); return true
     }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
