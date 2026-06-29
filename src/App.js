@@ -1,6 +1,7 @@
 import Entretiens from './pages/Entretiens'
 import { useState } from 'react'
 import Dashboard from './pages/Dashboard'
+import DashboardManager from './pages/DashboardManager'
 import Saisie from './pages/Saisie'
 import Admin from './pages/Admin'
 import Login from './pages/Login'
@@ -9,7 +10,7 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import './App.css'
 
-const ADMIN_PASSWORD = 'go'
+const ADMIN_PASSWORD = 'Go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 
@@ -36,7 +37,7 @@ export default function App() {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
     if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
-      resetRoles(); setUser(ia); setIsAdmin(true); setTab('dashboard'); return true
+      resetRoles(); setUser(ia); setIsAdmin(true); setTab('dashboard-manager'); return true
     }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
@@ -49,11 +50,11 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />
 
   const adminTabs = [
-    { id: 'dashboard',  icon: 'ti-layout-dashboard', label: 'Dashboard' },
-    { id: 'saisie',     icon: 'ti-edit',             label: 'Ma saisie' },
-    { id: 'ytd',        icon: 'ti-chart-bar',         label: 'Year to Date' },
-    { id: 'admin',      icon: 'ti-settings',          label: 'Admin' },
-    { id: 'entretiens', icon: 'ti-messages',          label: '1:1' },
+    { id: 'dashboard-manager', icon: 'ti-layout-columns',   label: 'Dashboard' },
+    { id: 'saisie',            icon: 'ti-edit',             label: 'Ma saisie' },
+    { id: 'ytd',               icon: 'ti-chart-bar',        label: 'Year to Date' },
+    { id: 'admin',             icon: 'ti-settings',         label: 'Admin' },
+    { id: 'entretiens',        icon: 'ti-messages',         label: '1:1' },
   ]
   const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
@@ -69,7 +70,7 @@ export default function App() {
   }
 
   const getTitle = () => {
-    if (isAdmin) return 'Dashboard Commerce'
+    if (isAdmin) return 'Reporting IA'
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
     return 'Reporting'
@@ -104,14 +105,14 @@ export default function App() {
       )}
 
       <div className="content">
-        {tab === 'dashboard'    && <Dashboard />}
-        {tab === 'saisie'       && <Saisie iaId={user.id} iaName={user.nom} />}
-        {tab === 'ytd'          && <Dashboard ytdOnly={true} />}
-        {tab === 'admin'        && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
-        {tab === 'p1'           && <P1Page />}
-        {tab === 'saisie-cr'    && <SaisieCR crNom={user.nom} />}
-        {tab === 'dashboard-rh' && <DashboardRH />}
-        {tab === 'entretiens'   && <Entretiens />}
+        {tab === 'dashboard-manager' && <DashboardManager />}
+        {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
+        {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
+        {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
+        {tab === 'p1'                && <P1Page />}
+        {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} />}
+        {tab === 'dashboard-rh'      && <DashboardRH />}
+        {tab === 'entretiens'        && <Entretiens />}
       </div>
     </div>
   )
