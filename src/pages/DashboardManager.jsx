@@ -343,19 +343,72 @@ const RH_KPIS = [
   { label: 'Signatures',       key: 'nb_signatures',        color: '#72243E', bg: '#FBEAF0' },
 ]
 
+const KpiCardDetailRH = ({ label, value, color, bg, previous, rows, renderDetail }) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <div onClick={() => value > 0 && setOpen(o => !o)}
+        style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: value > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{label}</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+            <div style={{ paddingBottom: 2 }}><Trend current={value} previous={previous} /></div>
+          </div>
+          {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 3 }}>Préc. : {previous}</div>}
+        </div>
+        {value > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && (
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
+          {rows.length === 0
+            ? <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail</div>
+            : rows.map((r, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: bg, borderRadius: 8, marginBottom: 5 }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 9, fontWeight: 700, flexShrink: 0 }}>
+                  {r.cr_nom?.slice(0,2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color }}>{r.identite_candidat || '—'}</div>
+                  <div style={{ fontSize: 11, color, opacity: 0.75, marginTop: 1 }}>{r.profil}</div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+                    {r.ia_concerne && <span style={{ fontSize: 10, color, opacity: 0.7 }}>👤 {r.ia_concerne}</span>}
+                    {r.date_presentation && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {new Date(r.date_presentation).toLocaleDateString('fr-FR')}</span>}
+                    {r.date_signature && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {new Date(r.date_signature).toLocaleDateString('fr-FR')}</span>}
+                    {r.salaire_envisage && <span style={{ fontSize: 10, color, opacity: 0.7 }}>💰 {r.salaire_envisage}</span>}
+                    <span style={{ fontSize: 10, background: color + '20', color, borderRadius: 4, padding: '1px 6px', fontWeight: 600 }}>{r.cr_nom}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PanneauRecrutement({ semaine, setSemaine }) {
   const annee = new Date().getFullYear()
   const semaineCourante = currentWeek()
   const [view, setView] = useState('equipe')
   const [reportings, setReportings] = useState({})
   const [allReportings, setAllReportings] = useState([])
+  const [allPres, setAllPres] = useState([])
+  const [allSigs, setAllSigs] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      const { data: rep } = await supabase.from('cr_reporting').select('*').eq('annee', annee)
+      const [{ data: rep }, { data: pres }, { data: sigs }] = await Promise.all([
+        supabase.from('cr_reporting').select('*').eq('annee', annee),
+        supabase.from('cr_presentations').select('*').eq('annee', annee),
+        supabase.from('cr_signatures').select('*').eq('annee', annee),
+      ])
       setAllReportings(rep || [])
+      setAllPres(pres || [])
+      setAllSigs(sigs || [])
       setLoading(false)
     }
     load()
@@ -435,9 +488,17 @@ function PanneauRecrutement({ semaine, setSemaine }) {
           {/* KPIs équipe */}
           <SectionTitle title="KPIs semaine" color="#0F6E56" icon="📊" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
-            {RH_KPIS.map(k => (
-              <KpiCard key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} />
-            ))}
+            {RH_KPIS.map(k => {
+              const presRows = allPres.filter(r => r.semaine === semaine)
+              const sigRows  = allSigs.filter(r => r.semaine === semaine)
+              if (k.key === 'nb_presentations') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} rows={presRows} />
+              )
+              if (k.key === 'nb_signatures') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} rows={sigRows} />
+              )
+              return <KpiCard key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} />
+            })}
           </div>
 
           {/* Tendance */}
