@@ -343,10 +343,9 @@ const RH_KPIS = [
   { label: 'Signatures',       key: 'nb_signatures',        color: '#72243E', bg: '#FBEAF0' },
 ]
 
-function PanneauRecrutement() {
+function PanneauRecrutement({ semaine, setSemaine }) {
   const annee = new Date().getFullYear()
   const semaineCourante = currentWeek()
-  const [semaine, setSemaine] = useState(semaineCourante)
   const [view, setView] = useState('equipe')
   const [reportings, setReportings] = useState({})
   const [allReportings, setAllReportings] = useState([])
@@ -470,7 +469,7 @@ function PanneauRecrutement() {
           <Podium ranking={ranking} accentColor="#0F6E56" bgGradient="linear-gradient(180deg,#F0FDF9,#E1F5EE)" borderColor="#A7F3D0" />
         </>
       ) : (
-        <FocusCR allReportings={allReportings} semaine={semaine} annee={annee} />
+        <FocusCR allReportings={allReportings} semaine={semaine} annee={annee} key={semaine} />
       )}
     </div>
   )
@@ -642,7 +641,7 @@ export default function DashboardManager() {
         />
       </div>
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        <PanneauRecrutement />
+        <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} />
       </div>
     </div>
   )
