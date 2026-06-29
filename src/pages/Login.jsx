@@ -139,7 +139,6 @@ export default function Login({ onLogin }) {
     if (!ok) setRhError('Mot de passe incorrect')
   }
 
-  // — Écran d'accueil : choix du portail —
   if (!portal) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -165,7 +164,6 @@ export default function Login({ onLogin }) {
     )
   }
 
-  // — Portail IA —
   if (portal === 'ia') {
     const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week')
     return (
@@ -199,7 +197,6 @@ export default function Login({ onLogin }) {
     )
   }
 
-  // — Portail Recrutement —
   if (portal === 'recrutement') {
     return (
       <div style={loginWrap}>
@@ -235,7 +232,6 @@ export default function Login({ onLogin }) {
     )
   }
 
-  // — Portail Manager —
   if (portal === 'manager') {
     const anthony = iaList.find(ia => ia.nom === 'Anthony')
     return (
