@@ -10,7 +10,7 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import './App.css'
 
-const  = 'go'
+const ADMIN_PASSWORD = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 
