@@ -28,11 +28,18 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.app {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
 }
 
+.app.wide {
+  max-width: 100%;
+}
 body.dashboard-manager {
   max-width: 100%;
 }
