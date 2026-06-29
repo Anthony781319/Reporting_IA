@@ -233,67 +233,62 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'manager') {
-    const anthony = iaList.find(ia => ia.nom === 'Anthony')
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360 }}>
-          {loading ? <Loader /> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {MANAGER_OPTIONS.map(opt => {
-                const isSelected = opt.id === 'commerce'
-                  ? (selected && anthony && selected.id === anthony.id)
-                  : showRH
-                return (
-                  <div key={opt.id}>
-                    <div
-                      onClick={() => {
-                        if (opt.id === 'commerce') { setSelected(anthony); setShowRH(false); setError('') }
-                        else { setShowRH(true); setSelected(null); setRhError('') }
-                      }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 16,
-                        padding: '18px 20px', borderRadius: 14, cursor: 'pointer',
-                        background: opt.bg,
-                        border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'),
-                        transition: 'all 0.15s'
-                      }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
-                        {opt.icon}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: isSelected ? opt.darkColor : 'var(--color-text)' }}>{opt.label}</div>
-                        <div style={{ fontSize: 12, color: isSelected ? opt.color : 'var(--color-text-muted)', marginTop: 2 }}>{opt.desc}</div>
-                      </div>
-                      <div style={{ marginLeft: 'auto', color: isSelected ? opt.color : 'var(--color-text-muted)', fontSize: 18 }}>›</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {MANAGER_OPTIONS.map(opt => {
+              const isSelected = opt.id === 'commerce' ? (!showRH && selected) : showRH
+              return (
+                <div key={opt.id}>
+                  <div
+                    onClick={() => {
+                      if (opt.id === 'commerce') { setSelected(true); setShowRH(false); setError('') }
+                      else { setShowRH(true); setSelected(null); setRhError('') }
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', background: opt.bg, border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'), transition: 'all 0.15s' }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{opt.icon}</div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: isSelected ? opt.darkColor : 'var(--color-text)' }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: isSelected ? opt.color : 'var(--color-text-muted)', marginTop: 2 }}>{opt.desc}</div>
                     </div>
-
-                    {opt.id === 'commerce' && isSelected && (
-                      <div style={{ marginTop: 10 }}>
-                        <PasswordField show value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
-                        {error && <ErrorMsg msg={error} />}
-                        <SubmitBtn disabled={false} onClick={handleSubmitIA} color={opt.color} />
-                      </div>
-                    )}
-
-                    {opt.id === 'rh' && isSelected && (
-                      <div style={{ marginTop: 10 }}>
-                        <div style={labelStyle}>Mot de passe</div>
-                        <input type="password" value={rhPassword} onChange={e => { setRhPassword(e.target.value); setRhError('') }} onKeyDown={e => e.key === 'Enter' && handleRHLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
-                        {rhError && <ErrorMsg msg={rhError} />}
-                        <button onClick={handleRHLogin} style={{ width: '100%', padding: 13, background: opt.color, color: opt.bg, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                          Se connecter
-                        </button>
-                      </div>
-                    )}
+                    <div style={{ marginLeft: 'auto', color: isSelected ? opt.color : 'var(--color-text-muted)', fontSize: 18 }}>›</div>
                   </div>
-                )
-              })}
-            </div>
-          )}
+
+                  {opt.id === 'commerce' && isSelected && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={labelStyle}>Mot de passe</div>
+                      <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }}
+                        onKeyDown={e => { if (e.key === 'Enter') { const ok = onLogin({ nom: 'Anthony' }, password); if (!ok) setError('Mot de passe incorrect') }}}
+                        placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                      {error && <ErrorMsg msg={error} />}
+                      <button onClick={() => { const ok = onLogin({ nom: 'Anthony' }, password); if (!ok) setError('Mot de passe incorrect') }}
+                        style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                        Se connecter
+                      </button>
+                    </div>
+                  )}
+
+                  {opt.id === 'rh' && isSelected && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={labelStyle}>Mot de passe</div>
+                      <input type="password" value={rhPassword} onChange={e => { setRhPassword(e.target.value); setRhError('') }}
+                        onKeyDown={e => e.key === 'Enter' && handleRHLogin()}
+                        placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                      {rhError && <ErrorMsg msg={rhError} />}
+                      <button onClick={handleRHLogin} style={{ width: '100%', padding: 13, background: opt.color, color: opt.bg, border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                        Se connecter
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     )
-  }
+  }  }
 }
