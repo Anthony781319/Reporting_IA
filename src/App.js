@@ -36,7 +36,7 @@ export default function App() {
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
-    if (ia.nom === 'Anthony' && password === ) {
+    if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
       resetRoles(); setUser(ia); setIsAdmin(true); setTab('dashboard-manager'); return true
     }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
@@ -50,11 +50,11 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />
 
   const adminTabs = [
-    { id: 'dashboard-manager', icon: 'ti-layout-columns',   label: 'Dashboard' },
-    { id: 'saisie',            icon: 'ti-edit',             label: 'Ma saisie' },
-    { id: 'ytd',               icon: 'ti-chart-bar',        label: 'Year to Date' },
-    { id: 'admin',             icon: 'ti-settings',         label: 'Admin' },
-    { id: 'entretiens',        icon: 'ti-messages',         label: '1:1' },
+    { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
+    { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
+    { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
+    { id: 'admin',             icon: 'ti-settings',       label: 'Admin' },
+    { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
   ]
   const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
