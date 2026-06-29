@@ -455,6 +455,14 @@ export default function DashboardManager() {
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
 
+useEffect(() => {
+  const app = document.querySelector('.app')
+  if (app) app.classList.add('wide')
+  return () => { if (app) app.classList.remove('wide') }
+}, [])
+
+  
+
   const load = async () => {
     const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
