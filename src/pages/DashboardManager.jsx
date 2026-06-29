@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -20,8 +20,13 @@ const AVATAR_COLORS = [
   ['#FEF9C3','#854D0E'],
 ]
 
+const CR_COLORS = [
+  ['#EEEDFE','#534AB7'],['#E1F5EE','#085041'],['#FAEEDA','#633806'],
+  ['#FBEAF0','#72243E'],['#E6F1FB','#0C447C'],
+]
+
 // ─────────────────────────────────────────────
-// COMMERCE COMPONENTS (repris de Dashboard.jsx)
+// SHARED COMPONENTS
 // ─────────────────────────────────────────────
 const Trend = ({ current, previous }) => {
   if (previous === undefined || previous === null) return null
@@ -105,10 +110,29 @@ const SectionTitle = ({ title, color, icon }) => (
 
 const isValidP1 = p => p.profil && p.profil.trim() || p.description && p.description.trim()
 
-if (typeof window !== 'undefined' && !window.Chart) {
-  const script = document.createElement('script')
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
-  document.head.appendChild(script)
+// Podium partagé
+function Podium({ ranking, accentColor, bgGradient, borderColor }) {
+  if (ranking.length === 0) return (
+    <div style={{ textAlign: 'center', color: accentColor, fontSize: 12, padding: '20px 0', background: bgGradient, borderRadius: 12, marginBottom: 16, opacity: 0.6 }}>
+      🏆 Aucune donnée cette semaine
+    </div>
+  )
+  const maxScore = ranking[0]?.score || 1
+  return (
+    <div style={{ background: bgGradient, borderRadius: 12, padding: '12px', marginBottom: 16, border: `1px solid ${borderColor}` }}>
+      {ranking.map((r, i) => (
+        <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(255,255,255,0.7)', borderRadius: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 14, width: 20 }}>{['🥇','🥈','🥉','4.','5.'][i]}</span>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
+          <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1F2937' }}>{r.name}</span>
+          <div style={{ flex: 2, height: 5, background: `${accentColor}20`, borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: '100%', borderRadius: 3, background: accentColor, width: Math.round((r.score / maxScore) * 100) + '%' }} />
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: accentColor, minWidth: 48, textAlign: 'right' }}>{r.score % 1 === 0 ? r.score : r.score.toFixed(1)}pts</span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────
@@ -137,7 +161,6 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '16px 14px' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: '#6D28D9' }}>💼 Commerce</div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -148,7 +171,6 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
         </div>
       </div>
 
-      {/* Toggle Équipe / Focus */}
       <div style={{ display: 'flex', background: '#F5F3FF', borderRadius: 10, padding: 3, marginBottom: 14, border: '1px solid #DDD6FE' }}>
         {[['equipe', '📊 Équipe'], ['focus', '👤 Focus IA']].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: view === id ? 700 : 400, background: view === id ? '#6D28D9' : 'transparent', color: view === id ? '#fff' : '#6D28D9', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -187,21 +209,8 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
             </ResponsiveContainer>
           </div>
 
-          {ranking.length > 0 && (
-            <>
-              <SectionTitle title={`Classement S${selectedWeek}`} color="#9D174D" icon="🏆" />
-              <div style={{ background: 'linear-gradient(180deg,#FFF1F2,#FCE7F3)', borderRadius: 12, padding: '12px', marginBottom: 16, border: '1px solid #FECDD3' }}>
-                {ranking.map((r, i) => (
-                  <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(255,255,255,0.7)', borderRadius: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 14 }}>{['🥇','🥈','🥉','4.','5.'][i]}</span>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#BE185D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{r.name.slice(0,2).toUpperCase()}</div>
-                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1F2937' }}>{r.name}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#9D174D' }}>{r.score % 1 === 0 ? r.score : r.score.toFixed(1)}pts</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          <SectionTitle title={`Classement S${selectedWeek}`} color="#9D174D" icon="🏆" />
+          <Podium ranking={ranking} accentColor="#BE185D" bgGradient="linear-gradient(180deg,#FFF1F2,#FCE7F3)" borderColor="#FECDD3" />
 
           {validP1.length > 0 && (
             <>
@@ -228,10 +237,17 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
 function FocusIAMini({ saisies, iaList, selectedWeek, semaine, annee, refreshKey }) {
   const [selectedIa, setSelectedIa] = useState(null)
   const [iaIndex, setIaIndex] = useState(0)
+  const [viewMode, setViewMode] = useState('semaine')
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
 
-  const iaData = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek) : []
-  const iaPrev = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek - 1) : []
+  const iaData   = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek) : []
+  const iaPrev   = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === selectedWeek - 1) : []
+  const iaAnnuel = selectedIa ? saisies.filter(s => s.ia_id === selectedIa.id) : []
+  const iaTrend  = selectedIa ? Array.from({ length: 6 }, (_, i) => {
+    const w = selectedWeek - 5 + i
+    const ws = saisies.filter(s => s.ia_id === selectedIa.id && s.semaine === w)
+    return { name: 'S' + w, RDV: ws.reduce((s, d) => s + (d.total_rdv || 0), 0), Signatures: ws.reduce((s, d) => s + (d.signatures || 0), 0) }
+  }) : []
   const p = key => selectedWeek > 1 ? sum(iaPrev, key) : undefined
 
   if (!selectedIa) return (
@@ -239,7 +255,7 @@ function FocusIAMini({ saisies, iaList, selectedWeek, semaine, annee, refreshKey
       {iaList.map((ia, i) => {
         const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
         return (
-          <div key={ia.id} onClick={() => { setSelectedIa(ia); setIaIndex(i) }}
+          <div key={ia.id} onClick={() => { setSelectedIa(ia); setIaIndex(i); setViewMode('semaine') }}
             style={{ background: bg, borderRadius: 12, padding: '12px 8px', cursor: 'pointer', textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', background: fg, margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12 }}>
               {ia.nom.slice(0, 2).toUpperCase()}
@@ -254,26 +270,64 @@ function FocusIAMini({ saisies, iaList, selectedWeek, semaine, annee, refreshKey
   const couleur = AVATAR_COLORS[iaIndex % AVATAR_COLORS.length]
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: couleur[0], borderRadius: 12, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: couleur[0], borderRadius: 12, marginBottom: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', background: couleur[1], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
           {selectedIa.nom.slice(0, 2).toUpperCase()}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: couleur[1] }}>{selectedIa.nom}</div>
-          <div style={{ fontSize: 10, color: couleur[1], opacity: 0.7 }}>IA — S{selectedWeek}</div>
+          <div style={{ fontSize: 10, color: couleur[1], opacity: 0.7 }}>Ingénieur d'Affaires</div>
         </div>
         <button onClick={() => setSelectedIa(null)} style={{ background: 'none', border: `1px solid ${couleur[1]}40`, borderRadius: 7, padding: '4px 8px', cursor: 'pointer', fontSize: 11, color: couleur[1] }}>← Retour</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-        <KpiCard label="RDV" value={sum(iaData, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" previous={p('total_rdv')} />
-        <KpiCard label="Solutions" value={sum(iaData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
-        <KpiCard label="Besoins" value={sum(iaData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
-        <KpiCard label="Pipe" color="#92400E" bg="#FEF3C7"
-          value={sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')}
-          previous={selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined} />
-        <KpiCardDetail label="Présentations" value={sum(iaData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`fp-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
-        <KpiCardDetail label="Signatures" value={sum(iaData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`fs-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
+
+      <div style={{ display: 'flex', background: couleur[0], borderRadius: 10, padding: 3, marginBottom: 14, border: `1px solid ${couleur[1]}30` }}>
+        {[['semaine', '📅 Semaine'], ['annuel', '📊 Annuel']].map(([id, label]) => (
+          <button key={id} onClick={() => setViewMode(id)} style={{ flex: 1, padding: '7px 0', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: viewMode === id ? 700 : 400, background: viewMode === id ? couleur[1] : 'transparent', color: viewMode === id ? '#fff' : couleur[1], cursor: 'pointer', transition: 'all 0.2s' }}>
+            {label}
+          </button>
+        ))}
       </div>
+
+      {viewMode === 'semaine' ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
+            <KpiCard label="RDV" value={sum(iaData, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" previous={p('total_rdv')} />
+            <KpiCard label="Solutions" value={sum(iaData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
+            <KpiCard label="Besoins" value={sum(iaData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
+            <KpiCard label="Pipe" color="#92400E" bg="#FEF3C7"
+              value={sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')}
+              previous={selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined} />
+            <KpiCardDetail label="Présentations" value={sum(iaData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`fp-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
+            <KpiCardDetail label="Signatures" value={sum(iaData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`fs-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
+          </div>
+          <SectionTitle title="Évolution" color="#1E40AF" icon="📈" />
+          <div style={{ background: '#DBEAFE', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+            <ResponsiveContainer width="100%" height={110}>
+              <LineChart data={iaTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#1E40AF' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#1E40AF' }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="RDV" stroke="#6D28D9" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Signatures" stroke="#9D174D" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="2 2" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          <KpiCard label="RDV total" value={sum(iaAnnuel, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" />
+          <KpiCard label="Solutions" value={sum(iaAnnuel, 'cv_envoyes')} color="#166534" bg="#DCFCE7" />
+          <KpiCard label="Besoins" value={sum(iaAnnuel, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" />
+          <KpiCard label="Pipe" color="#854D0E" bg="#FEF9C3"
+            value={sum(iaAnnuel, 'besoins_sans_solution') + sum(iaAnnuel, 'attente_retour') + sum(iaAnnuel, 'attente_retour_prez')} />
+          <KpiCardDetail label="Présentations" value={sum(iaAnnuel, 'presentations')} color="#1E40AF" bg="#DBEAFE" type="presentation" semaine={null} annee={annee} iaId={selectedIa.id} key={`afp-${selectedIa.id}-${refreshKey}`} allYear={true} />
+          <KpiCardDetail label="Signatures" value={sum(iaAnnuel, 'signatures')} color="#9D174D" bg="#FCE7F3" type="signature" semaine={null} annee={annee} iaId={selectedIa.id} key={`afs-${selectedIa.id}-${refreshKey}`} allYear={true} />
+          <KpiCardDetail label="Démarrages" value={sum(iaAnnuel, 'demarrages')} color="#065F46" bg="#D1FAE5" type="demarrage" semaine={null} annee={annee} iaId={selectedIa.id} key={`afd-${selectedIa.id}-${refreshKey}`} allYear={true} />
+          <KpiCardDetail label="Fins mission" value={sum(iaAnnuel, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" type="fin_mission" semaine={null} annee={annee} iaId={selectedIa.id} key={`aff-${selectedIa.id}-${refreshKey}`} allYear={true} />
+        </div>
+      )}
     </>
   )
 }
@@ -281,164 +335,254 @@ function FocusIAMini({ saisies, iaList, selectedWeek, semaine, annee, refreshKey
 // ─────────────────────────────────────────────
 // PANNEAU DROIT : RECRUTEMENT
 // ─────────────────────────────────────────────
-const pill = { border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
-const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 8, padding: '8px 10px', marginBottom: 5, fontSize: 12 }
-const detailRow = { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }
-
 const RH_KPIS = [
-  { label: 'Entretiens', key: 'nb_entretiens', color: '#534AB7', bg: '#EEEDFE' },
-  { label: 'Candidats', key: 'nb_candidats_valides', color: '#085041', bg: '#E1F5EE' },
-  { label: 'CV envoyés', key: 'nb_cv_envoyes', color: '#0C447C', bg: '#E6F1FB' },
-  { label: 'Présentations', key: 'nb_presentations', color: '#633806', bg: '#FAEEDA' },
-  { label: 'Signatures', key: 'nb_signatures', color: '#72243E', bg: '#FBEAF0' },
+  { label: 'Entretiens',       key: 'nb_entretiens',        color: '#534AB7', bg: '#EEEDFE' },
+  { label: 'Candidats validés',key: 'nb_candidats_valides', color: '#085041', bg: '#E1F5EE' },
+  { label: 'CV envoyés',       key: 'nb_cv_envoyes',        color: '#0C447C', bg: '#E6F1FB' },
+  { label: 'Présentations',    key: 'nb_presentations',     color: '#633806', bg: '#FAEEDA' },
+  { label: 'Signatures',       key: 'nb_signatures',        color: '#72243E', bg: '#FBEAF0' },
 ]
 
 function PanneauRecrutement() {
   const annee = new Date().getFullYear()
   const semaineCourante = currentWeek()
   const [semaine, setSemaine] = useState(semaineCourante)
-  const [mode, setMode] = useState('semaine')
+  const [view, setView] = useState('equipe')
   const [reportings, setReportings] = useState({})
-  const [rdvs, setRdvs] = useState({})
-  const [pres, setPres] = useState({})
-  const [sigs, setSigs] = useState({})
+  const [allReportings, setAllReportings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [expanded, setExpanded] = useState(null)
 
   useEffect(() => {
     const load = async () => {
-      setLoading(true); setExpanded(null)
-      let repQ = supabase.from('cr_reporting').select('*').eq('annee', annee)
-      let rdvQ = supabase.from('cr_rendez_vous').select('*').eq('annee', annee)
-      let preQ = supabase.from('cr_presentations').select('*').eq('annee', annee)
-      let sigQ = supabase.from('cr_signatures').select('*').eq('annee', annee)
-      if (mode === 'semaine') {
-        repQ = repQ.eq('semaine', semaine); rdvQ = rdvQ.eq('semaine', semaine)
-        preQ = preQ.eq('semaine', semaine); sigQ = sigQ.eq('semaine', semaine)
-      }
-      const [{ data: rep }, { data: rdv }, { data: pr }, { data: sig }] = await Promise.all([repQ, rdvQ, preQ, sigQ])
-      const repMap = {}
-      CR_LIST.forEach(cr => {
-        const rows = (rep || []).filter(r => r.cr_nom === cr)
-        repMap[cr] = { nb_entretiens: rows.reduce((a,r)=>a+(r.nb_entretiens||0),0), nb_candidats_valides: rows.reduce((a,r)=>a+(r.nb_candidats_valides||0),0), nb_cv_envoyes: rows.reduce((a,r)=>a+(r.nb_cv_envoyes||0),0), nb_presentations: rows.reduce((a,r)=>a+(r.nb_presentations||0),0), nb_signatures: rows.reduce((a,r)=>a+(r.nb_signatures||0),0) }
-      })
-      setReportings(repMap)
-      const rdvMap = {}, presMap = {}, sigMap = {}
-      CR_LIST.forEach(cr => { rdvMap[cr]=(rdv||[]).filter(r=>r.cr_nom===cr); presMap[cr]=(pr||[]).filter(p=>p.cr_nom===cr); sigMap[cr]=(sig||[]).filter(s=>s.cr_nom===cr) })
-      setRdvs(rdvMap); setPres(presMap); setSigs(sigMap)
+      setLoading(true)
+      const { data: rep } = await supabase.from('cr_reporting').select('*').eq('annee', annee)
+      setAllReportings(rep || [])
       setLoading(false)
     }
     load()
-  }, [semaine, annee, mode])
+  }, [annee])
+
+  useEffect(() => {
+    const repMap = {}
+    CR_LIST.forEach(cr => {
+      const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === semaine)
+      repMap[cr] = {
+        nb_entretiens:        rows.reduce((a,r)=>a+(r.nb_entretiens||0),0),
+        nb_candidats_valides: rows.reduce((a,r)=>a+(r.nb_candidats_valides||0),0),
+        nb_cv_envoyes:        rows.reduce((a,r)=>a+(r.nb_cv_envoyes||0),0),
+        nb_presentations:     rows.reduce((a,r)=>a+(r.nb_presentations||0),0),
+        nb_signatures:        rows.reduce((a,r)=>a+(r.nb_signatures||0),0),
+      }
+    })
+    setReportings(repMap)
+  }, [semaine, allReportings])
 
   const total = key => CR_LIST.reduce((acc, cr) => acc + (reportings[cr]?.[key] || 0), 0)
+  const prev  = key => {
+    const prevMap = {}
+    CR_LIST.forEach(cr => {
+      const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === semaine - 1)
+      prevMap[cr] = rows.reduce((a,r)=>a+(r[key]||0),0)
+    })
+    return CR_LIST.reduce((acc,cr) => acc + (prevMap[cr]||0), 0)
+  }
+
+  // Tendance 6 semaines
+  const trend = Array.from({ length: 6 }, (_, i) => {
+    const w = semaine - 5 + i
+    const rows = allReportings.filter(r => r.semaine === w)
+    return {
+      name: 'S' + w,
+      Entretiens:   rows.reduce((a,r)=>a+(r.nb_entretiens||0),0),
+      Présentations:rows.reduce((a,r)=>a+(r.nb_presentations||0),0),
+      Signatures:   rows.reduce((a,r)=>a+(r.nb_signatures||0),0),
+    }
+  })
+
+  // Classement semaine : RDV=1pt, Prez=3pts, Sign=6pts
+  const ranking = CR_LIST.map(cr => {
+    const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === semaine)
+    const rdv  = rows.reduce((a,r)=>a+(r.nb_entretiens||0),0)
+    const prez = rows.reduce((a,r)=>a+(r.nb_presentations||0),0)
+    const sign = rows.reduce((a,r)=>a+(r.nb_signatures||0),0)
+    return { name: cr, score: rdv * 1 + prez * 3 + sign * 6 }
+  }).filter(r => r.score > 0).sort((a,b) => b.score - a.score)
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', padding: '16px 14px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: '#0F6E56' }}>👥 Recrutement</div>
-        <div style={{ display: 'flex', background: '#E1F5EE', borderRadius: 10, padding: 3, gap: 3, border: '1px solid #A7F3D0' }}>
-          <button onClick={() => setMode('semaine')} style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 11, fontWeight: 500, cursor: 'pointer', background: mode === 'semaine' ? '#0F6E56' : 'none', color: mode === 'semaine' ? '#fff' : '#0F6E56', transition: 'all 0.2s' }}>Semaine</button>
-          <button onClick={() => setMode('annee')} style={{ padding: '5px 10px', borderRadius: 7, border: 'none', fontSize: 11, fontWeight: 500, cursor: 'pointer', background: mode === 'annee' ? '#0F6E56' : 'none', color: mode === 'annee' ? '#fff' : '#0F6E56', transition: 'all 0.2s' }}>Année</button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button onClick={() => setSemaine(s => Math.max(1, s-1))} style={{ padding: '3px 8px', background: '#E1F5EE', border: '1px solid #A7F3D0', borderRadius: 7, fontSize: 13, cursor: 'pointer', color: '#0F6E56' }}>‹</button>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#0F6E56' }}>S{semaine}</span>
+          <button onClick={() => setSemaine(s => Math.min(semaineCourante, s+1))} disabled={semaine === semaineCourante} style={{ padding: '3px 8px', background: '#E1F5EE', border: '1px solid #A7F3D0', borderRadius: 7, fontSize: 13, cursor: semaine === semaineCourante ? 'default' : 'pointer', color: '#0F6E56', opacity: semaine === semaineCourante ? 0.4 : 1 }}>›</button>
         </div>
       </div>
 
-      {mode === 'semaine' && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 14 }}>
-          <button onClick={() => setSemaine(s => Math.max(1, s-1))} style={{ padding: '4px 10px', background: '#E1F5EE', border: '1px solid #A7F3D0', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#0F6E56' }}>←</button>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#0F6E56', minWidth: 80, textAlign: 'center' }}>Semaine {semaine}</span>
-          <button onClick={() => setSemaine(s => Math.min(52, s+1))} style={{ padding: '4px 10px', background: '#E1F5EE', border: '1px solid #A7F3D0', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#0F6E56' }}>→</button>
-        </div>
-      )}
+      {/* Toggle Équipe / Focus CR */}
+      <div style={{ display: 'flex', background: '#E8F5F2', borderRadius: 10, padding: 3, marginBottom: 14, border: '1px solid #A7F3D0' }}>
+        {[['equipe', '📊 Équipe'], ['focus', '👤 Focus CR']].map(([id, label]) => (
+          <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: view === id ? 700 : 400, background: view === id ? '#0F6E56' : 'transparent', color: view === id ? '#fff' : '#0F6E56', cursor: 'pointer', transition: 'all 0.2s' }}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 30, color: '#0F6E56', fontSize: 12 }}>Chargement...</div>
-      ) : (
+      ) : view === 'equipe' ? (
         <>
-          {/* Totaux équipe */}
-          <div style={{ background: '#E1F5EE', borderRadius: 12, padding: '12px', marginBottom: 14, border: '1px solid #A7F3D0' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#085041', marginBottom: 10 }}>🏆 Total équipe — {mode === 'semaine' ? `S${semaine}` : annee}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-              {RH_KPIS.map(k => (
-                <div key={k.key} style={{ background: k.bg, borderRadius: 8, padding: '8px 4px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: k.color }}>{total(k.key)}</div>
-                  <div style={{ fontSize: 9, color: k.color, marginTop: 2, fontWeight: 500, lineHeight: 1.2 }}>{k.label}</div>
+          {/* KPIs équipe */}
+          <SectionTitle title="KPIs semaine" color="#0F6E56" icon="📊" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
+            {RH_KPIS.map(k => (
+              <KpiCard key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} />
+            ))}
+          </div>
+
+          {/* Tendance */}
+          <SectionTitle title="Tendance 6 semaines" color="#0F6E56" icon="📈" />
+          <div style={{ background: '#E1F5EE', borderRadius: 12, padding: '12px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+              {[['#534AB7','Entretiens'],['#633806','Présentations'],['#72243E','Signatures']].map(([c,l]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: c, fontWeight: 600 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: c }}></div>{l}
                 </div>
               ))}
             </div>
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#085041' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#085041' }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="Entretiens" stroke="#534AB7" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Présentations" stroke="#633806" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 3" />
+                <Line type="monotone" dataKey="Signatures" stroke="#72243E" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="2 2" />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
 
-          {/* Par CR */}
-          {CR_LIST.map(cr => {
-            const rep = reportings[cr] || {}
-            const isOpen = expanded === cr
-            return (
-              <div key={cr} style={{ background: 'var(--color-background-primary)', borderRadius: 12, padding: '12px', marginBottom: 10, border: '1px solid var(--color-border-tertiary)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#EEEDFE', color: '#3C3489', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 11 }}>
-                      {cr.slice(0, 2).toUpperCase()}
-                    </div>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{cr}</span>
-                  </div>
-                  {mode === 'semaine' && (
-                    <button onClick={() => setExpanded(isOpen ? null : cr)} style={{ padding: '4px 8px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 7, cursor: 'pointer', fontSize: 10 }}>
-                      {isOpen ? '▲' : '▼ Détail'}
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 5 }}>
-                  {RH_KPIS.map(k => (
-                    <div key={k.key} style={{ background: k.bg, borderRadius: 8, padding: '7px 4px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{rep[k.key] || 0}</div>
-                      <div style={{ fontSize: 9, color: k.color, marginTop: 2, fontWeight: 500, lineHeight: 1.2 }}>{k.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {isOpen && mode === 'semaine' && (
-                  <div style={{ marginTop: 14 }}>
-                    {/* RDV */}
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}>📅 Rendez-vous</div>
-                    {rdvs[cr]?.length > 0 ? rdvs[cr].map(r => (
-                      <div key={r.id} style={detailCard}>
-                        <div style={detailRow}>
-                          <b style={{ fontSize: 12 }}>{r.identite_candidat}</b>
-                          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{r.profil}</span>
-                        </div>
-                        <div style={detailRow}>
-                          <span style={{ ...pill, background: r.valide ? '#E1F5EE' : '#FCEBEB', color: r.valide ? '#085041' : '#A32D2D' }}>{r.valide ? '✅ Validé' : '❌ Non validé'}</span>
-                          {r.positionne_sur_besoins && <span style={pill}>📌 {r.positionne_sur_besoins}</span>}
-                        </div>
-                      </div>
-                    )) : <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontStyle: 'italic', marginBottom: 8 }}>Aucun RDV cette semaine</div>}
-
-                    {/* Présentations */}
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, marginTop: 10 }}>📋 Présentations</div>
-                    {pres[cr]?.length > 0 ? pres[cr].map(p => (
-                      <div key={p.id} style={detailCard}>
-                        <div style={detailRow}><b style={{ fontSize: 12 }}>{p.identite_candidat}</b><span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{p.profil}</span></div>
-                        <div style={detailRow}>{p.date_presentation && <span style={pill}>📅 {p.date_presentation}</span>}{p.ia_concerne && <span style={pill}>👤 {p.ia_concerne}</span>}</div>
-                      </div>
-                    )) : <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontStyle: 'italic', marginBottom: 8 }}>Aucune présentation cette semaine</div>}
-
-                    {/* Signatures */}
-                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6, marginTop: 10 }}>✍️ Signatures</div>
-                    {sigs[cr]?.length > 0 ? sigs[cr].map(s => (
-                      <div key={s.id} style={detailCard}>
-                        <div style={detailRow}><b style={{ fontSize: 12 }}>{s.identite_candidat}</b><span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{s.profil}</span></div>
-                        <div style={detailRow}>{s.salaire_envisage && <span style={pill}>💰 {s.salaire_envisage}</span>}{s.date_signature && <span style={pill}>📅 {s.date_signature}</span>}</div>
-                      </div>
-                    )) : <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontStyle: 'italic', marginBottom: 8 }}>Aucune signature cette semaine</div>}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {/* Classement */}
+          <SectionTitle title={`Classement S${semaine}`} color="#0F6E56" icon="🏆" />
+          <div style={{ fontSize: 10, color: '#085041', opacity: 0.7, marginBottom: 8 }}>RDV=1pt · Prez=3pts · Sign=6pts</div>
+          <Podium ranking={ranking} accentColor="#0F6E56" bgGradient="linear-gradient(180deg,#F0FDF9,#E1F5EE)" borderColor="#A7F3D0" />
         </>
+      ) : (
+        <FocusCR allReportings={allReportings} semaine={semaine} annee={annee} />
       )}
     </div>
+  )
+}
+
+function FocusCR({ allReportings, semaine, annee }) {
+  const [selectedCR, setSelectedCR] = useState(null)
+  const [crIndex, setCrIndex] = useState(0)
+  const [viewMode, setViewMode] = useState('semaine')
+
+  const getStats = (cr, s) => {
+    const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === s)
+    return {
+      nb_entretiens:        rows.reduce((a,r)=>a+(r.nb_entretiens||0),0),
+      nb_candidats_valides: rows.reduce((a,r)=>a+(r.nb_candidats_valides||0),0),
+      nb_cv_envoyes:        rows.reduce((a,r)=>a+(r.nb_cv_envoyes||0),0),
+      nb_presentations:     rows.reduce((a,r)=>a+(r.nb_presentations||0),0),
+      nb_signatures:        rows.reduce((a,r)=>a+(r.nb_signatures||0),0),
+    }
+  }
+
+  const getAnnualStats = (cr) => {
+    const rows = allReportings.filter(r => r.cr_nom === cr)
+    return {
+      nb_entretiens:        rows.reduce((a,r)=>a+(r.nb_entretiens||0),0),
+      nb_candidats_valides: rows.reduce((a,r)=>a+(r.nb_candidats_valides||0),0),
+      nb_cv_envoyes:        rows.reduce((a,r)=>a+(r.nb_cv_envoyes||0),0),
+      nb_presentations:     rows.reduce((a,r)=>a+(r.nb_presentations||0),0),
+      nb_signatures:        rows.reduce((a,r)=>a+(r.nb_signatures||0),0),
+    }
+  }
+
+  const trend = selectedCR ? Array.from({ length: 6 }, (_, i) => {
+    const w = semaine - 5 + i
+    const s = getStats(selectedCR, w)
+    return { name: 'S' + w, Entretiens: s.nb_entretiens, Présentations: s.nb_presentations, Signatures: s.nb_signatures }
+  }) : []
+
+  if (!selectedCR) return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+      {CR_LIST.map((cr, i) => {
+        const [bg, fg] = CR_COLORS[i % CR_COLORS.length]
+        return (
+          <div key={cr} onClick={() => { setSelectedCR(cr); setCrIndex(i); setViewMode('semaine') }}
+            style={{ background: bg, borderRadius: 12, padding: '12px 8px', cursor: 'pointer', textAlign: 'center' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: fg, margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12 }}>
+              {cr.slice(0, 2).toUpperCase()}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: fg }}>{cr}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  const couleur = CR_COLORS[crIndex % CR_COLORS.length]
+  const stats     = getStats(selectedCR, semaine)
+  const statsPrev = getStats(selectedCR, semaine - 1)
+  const statsAnn  = getAnnualStats(selectedCR)
+  const p = key => semaine > 1 ? statsPrev[key] : undefined
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: couleur[0], borderRadius: 12, marginBottom: 12 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: couleur[1], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+          {selectedCR.slice(0, 2).toUpperCase()}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: couleur[1] }}>{selectedCR}</div>
+          <div style={{ fontSize: 10, color: couleur[1], opacity: 0.7 }}>Chargée de recrutement</div>
+        </div>
+        <button onClick={() => setSelectedCR(null)} style={{ background: 'none', border: `1px solid ${couleur[1]}40`, borderRadius: 7, padding: '4px 8px', cursor: 'pointer', fontSize: 11, color: couleur[1] }}>← Retour</button>
+      </div>
+
+      <div style={{ display: 'flex', background: couleur[0], borderRadius: 10, padding: 3, marginBottom: 14, border: `1px solid ${couleur[1]}30` }}>
+        {[['semaine', '📅 Semaine'], ['annuel', '📊 Annuel']].map(([id, label]) => (
+          <button key={id} onClick={() => setViewMode(id)} style={{ flex: 1, padding: '7px 0', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: viewMode === id ? 700 : 400, background: viewMode === id ? couleur[1] : 'transparent', color: viewMode === id ? '#fff' : couleur[1], cursor: 'pointer', transition: 'all 0.2s' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {viewMode === 'semaine' ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
+            {RH_KPIS.map(k => (
+              <KpiCard key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)} />
+            ))}
+          </div>
+          <SectionTitle title="Évolution" color={couleur[1]} icon="📈" />
+          <div style={{ background: couleur[0], borderRadius: 12, padding: 12, marginBottom: 14, border: `1px solid ${couleur[1]}20` }}>
+            <ResponsiveContainer width="100%" height={110}>
+              <LineChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: couleur[1] }} />
+                <YAxis tick={{ fontSize: 10, fill: couleur[1] }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="Entretiens" stroke="#534AB7" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Présentations" stroke="#633806" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="4 3" />
+                <Line type="monotone" dataKey="Signatures" stroke="#72243E" strokeWidth={2} dot={{ r: 2 }} strokeDasharray="2 2" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+          {RH_KPIS.map(k => (
+            <KpiCard key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg} />
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -455,14 +599,6 @@ export default function DashboardManager() {
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
 
-useEffect(() => {
-  const app = document.querySelector('.app')
-  if (app) app.classList.add('wide')
-  return () => { if (app) app.classList.remove('wide') }
-}, [])
-
-  
-
   const load = async () => {
     const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
@@ -477,6 +613,12 @@ useEffect(() => {
 
   useEffect(() => { load() }, [])
 
+  useEffect(() => {
+    const app = document.querySelector('.app')
+    if (app) app.classList.add('wide')
+    return () => { if (app) app.classList.remove('wide') }
+  }, [])
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontSize: 28 }}>⏳</div>
@@ -485,8 +627,7 @@ useEffect(() => {
   )
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 110px)', overflow: 'hidden', gap: 0 }}>
-      {/* Séparateur visuel */}
+    <div style={{ display: 'flex', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
       <div style={{ flex: 1, borderRight: '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
         <PanneauCommerce
           saisies={saisies}
