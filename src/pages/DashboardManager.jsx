@@ -530,13 +530,13 @@ function PanneauRecrutement({ semaine, setSemaine }) {
           <Podium ranking={ranking} accentColor="#0F6E56" bgGradient="linear-gradient(180deg,#F0FDF9,#E1F5EE)" borderColor="#A7F3D0" />
         </>
       ) : (
-        <FocusCR allReportings={allReportings} semaine={semaine} annee={annee} key={semaine} />
+        <FocusCR allReportings={allReportings} allPres={allPres} allSigs={allSigs} semaine={semaine} annee={annee} key={semaine} />
       )}
     </div>
   )
 }
 
-function FocusCR({ allReportings, semaine, annee }) {
+function FocusCR({ allReportings, allPres, allSigs, semaine, annee }) {
   const [selectedCR, setSelectedCR] = useState(null)
   const [crIndex, setCrIndex] = useState(0)
   const [viewMode, setViewMode] = useState('semaine')
@@ -616,9 +616,17 @@ function FocusCR({ allReportings, semaine, annee }) {
       {viewMode === 'semaine' ? (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
-            {RH_KPIS.map(k => (
-              <KpiCard key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)} />
-            ))}
+            {RH_KPIS.map(k => {
+              if (k.key === 'nb_presentations') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)}
+                  rows={allPres.filter(r => r.cr_nom === selectedCR && r.semaine === semaine)} />
+              )
+              if (k.key === 'nb_signatures') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)}
+                  rows={allSigs.filter(r => r.cr_nom === selectedCR && r.semaine === semaine)} />
+              )
+              return <KpiCard key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)} />
+            })}
           </div>
           <SectionTitle title="Évolution" color={couleur[1]} icon="📈" />
           <div style={{ background: couleur[0], borderRadius: 12, padding: 12, marginBottom: 14, border: `1px solid ${couleur[1]}20` }}>
@@ -637,9 +645,17 @@ function FocusCR({ allReportings, semaine, annee }) {
         </>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-          {RH_KPIS.map(k => (
-            <KpiCard key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg} />
-          ))}
+          {RH_KPIS.map(k => {
+            if (k.key === 'nb_presentations') return (
+              <KpiCardDetailRH key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg}
+                rows={allPres.filter(r => r.cr_nom === selectedCR)} />
+            )
+            if (k.key === 'nb_signatures') return (
+              <KpiCardDetailRH key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg}
+                rows={allSigs.filter(r => r.cr_nom === selectedCR)} />
+            )
+            return <KpiCard key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg} />
+          })}
         </div>
       )}
     </>
