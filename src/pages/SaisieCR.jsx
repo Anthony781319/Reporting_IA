@@ -13,24 +13,31 @@ export default function SaisieCR({ crNom }) {
   const [semaine, setSemaine] = useState(semaineActuelle)
   const [iaList, setIaList] = useState([])
 
-  const [reporting, setReporting] = useState({
-    nb_entretiens: 0, nb_candidats_valides: 0,
-    nb_cv_envoyes: 0, nb_presentations: 0, nb_signatures: 0
-  })
+  const [nbEntretiens, setNbEntretiens] = useState(0)
+  const [nbCvEnvoyes, setNbCvEnvoyes] = useState(0)
+  const [nbPresentations, setNbPresentations] = useState(0)
+  const [nbSignatures, setNbSignatures] = useState(0)
+
   const [rdvList, setRdvList] = useState([])
   const [rdvForm, setRdvForm] = useState({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
   const [showRdvForm, setShowRdvForm] = useState(false)
+
   const [presList, setPresList] = useState([])
   const [presForm, setPresForm] = useState({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
   const [showPresForm, setShowPresForm] = useState(false)
+
   const [sigList, setSigList] = useState([])
   const [sigForm, setSigForm] = useState({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
   const [showSigForm, setShowSigForm] = useState(false)
+
   const [cvList, setCvList] = useState([])
   const [cvForm, setCvForm] = useState({ identite_candidat: '', profil: '', ias_concernees: [] })
   const [showCvForm, setShowCvForm] = useState(false)
+
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
+
+  const nbCandidatsValides = rdvList.filter(r => r.valide).length
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
@@ -42,7 +49,6 @@ export default function SaisieCR({ crNom }) {
 
   useEffect(() => {
     const load = async () => {
-      setReporting({ nb_entretiens: 0, nb_candidats_valides: 0, nb_cv_envoyes: 0, nb_presentations: 0, nb_signatures: 0 })
       setRdvList([]); setPresList([]); setSigList([]); setCvList([])
       setShowRdvForm(false); setShowPresForm(false); setShowSigForm(false); setShowCvForm(false)
 
@@ -53,7 +59,14 @@ export default function SaisieCR({ crNom }) {
         supabase.from('cr_signatures').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
         supabase.from('cr_cv_proposes').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
       ])
-      if (rep) setReporting({ nb_entretiens: rep.nb_entretiens, nb_candidats_valides: rep.nb_candidats_valides, nb_cv_envoyes: rep.nb_cv_envoyes, nb_presentations: rep.nb_presentations, nb_signatures: rep.nb_signatures })
+      if (rep) {
+        setNbEntretiens(rep.nb_entretiens || 0)
+        setNbCvEnvoyes(rep.nb_cv_envoyes || 0)
+        setNbPresentations(rep.nb_presentations || 0)
+        setNbSignatures(rep.nb_signatures || 0)
+      } else {
+        setNbEntretiens(0); setNbCvEnvoyes(0); setNbPresentations(0); setNbSignatures(0)
+      }
       if (rdv) setRdvList(rdv)
       if (pres) setPresList(pres)
       if (sig) setSigList(sig)
@@ -62,12 +75,20 @@ export default function SaisieCR({ crNom }) {
     load()
   }, [crNom, semaine, annee])
 
-  const saveReporting = async () => {
-    setSaving(true)
-    await supabase.from('cr_reporting').upsert({ cr_nom: crNom, semaine, annee, ...reporting }, { onConflict: 'cr_nom,semaine,annee' })
-    setSaving(false)
-    showToast('✅ Chiffres sauvegardés !')
-  }
+  // Sauvegarde automatique du reporting global chaque fois que les compteurs ou candidats validés changent
+  useEffect(() => {
+    const save = async () => {
+      await supabase.from('cr_reporting').upsert({
+        cr_nom: crNom, semaine, annee,
+        nb_entretiens: nbEntretiens,
+        nb_candidats_valides: nbCandidatsValides,
+        nb_cv_envoyes: nbCvEnvoyes,
+        nb_presentations: nbPresentations,
+        nb_signatures: nbSignatures,
+      }, { onConflict: 'cr_nom,semaine,annee' })
+    }
+    save()
+  }, [nbEntretiens, nbCandidatsValides, nbCvEnvoyes, nbPresentations, nbSignatures, crNom, semaine, annee])
 
   const addRdv = async () => {
     if (!rdvForm.identite_candidat) return
@@ -146,6 +167,11 @@ export default function SaisieCR({ crNom }) {
     setCvList(cvList.filter(c => c.id !== id))
   }
 
+  const rdvOk  = rdvList.length === nbEntretiens
+  const cvOk   = cvList.length === nbCvEnvoyes
+  const presOk = presList.length === nbPresentations
+  const sigOk  = sigList.length === nbSignatures
+
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
 
@@ -180,28 +206,18 @@ export default function SaisieCR({ crNom }) {
           </div>
         </div>
         <div style={grid2}>
-          <Counter label="Entretiens réalisés" value={reporting.nb_entretiens} onChange={v => setReporting({ ...reporting, nb_entretiens: v })} color="#534AB7" />
-          <Counter label="Candidats validés" value={reporting.nb_candidats_valides} onChange={v => setReporting({ ...reporting, nb_candidats_valides: v })} color="#534AB7" />
-        </div>
-      </div>
-
-      {/* ── BLOC 2 : Business ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #085041' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#E1F5EE' }}>💼</div>
-          <div>
-            <div style={blockTitle}>Business</div>
-            <div style={blockSub}>CV, présentations & signatures</div>
+          <Counter label="Entretiens réalisés" value={nbEntretiens} onChange={setNbEntretiens} color="#534AB7" />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>Candidats validés</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#534AB7' }}>{nbCandidatsValides}</div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 4, fontStyle: 'italic' }}>auto (depuis détail)</div>
           </div>
         </div>
-        <div style={grid3}>
-          <Counter label="CV envoyés" value={reporting.nb_cv_envoyes} onChange={v => setReporting({ ...reporting, nb_cv_envoyes: v })} color="#085041" />
-          <Counter label="Présentations" value={reporting.nb_presentations} onChange={v => setReporting({ ...reporting, nb_presentations: v })} color="#085041" />
-          <Counter label="Signatures" value={reporting.nb_signatures} onChange={v => setReporting({ ...reporting, nb_signatures: v })} color="#085041" />
-        </div>
-        <button onClick={saveReporting} disabled={saving} style={{ ...btnSave, background: '#085041' }}>
-          {saving ? 'Sauvegarde...' : '💾 Sauvegarder les chiffres'}
-        </button>
+        {!rdvOk && (
+          <div style={warningBox}>
+            ⚠️ {rdvList.length}/{nbEntretiens} entretien{nbEntretiens !== 1 ? 's' : ''} détaillé{nbEntretiens !== 1 ? 's' : ''} — complète le détail ci-dessous pour valider.
+          </div>
+        )}
       </div>
 
       {/* ── BLOC 3a : Détail Rendez-vous ── */}
@@ -210,7 +226,7 @@ export default function SaisieCR({ crNom }) {
           <div style={{ ...blockIcon, background: '#E6F1FB' }}>🗂</div>
           <div>
             <div style={blockTitle}>Détail — Rendez-vous</div>
-            <div style={blockSub}>{rdvList.length} entrée{rdvList.length !== 1 ? 's' : ''} cette semaine</div>
+            <div style={blockSub}>{rdvList.length} / {nbEntretiens} entrée{nbEntretiens !== 1 ? 's' : ''} cette semaine</div>
           </div>
         </div>
         {rdvList.map(r => (
@@ -247,91 +263,23 @@ export default function SaisieCR({ crNom }) {
         )}
       </div>
 
-      {/* ── BLOC 3b : Présentations ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #633806' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#FAEEDA' }}>📋</div>
-          <div>
-            <div style={blockTitle}>Détail — Présentations</div>
-            <div style={blockSub}>{presList.length} entrée{presList.length !== 1 ? 's' : ''} cette semaine</div>
-          </div>
-        </div>
-        {presList.map(p => (
-          <div key={p.id} style={detailCard}>
-            <div style={detailRow}>
-              <span style={candidatName}>{p.identite_candidat}</span>
-              <span style={profilBadge}>{p.profil}</span>
-            </div>
-            <div style={detailRow}>
-              {p.date_presentation && <span style={infoBadge}>📅 {p.date_presentation}</span>}
-              {p.ia_concerne && <span style={infoBadge}>👤 {p.ia_concerne}</span>}
-            </div>
-            <button onClick={() => deletePres(p.id)} style={btnDelete}>Supprimer</button>
-          </div>
-        ))}
-        {showPresForm ? (
-          <div style={formBox}>
-            <Input label="Identité du candidat" value={presForm.identite_candidat} onChange={v => setPresForm({ ...presForm, identite_candidat: v })} />
-            <Input label="Profil" value={presForm.profil} onChange={v => setPresForm({ ...presForm, profil: v })} />
-            <Input label="IA concerné" value={presForm.ia_concerne} onChange={v => setPresForm({ ...presForm, ia_concerne: v })} />
-            <Input label="Date de présentation" type="date" value={presForm.date_presentation} onChange={v => setPresForm({ ...presForm, date_presentation: v })} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addPres} style={{ ...btnSave, background: '#633806' }}>Ajouter</button>
-              <button onClick={() => setShowPresForm(false)} style={btnCancel}>Annuler</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowPresForm(true)} style={{ ...btnAdd, borderColor: '#633806', color: '#633806' }}>+ Ajouter une présentation</button>
-        )}
-      </div>
-
-      {/* ── BLOC 3c : Signatures ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #72243E' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#FBEAF0' }}>✍️</div>
-          <div>
-            <div style={blockTitle}>Détail — Signatures</div>
-            <div style={blockSub}>{sigList.length} entrée{sigList.length !== 1 ? 's' : ''} cette semaine</div>
-          </div>
-        </div>
-        {sigList.map(s => (
-          <div key={s.id} style={detailCard}>
-            <div style={detailRow}>
-              <span style={candidatName}>{s.identite_candidat}</span>
-              <span style={profilBadge}>{s.profil}</span>
-            </div>
-            <div style={detailRow}>
-              {s.salaire_envisage && <span style={infoBadge}>💰 {s.salaire_envisage}</span>}
-              {s.date_signature && <span style={infoBadge}>📅 {s.date_signature}</span>}
-            </div>
-            <button onClick={() => deleteSig(s.id)} style={btnDelete}>Supprimer</button>
-          </div>
-        ))}
-        {showSigForm ? (
-          <div style={formBox}>
-            <Input label="Identité du candidat" value={sigForm.identite_candidat} onChange={v => setSigForm({ ...sigForm, identite_candidat: v })} />
-            <Input label="Profil" value={sigForm.profil} onChange={v => setSigForm({ ...sigForm, profil: v })} />
-            <Input label="Salaire envisagé" value={sigForm.salaire_envisage} onChange={v => setSigForm({ ...sigForm, salaire_envisage: v })} />
-            <Input label="Date de signature" type="date" value={sigForm.date_signature} onChange={v => setSigForm({ ...sigForm, date_signature: v })} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addSig} style={{ ...btnSave, background: '#72243E' }}>Ajouter</button>
-              <button onClick={() => setShowSigForm(false)} style={btnCancel}>Annuler</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowSigForm(true)} style={{ ...btnAdd, borderColor: '#72243E', color: '#72243E' }}>+ Ajouter une signature</button>
-        )}
-      </div>
-
-      {/* ── BLOC 4 : CV proposés aux IAs ── */}
+      {/* ── BLOC 2 : CV envoyés (fusionné avec CV proposés) ── */}
       <div style={{ ...blockCard, borderTop: '4px solid #2E7D32' }}>
         <div style={blockHeader}>
           <div style={{ ...blockIcon, background: '#E8F5E9' }}>📨</div>
           <div>
-            <div style={blockTitle}>CV proposés aux IAs</div>
-            <div style={blockSub}>{cvList.length} candidat{cvList.length !== 1 ? 's' : ''} proposé{cvList.length !== 1 ? 's' : ''} cette semaine</div>
+            <div style={blockTitle}>CV envoyés aux IAs</div>
+            <div style={blockSub}>{cvList.length} / {nbCvEnvoyes} candidat{nbCvEnvoyes !== 1 ? 's' : ''} proposé{nbCvEnvoyes !== 1 ? 's' : ''} cette semaine</div>
           </div>
         </div>
+        <div style={{ marginBottom: 16 }}>
+          <Counter label="CV envoyés" value={nbCvEnvoyes} onChange={setNbCvEnvoyes} color="#2E7D32" />
+        </div>
+        {!cvOk && (
+          <div style={warningBox}>
+            ⚠️ {cvList.length}/{nbCvEnvoyes} CV détaillé{nbCvEnvoyes !== 1 ? 's' : ''} — complète le détail ci-dessous.
+          </div>
+        )}
 
         {cvList.map(c => (
           <div key={c.id} style={detailCard}>
@@ -380,6 +328,98 @@ export default function SaisieCR({ crNom }) {
         )}
       </div>
 
+      {/* ── BLOC 3b : Présentations ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #633806' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#FAEEDA' }}>📋</div>
+          <div>
+            <div style={blockTitle}>Présentations</div>
+            <div style={blockSub}>{presList.length} / {nbPresentations} entrée{nbPresentations !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Counter label="Présentations" value={nbPresentations} onChange={setNbPresentations} color="#633806" />
+        </div>
+        {!presOk && (
+          <div style={warningBox}>
+            ⚠️ {presList.length}/{nbPresentations} présentation{nbPresentations !== 1 ? 's' : ''} détaillée{nbPresentations !== 1 ? 's' : ''} — complète le détail ci-dessous.
+          </div>
+        )}
+        {presList.map(p => (
+          <div key={p.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{p.identite_candidat}</span>
+              <span style={profilBadge}>{p.profil}</span>
+            </div>
+            <div style={detailRow}>
+              {p.date_presentation && <span style={infoBadge}>📅 {p.date_presentation}</span>}
+              {p.ia_concerne && <span style={infoBadge}>👤 {p.ia_concerne}</span>}
+            </div>
+            <button onClick={() => deletePres(p.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+        {showPresForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={presForm.identite_candidat} onChange={v => setPresForm({ ...presForm, identite_candidat: v })} />
+            <Input label="Profil" value={presForm.profil} onChange={v => setPresForm({ ...presForm, profil: v })} />
+            <Input label="IA concerné" value={presForm.ia_concerne} onChange={v => setPresForm({ ...presForm, ia_concerne: v })} />
+            <Input label="Date de présentation" type="date" value={presForm.date_presentation} onChange={v => setPresForm({ ...presForm, date_presentation: v })} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addPres} style={{ ...btnSave, background: '#633806' }}>Ajouter</button>
+              <button onClick={() => setShowPresForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowPresForm(true)} style={{ ...btnAdd, borderColor: '#633806', color: '#633806' }}>+ Ajouter une présentation</button>
+        )}
+      </div>
+
+      {/* ── BLOC 3c : Signatures ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #72243E' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#FBEAF0' }}>✍️</div>
+          <div>
+            <div style={blockTitle}>Signatures</div>
+            <div style={blockSub}>{sigList.length} / {nbSignatures} entrée{nbSignatures !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Counter label="Signatures" value={nbSignatures} onChange={setNbSignatures} color="#72243E" />
+        </div>
+        {!sigOk && (
+          <div style={warningBox}>
+            ⚠️ {sigList.length}/{nbSignatures} signature{nbSignatures !== 1 ? 's' : ''} détaillée{nbSignatures !== 1 ? 's' : ''} — complète le détail ci-dessous.
+          </div>
+        )}
+        {sigList.map(s => (
+          <div key={s.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{s.identite_candidat}</span>
+              <span style={profilBadge}>{s.profil}</span>
+            </div>
+            <div style={detailRow}>
+              {s.salaire_envisage && <span style={infoBadge}>💰 {s.salaire_envisage}</span>}
+              {s.date_signature && <span style={infoBadge}>📅 {s.date_signature}</span>}
+            </div>
+            <button onClick={() => deleteSig(s.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+        {showSigForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={sigForm.identite_candidat} onChange={v => setSigForm({ ...sigForm, identite_candidat: v })} />
+            <Input label="Profil" value={sigForm.profil} onChange={v => setSigForm({ ...sigForm, profil: v })} />
+            <Input label="Salaire envisagé" value={sigForm.salaire_envisage} onChange={v => setSigForm({ ...sigForm, salaire_envisage: v })} />
+            <Input label="Date de signature" type="date" value={sigForm.date_signature} onChange={v => setSigForm({ ...sigForm, date_signature: v })} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addSig} style={{ ...btnSave, background: '#72243E' }}>Ajouter</button>
+              <button onClick={() => setShowSigForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setShowSigForm(true)} style={{ ...btnAdd, borderColor: '#72243E', color: '#72243E' }}>+ Ajouter une signature</button>
+        )}
+      </div>
+
     </div>
   )
 }
@@ -412,7 +452,6 @@ const blockIcon = { width: 40, height: 40, borderRadius: 10, display: 'flex', al
 const blockTitle = { fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)' }
 const blockSub = { fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }
 const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 4 }
-const grid3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }
 const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, fontSize: 13 }
 const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
 const candidatName = { fontWeight: 600, fontSize: 13 }
@@ -420,6 +459,7 @@ const profilBadge = { fontSize: 12, color: 'var(--color-text-secondary)', backgr
 const statusBadge = { borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 500 }
 const infoBadge = { background: 'var(--color-background-primary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
 const formBox = { background: 'var(--color-background-secondary)', borderRadius: 10, padding: '16px', marginBottom: 8, marginTop: 8 }
+const warningBox = { background: '#FEF3C7', color: '#92400E', borderRadius: 8, padding: '10px 14px', fontSize: 12, marginBottom: 16, fontWeight: 500 }
 const btnSave = { padding: '10px 18px', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }
 const btnCancel = { padding: '10px 18px', background: 'none', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
 const btnAdd = { width: '100%', padding: '10px', background: 'none', border: '1px dashed', borderRadius: 8, fontSize: 13, cursor: 'pointer', marginTop: 4, fontWeight: 500 }
