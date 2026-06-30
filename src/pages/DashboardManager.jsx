@@ -373,6 +373,7 @@ const KpiCardDetailRH = ({ label, value, color, bg, previous, rows, renderDetail
                   <div style={{ fontSize: 11, color, opacity: 0.75, marginTop: 1 }}>{r.profil}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
                     {r.ia_concerne && <span style={{ fontSize: 10, color, opacity: 0.7 }}>👤 {r.ia_concerne}</span>}
+                    {r.ias_concernees && <span style={{ fontSize: 10, color, opacity: 0.7 }}>👤 {r.ias_concernees}</span>}
                     {r.date_presentation && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {new Date(r.date_presentation).toLocaleDateString('fr-FR')}</span>}
                     {r.date_signature && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {new Date(r.date_signature).toLocaleDateString('fr-FR')}</span>}
                     {r.salaire_envisage && <span style={{ fontSize: 10, color, opacity: 0.7 }}>💰 {r.salaire_envisage}</span>}
@@ -396,19 +397,25 @@ function PanneauRecrutement({ semaine, setSemaine }) {
   const [allReportings, setAllReportings] = useState([])
   const [allPres, setAllPres] = useState([])
   const [allSigs, setAllSigs] = useState([])
+  const [allRdv, setAllRdv] = useState([])
+  const [allCv, setAllCv] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      const [{ data: rep }, { data: pres }, { data: sigs }] = await Promise.all([
+      const [{ data: rep }, { data: pres }, { data: sigs }, { data: rdv }, { data: cv }] = await Promise.all([
         supabase.from('cr_reporting').select('*').eq('annee', annee),
         supabase.from('cr_presentations').select('*').eq('annee', annee),
         supabase.from('cr_signatures').select('*').eq('annee', annee),
+        supabase.from('cr_rendez_vous').select('*').eq('annee', annee),
+        supabase.from('cr_cv_proposes').select('*').eq('annee', annee),
       ])
       setAllReportings(rep || [])
       setAllPres(pres || [])
       setAllSigs(sigs || [])
+      setAllRdv(rdv || [])
+      setAllCv(cv || [])
       setLoading(false)
     }
     load()
@@ -491,6 +498,18 @@ function PanneauRecrutement({ semaine, setSemaine }) {
             {RH_KPIS.map(k => {
               const presRows = allPres.filter(r => r.semaine === semaine)
               const sigRows  = allSigs.filter(r => r.semaine === semaine)
+              const validRows = allRdv.filter(r => r.semaine === semaine && r.valide)
+              const rdvRows = allRdv.filter(r => r.semaine === semaine)
+              const cvRows = allCv.filter(r => r.semaine === semaine)
+              if (k.key === 'nb_entretiens') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} rows={rdvRows} />
+              )
+              if (k.key === 'nb_candidats_valides') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} rows={validRows} />
+              )
+              if (k.key === 'nb_cv_envoyes') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} rows={cvRows} />
+              )
               if (k.key === 'nb_presentations') return (
                 <KpiCardDetailRH key={k.key} label={k.label} value={total(k.key)} color={k.color} bg={k.bg} previous={semaine > 1 ? prev(k.key) : undefined} rows={presRows} />
               )
@@ -530,13 +549,13 @@ function PanneauRecrutement({ semaine, setSemaine }) {
           <Podium ranking={ranking} accentColor="#0F6E56" bgGradient="linear-gradient(180deg,#F0FDF9,#E1F5EE)" borderColor="#A7F3D0" />
         </>
       ) : (
-        <FocusCR allReportings={allReportings} allPres={allPres} allSigs={allSigs} semaine={semaine} annee={annee} key={semaine} />
+        <FocusCR allReportings={allReportings} allPres={allPres} allSigs={allSigs} allRdv={allRdv} allCv={allCv} semaine={semaine} annee={annee} key={semaine} />
       )}
     </div>
   )
 }
 
-function FocusCR({ allReportings, allPres, allSigs, semaine, annee }) {
+function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, annee }) {
   const [selectedCR, setSelectedCR] = useState(null)
   const [crIndex, setCrIndex] = useState(0)
   const [viewMode, setViewMode] = useState('semaine')
@@ -617,6 +636,18 @@ function FocusCR({ allReportings, allPres, allSigs, semaine, annee }) {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
             {RH_KPIS.map(k => {
+              if (k.key === 'nb_entretiens') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)}
+                  rows={allRdv.filter(r => r.cr_nom === selectedCR && r.semaine === semaine)} />
+              )
+              if (k.key === 'nb_candidats_valides') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)}
+                  rows={allRdv.filter(r => r.cr_nom === selectedCR && r.semaine === semaine && r.valide)} />
+              )
+              if (k.key === 'nb_cv_envoyes') return (
+                <KpiCardDetailRH key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)}
+                  rows={allCv.filter(r => r.cr_nom === selectedCR && r.semaine === semaine)} />
+              )
               if (k.key === 'nb_presentations') return (
                 <KpiCardDetailRH key={k.key} label={k.label} value={stats[k.key]} color={k.color} bg={k.bg} previous={p(k.key)}
                   rows={allPres.filter(r => r.cr_nom === selectedCR && r.semaine === semaine)} />
@@ -646,6 +677,18 @@ function FocusCR({ allReportings, allPres, allSigs, semaine, annee }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
           {RH_KPIS.map(k => {
+            if (k.key === 'nb_entretiens') return (
+              <KpiCardDetailRH key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg}
+                rows={allRdv.filter(r => r.cr_nom === selectedCR)} />
+            )
+            if (k.key === 'nb_candidats_valides') return (
+              <KpiCardDetailRH key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg}
+                rows={allRdv.filter(r => r.cr_nom === selectedCR && r.valide)} />
+            )
+            if (k.key === 'nb_cv_envoyes') return (
+              <KpiCardDetailRH key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg}
+                rows={allCv.filter(r => r.cr_nom === selectedCR)} />
+            )
             if (k.key === 'nb_presentations') return (
               <KpiCardDetailRH key={k.key} label={k.label + ' (annuel)'} value={statsAnn[k.key]} color={k.color} bg={k.bg}
                 rows={allPres.filter(r => r.cr_nom === selectedCR)} />
