@@ -259,7 +259,10 @@ export default function SaisieCR({ crNom }) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowRdvForm(true)} style={{ ...btnAdd, borderColor: '#0C447C', color: '#0C447C' }}>+ Ajouter un rendez-vous</button>
+          <button onClick={() => rdvOk ? null : setShowRdvForm(true)} disabled={rdvOk}
+            style={{ ...btnAdd, borderColor: '#0C447C', color: rdvOk ? '#A0A0A0' : '#0C447C', cursor: rdvOk ? 'not-allowed' : 'pointer', opacity: rdvOk ? 0.5 : 1 }}>
+            {rdvOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter un rendez-vous'}
+          </button>
         )}
       </div>
 
@@ -324,7 +327,10 @@ export default function SaisieCR({ crNom }) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowCvForm(true)} style={{ ...btnAdd, borderColor: '#2E7D32', color: '#2E7D32' }}>+ Ajouter un CV proposé</button>
+          <button onClick={() => cvOk ? null : setShowCvForm(true)} disabled={cvOk}
+            style={{ ...btnAdd, borderColor: '#2E7D32', color: cvOk ? '#A0A0A0' : '#2E7D32', cursor: cvOk ? 'not-allowed' : 'pointer', opacity: cvOk ? 0.5 : 1 }}>
+            {cvOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter un CV proposé'}
+          </button>
         )}
       </div>
 
@@ -370,7 +376,10 @@ export default function SaisieCR({ crNom }) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowPresForm(true)} style={{ ...btnAdd, borderColor: '#633806', color: '#633806' }}>+ Ajouter une présentation</button>
+          <button onClick={() => presOk ? null : setShowPresForm(true)} disabled={presOk}
+            style={{ ...btnAdd, borderColor: '#633806', color: presOk ? '#A0A0A0' : '#633806', cursor: presOk ? 'not-allowed' : 'pointer', opacity: presOk ? 0.5 : 1 }}>
+            {presOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter une présentation'}
+          </button>
         )}
       </div>
 
@@ -416,7 +425,10 @@ export default function SaisieCR({ crNom }) {
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowSigForm(true)} style={{ ...btnAdd, borderColor: '#72243E', color: '#72243E' }}>+ Ajouter une signature</button>
+          <button onClick={() => sigOk ? null : setShowSigForm(true)} disabled={sigOk}
+            style={{ ...btnAdd, borderColor: '#72243E', color: sigOk ? '#A0A0A0' : '#72243E', cursor: sigOk ? 'not-allowed' : 'pointer', opacity: sigOk ? 0.5 : 1 }}>
+            {sigOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter une signature'}
+          </button>
         )}
       </div>
 
