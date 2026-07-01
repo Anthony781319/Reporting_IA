@@ -802,7 +802,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
   const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--color-background-primary)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
       <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative', zIndex: 10000 }}>
 
         {/* Header modale */}
