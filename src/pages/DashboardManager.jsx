@@ -795,6 +795,12 @@ export default function DashboardManager() {
 }
 
 function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
@@ -802,7 +808,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
   const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--color-background-primary)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', background: 'var(--color-background-primary)', zIndex: 9999, overflowY: 'auto', padding: '24px 16px' }}>
       <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative', zIndex: 10000 }}>
 
         {/* Header modale */}
