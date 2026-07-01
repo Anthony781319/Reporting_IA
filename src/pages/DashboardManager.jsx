@@ -802,7 +802,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
   const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
       <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
 
         {/* Header modale */}
@@ -850,10 +850,9 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
                 </div>
 
                 {/* KPIs clés */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
                   {[
-                    { label: 'RDV', val: rdv, icon: '📞' },
-                    { label: 'Attente client', val: attente, icon: '⏳', alert: attente > 3 },
+                    { label: 'Attente retour prez', val: attentePrez, icon: '📨', alert: attentePrez > 2 },
                     { label: 'Prez à monter', val: prezAMonter, icon: '📋', alert: prezAMonter > 2 },
                   ].map(k => (
                     <div key={k.label} style={{ background: k.alert ? '#FEF3C7' : 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 6px', textAlign: 'center', border: k.alert ? '1px solid #F59E0B' : 'none' }}>
@@ -863,14 +862,6 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
                     </div>
                   ))}
                 </div>
-
-                {/* Attente retour prez */}
-                {attentePrez > 0 && (
-                  <div style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 10px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14 }}>📨</span>
-                    <span style={{ fontSize: 12, color: fg, fontWeight: 600 }}>{attentePrez} présentation{attentePrez > 1 ? 's' : ''} en attente retour</span>
-                  </div>
-                )}
 
                 {/* CV proposés par les CR */}
                 {cvCetteIA.length > 0 && (
@@ -890,7 +881,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
                 )}
 
                 {/* Aucune activité */}
-                {rdv === 0 && attente === 0 && prezAMonter === 0 && cvCetteIA.length === 0 && (
+                {attentePrez === 0 && prezAMonter === 0 && cvCetteIA.length === 0 && (
                   <div style={{ textAlign: 'center', fontSize: 11, color: fg, opacity: 0.5, fontStyle: 'italic', padding: '8px 0' }}>
                     Aucune activité déclarée
                   </div>
