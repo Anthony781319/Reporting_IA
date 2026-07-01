@@ -826,12 +826,14 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
           {iasFiltrees.map((ia, idx) => {
             const data = weekData.filter(s => s.ia_id === ia.id)
             const prev = prevData.filter(s => s.ia_id === ia.id)
+            const prevPrevData = saisies.filter(s => s.ia_id === ia.id && s.semaine === selectedWeek - 1)
             const attente = sum(data, 'attente_retour')
             const attentePrez = sum(data, 'attente_retour_prez')
             const prezAMonter = sum(data, 'presentations_a_monter')
+            const prezRealisees = sum(data, 'presentations')
+            const prezAMonterSemPrev = sum(prevPrevData, 'presentations_a_monter')
             const rdv = sum(data, 'total_rdv')
             const sign = sum(data, 'signatures')
-            const prevAttente = sum(prev, 'attente_retour')
 
             // CV proposés par les CR à cette IA cette semaine
             const cvCetteIA = cvProposes.filter(cv =>
@@ -856,18 +858,36 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
                   {sign > 0 && <span style={{ fontSize: 16 }}>🎉</span>}
                 </div>
 
-                {/* KPIs clés */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
+                {/* KPIs clés S-1 */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: fg, opacity: 0.6, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>S{selectedWeek}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
                   {[
-                    { label: 'Attente retour prez', val: attentePrez, icon: '📨', alert: attentePrez > 2 },
+                    { label: 'Prez réalisées', val: prezRealisees, icon: '✅', alert: false },
+                    { label: 'Attente retour', val: attentePrez, icon: '📨', alert: attentePrez > 2 },
                     { label: 'Prez à monter', val: prezAMonter, icon: '📋', alert: prezAMonter > 2 },
                   ].map(k => (
-                    <div key={k.label} style={{ background: k.alert ? '#FEF3C7' : 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 6px', textAlign: 'center', border: k.alert ? '1px solid #F59E0B' : 'none' }}>
-                      <div style={{ fontSize: 16 }}>{k.icon}</div>
+                    <div key={k.label} style={{ background: k.alert ? '#FEF3C7' : 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 4px', textAlign: 'center', border: k.alert ? '1px solid #F59E0B' : 'none' }}>
+                      <div style={{ fontSize: 14 }}>{k.icon}</div>
                       <div style={{ fontSize: 18, fontWeight: 800, color: k.alert ? '#92400E' : fg }}>{k.val}</div>
-                      <div style={{ fontSize: 9, color: k.alert ? '#92400E' : fg, opacity: 0.75, lineHeight: 1.2 }}>{k.label}</div>
+                      <div style={{ fontSize: 8, color: k.alert ? '#92400E' : fg, opacity: 0.75, lineHeight: 1.2 }}>{k.label}</div>
                     </div>
                   ))}
+                </div>
+
+                {/* Prez à monter S-2 */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: fg, opacity: 0.6, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>S{selectedWeek - 1} — suivi</div>
+                <div style={{ background: prezAMonterSemPrev > 0 ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>📋</span>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: prezAMonterSemPrev > 0 ? fg : fg, opacity: prezAMonterSemPrev === 0 ? 0.4 : 1 }}>{prezAMonterSemPrev}</div>
+                    <div style={{ fontSize: 10, color: fg, opacity: 0.7 }}>prez à monter déclarées en S{selectedWeek - 1}</div>
+                  </div>
+                  {prezAMonterSemPrev > 0 && prezRealisees > 0 && (
+                    <div style={{ marginLeft: 'auto', textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#065F46' }}>→ {prezRealisees}</div>
+                      <div style={{ fontSize: 9, color: '#065F46', opacity: 0.8 }}>réalisées</div>
+                    </div>
+                  )}
                 </div>
 
                 {/* CV proposés par les CR */}
@@ -888,7 +908,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
                 )}
 
                 {/* Aucune activité */}
-                {attentePrez === 0 && prezAMonter === 0 && cvCetteIA.length === 0 && (
+                {attentePrez === 0 && prezAMonter === 0 && prezRealisees === 0 && prezAMonterSemPrev === 0 && cvCetteIA.length === 0 && (
                   <div style={{ textAlign: 'center', fontSize: 11, color: fg, opacity: 0.5, fontStyle: 'italic', padding: '8px 0' }}>
                     Aucune activité déclarée
                   </div>
