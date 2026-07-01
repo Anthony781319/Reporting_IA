@@ -808,7 +808,6 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
 
   const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
 
-  return (
   return createPortal(
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--color-background-primary)', zIndex: 9999, overflowY: 'auto', padding: '24px 16px' }}>
       <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative', zIndex: 10000 }}>
