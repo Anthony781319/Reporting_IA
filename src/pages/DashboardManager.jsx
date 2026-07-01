@@ -757,7 +757,7 @@ export default function DashboardManager() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px', borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
         <button onClick={() => setShowReunion(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          🗓 Préparer la réunion — S{selectedWeek}
+          🗓 Préparer la réunion — S{selectedWeek - 1}
         </button>
       </div>
 
@@ -786,7 +786,7 @@ export default function DashboardManager() {
         <ModalReunion
           saisies={saisies}
           iaList={iaList}
-          selectedWeek={selectedWeek}
+          selectedWeek={selectedWeek - 1}
           cvProposes={cvProposes}
           onClose={() => setShowReunion(false)}
         />
