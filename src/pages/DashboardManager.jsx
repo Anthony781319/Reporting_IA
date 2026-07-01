@@ -717,16 +717,20 @@ export default function DashboardManager() {
   const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showReunion, setShowReunion] = useState(false)
+  const [cvProposes, setCvProposes] = useState([])
 
   const load = async () => {
-    const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
+    const [{ data: all }, { data: ia }, { data: p1 }, { data: cv }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
       supabase.from('ia').select('*').order('nom'),
-      supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
+      supabase.from('p1').select('*, ia(nom)').eq('annee', annee),
+      supabase.from('cr_cv_proposes').select('*').eq('annee', annee),
     ])
     setSaisies(all || [])
     setIaList(ia || [])
     setP1Data(p1 || [])
+    setCvProposes(cv || [])
     setLoading(false)
   }
 
@@ -746,22 +750,155 @@ export default function DashboardManager() {
   )
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
-      <div style={{ flex: 1, borderRight: '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
-        <PanneauCommerce
+    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
+
+      {/* Bouton réunion */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px', borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
+        <button onClick={() => setShowReunion(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          🗓 Préparer la réunion — S{selectedWeek}
+        </button>
+      </div>
+
+      {/* Split panels */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, borderRight: '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
+          <PanneauCommerce
+            saisies={saisies}
+            iaList={iaList}
+            p1Data={p1Data}
+            selectedWeek={selectedWeek}
+            setSelectedWeek={setSelectedWeek}
+            semaine={semaine}
+            annee={annee}
+            refreshKey={refreshKey}
+            onRefresh={() => { load(); setRefreshKey(k => k + 1) }}
+          />
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} />
+        </div>
+      </div>
+
+      {/* Modale réunion */}
+      {showReunion && (
+        <ModalReunion
           saisies={saisies}
           iaList={iaList}
-          p1Data={p1Data}
           selectedWeek={selectedWeek}
-          setSelectedWeek={setSelectedWeek}
-          semaine={semaine}
-          annee={annee}
-          refreshKey={refreshKey}
-          onRefresh={() => { load(); setRefreshKey(k => k + 1) }}
+          cvProposes={cvProposes}
+          onClose={() => setShowReunion(false)}
         />
-      </div>
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} />
+      )}
+    </div>
+  )
+}
+
+function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
+  const weekData = saisies.filter(s => s.semaine === selectedWeek)
+  const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
+  const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
+
+  const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+      <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+
+        {/* Header modale */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--color-border-tertiary)' }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#4F46E5' }}>🗓 Réunion — Semaine {selectedWeek}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 3 }}>Synthèse par collaborateur · Commerce</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--color-text-secondary)' }}>✕ Fermer</button>
+        </div>
+
+        {/* Fiches IA */}
+        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {iasFiltrees.map((ia, idx) => {
+            const data = weekData.filter(s => s.ia_id === ia.id)
+            const prev = prevData.filter(s => s.ia_id === ia.id)
+            const attente = sum(data, 'attente_retour')
+            const attentePrez = sum(data, 'attente_retour_prez')
+            const prezAMonter = sum(data, 'presentations_a_monter')
+            const rdv = sum(data, 'total_rdv')
+            const sign = sum(data, 'signatures')
+            const prevAttente = sum(prev, 'attente_retour')
+
+            // CV proposés par les CR à cette IA cette semaine
+            const cvCetteIA = cvProposes.filter(cv =>
+              cv.semaine === selectedWeek &&
+              cv.ias_concernees && cv.ias_concernees.toLowerCase().includes(ia.nom.toLowerCase())
+            )
+
+            const [bg, fg] = AVATAR_COLORS[idx % AVATAR_COLORS.length]
+            const hasAlert = attente > 3 || prezAMonter > 2 || cvCetteIA.length > 0
+
+            return (
+              <div key={ia.id} style={{ background: bg, borderRadius: 14, padding: '16px', border: `2px solid ${hasAlert ? fg : bg}` }}>
+                {/* En-tête fiche */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
+                    {ia.nom.slice(0,2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: fg }}>{ia.nom}</div>
+                    <div style={{ fontSize: 10, color: fg, opacity: 0.7 }}>S{selectedWeek}</div>
+                  </div>
+                  {sign > 0 && <span style={{ fontSize: 16 }}>🎉</span>}
+                </div>
+
+                {/* KPIs clés */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+                  {[
+                    { label: 'RDV', val: rdv, icon: '📞' },
+                    { label: 'Attente client', val: attente, icon: '⏳', alert: attente > 3 },
+                    { label: 'Prez à monter', val: prezAMonter, icon: '📋', alert: prezAMonter > 2 },
+                  ].map(k => (
+                    <div key={k.label} style={{ background: k.alert ? '#FEF3C7' : 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 6px', textAlign: 'center', border: k.alert ? '1px solid #F59E0B' : 'none' }}>
+                      <div style={{ fontSize: 16 }}>{k.icon}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: k.alert ? '#92400E' : fg }}>{k.val}</div>
+                      <div style={{ fontSize: 9, color: k.alert ? '#92400E' : fg, opacity: 0.75, lineHeight: 1.2 }}>{k.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Attente retour prez */}
+                {attentePrez > 0 && (
+                  <div style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 10px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14 }}>📨</span>
+                    <span style={{ fontSize: 12, color: fg, fontWeight: 600 }}>{attentePrez} présentation{attentePrez > 1 ? 's' : ''} en attente retour</span>
+                  </div>
+                )}
+
+                {/* CV proposés par les CR */}
+                {cvCetteIA.length > 0 && (
+                  <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: 8, padding: '10px', border: `1px solid ${fg}30` }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: fg, marginBottom: 6 }}>👥 CV proposés par recrutement ({cvCetteIA.length})</div>
+                    {cvCetteIA.map((cv, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: i < cvCetteIA.length - 1 ? `1px solid ${fg}15` : 'none' }}>
+                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: fg, flexShrink: 0 }} />
+                        <div>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: fg }}>{cv.identite_candidat}</span>
+                          {cv.profil && <span style={{ fontSize: 11, color: fg, opacity: 0.7, marginLeft: 6 }}>{cv.profil}</span>}
+                          <span style={{ fontSize: 10, color: fg, opacity: 0.6, marginLeft: 6 }}>· {cv.cr_nom}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Aucune activité */}
+                {rdv === 0 && attente === 0 && prezAMonter === 0 && cvCetteIA.length === 0 && (
+                  <div style={{ textAlign: 'center', fontSize: 11, color: fg, opacity: 0.5, fontStyle: 'italic', padding: '8px 0' }}>
+                    Aucune activité déclarée
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
