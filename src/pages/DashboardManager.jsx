@@ -803,7 +803,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
-      <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+      <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative', zIndex: 10000 }}>
 
         {/* Header modale */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--color-border-tertiary)' }}>
