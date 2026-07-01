@@ -809,20 +809,20 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
   const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
 
   return createPortal(
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'var(--color-background-primary)', zIndex: 9999, overflowY: 'auto', padding: '24px 16px' }}>
-      <div style={{ background: 'var(--color-background-primary)', borderRadius: 18, width: '100%', maxWidth: 960, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative', zIndex: 10000 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#1a1a2e', zIndex: 9999, overflowY: 'auto', padding: '24px 16px' }}>
+      <div style={{ background: '#1a1a2e', borderRadius: 18, width: '100%', maxWidth: 960, margin: '0 auto' }}>
 
         {/* Header modale */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--color-border-tertiary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#4F46E5' }}>🗓 Réunion — Semaine {selectedWeek}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 3 }}>Synthèse par collaborateur · Commerce</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>🗓 Réunion — Semaine {selectedWeek}</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>Synthèse par collaborateur · Commerce</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--color-text-secondary)' }}>✕ Fermer</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: '#fff' }}>✕ Fermer</button>
         </div>
 
         {/* Fiches IA */}
-        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, background: '#1a1a2e', borderRadius: '0 0 18px 18px' }}>
           {iasFiltrees.map((ia, idx) => {
             const data = weekData.filter(s => s.ia_id === ia.id)
             const prev = prevData.filter(s => s.ia_id === ia.id)
