@@ -905,6 +905,9 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
                           <span style={{ fontSize: 12, fontWeight: 600, color: fg }}>{cv.identite_candidat}</span>
                           {cv.profil && <span style={{ fontSize: 11, color: fg, opacity: 0.7, marginLeft: 6 }}>{cv.profil}</span>}
                           <span style={{ fontSize: 10, color: fg, opacity: 0.6, marginLeft: 6 }}>· {cv.cr_nom}</span>
+                          {cv.type_envoi === 'besoin'
+                            ? <span style={{ fontSize: 10, color: '#92400E', marginLeft: 6 }}>· 📌 {cv.besoin_concerne}</span>
+                            : cv.type_envoi === 'push' && <span style={{ fontSize: 10, color: fg, opacity: 0.6, marginLeft: 6 }}>· 🚀 Push</span>}
                         </div>
                       </div>
                     ))}
