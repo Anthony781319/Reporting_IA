@@ -31,7 +31,7 @@ export default function SaisieCR({ crNom }) {
   const [showSigForm, setShowSigForm] = useState(false)
 
   const [cvList, setCvList] = useState([])
-  const [cvForm, setCvForm] = useState({ identite_candidat: '', profil: '', ias_concernees: [] })
+  const [cvForm, setCvForm] = useState({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
   const [showCvForm, setShowCvForm] = useState(false)
 
   const [saving, setSaving] = useState(false)
@@ -149,15 +149,21 @@ export default function SaisieCR({ crNom }) {
       showToast('❌ Remplis le candidat et sélectionne au moins une IA')
       return
     }
+    if (cvForm.type_envoi === 'besoin' && !cvForm.besoin_concerne.trim()) {
+      showToast('❌ Indique le besoin concerné')
+      return
+    }
     const { data, error } = await supabase.from('cr_cv_proposes').insert({
       cr_nom: crNom, semaine, annee,
       identite_candidat: cvForm.identite_candidat,
       profil: cvForm.profil,
-      ias_concernees: cvForm.ias_concernees.join(', ')
+      ias_concernees: cvForm.ias_concernees.join(', '),
+      type_envoi: cvForm.type_envoi,
+      besoin_concerne: cvForm.type_envoi === 'besoin' ? cvForm.besoin_concerne : null
     }).select().single()
     if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
     setCvList([...cvList, { ...data, ias_concernees: cvForm.ias_concernees.join(', ') }])
-    setCvForm({ identite_candidat: '', profil: '', ias_concernees: [] })
+    setCvForm({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
     setShowCvForm(false)
     showToast('✅ CV ajouté !')
   }
@@ -289,6 +295,9 @@ export default function SaisieCR({ crNom }) {
             <div style={detailRow}>
               <span style={candidatName}>{c.identite_candidat}</span>
               <span style={profilBadge}>{c.profil}</span>
+              <span style={{ ...infoBadge, background: c.type_envoi === 'besoin' ? '#FFF3E0' : '#E3F2FD', color: c.type_envoi === 'besoin' ? '#92400E' : '#0C447C', border: `1px solid ${c.type_envoi === 'besoin' ? '#FDBA74' : '#90CAF9'}` }}>
+                {c.type_envoi === 'besoin' ? `📌 Besoin : ${c.besoin_concerne}` : '🚀 Push'}
+              </span>
             </div>
             <div style={detailRow}>
               {(c.ias_concernees ? c.ias_concernees.split(', ') : []).map(ia => (
@@ -303,6 +312,24 @@ export default function SaisieCR({ crNom }) {
           <div style={formBox}>
             <Input label="Identité du candidat" value={cvForm.identite_candidat} onChange={v => setCvForm({ ...cvForm, identite_candidat: v })} />
             <Input label="Profil" value={cvForm.profil} onChange={v => setCvForm({ ...cvForm, profil: v })} />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Type d'envoi</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {[['push', '🚀 Push'], ['besoin', '📌 Positionnement besoin']].map(([id, label]) => {
+                  const checked = cvForm.type_envoi === id
+                  return (
+                    <div key={id} onClick={() => setCvForm({ ...cvForm, type_envoi: id })}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', border: checked ? '2px solid #2E7D32' : '1px solid var(--color-border-tertiary)', background: checked ? '#E8F5E9' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: checked ? 600 : 400, color: checked ? '#2E7D32' : 'var(--color-text-primary)' }}>{label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {cvForm.type_envoi === 'besoin' && (
+              <Input label="Besoin concerné" value={cvForm.besoin_concerne} onChange={v => setCvForm({ ...cvForm, besoin_concerne: v })} />
+            )}
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>IAs concernées</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
