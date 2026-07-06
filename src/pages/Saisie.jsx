@@ -129,11 +129,14 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: fields.length > 2 ? '1fr 1fr' : '1fr', gap: 8 }}>
                 {fields.map(f => (
-                  <input key={f.key} type={f.type || 'text'} placeholder={f.placeholder || f.label}
-                    value={form[f.key] || ''}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box' }}
-                  />
+                  <div key={f.key}>
+                    <label style={{ display: 'block', fontSize: 11, color: cfg.color, opacity: 0.8, marginBottom: 4, fontWeight: 500 }}>{f.label}</label>
+                    <input type={f.type || 'text'} placeholder={f.placeholder || f.label}
+                      value={form[f.key] || ''}
+                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
                 ))}
               </div>
               <button onClick={addDetail} disabled={saving}
