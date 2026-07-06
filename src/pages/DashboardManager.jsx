@@ -48,7 +48,7 @@ const KpiCard = ({ label, value, color, bg, previous }) => (
   </div>
 )
 
-const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false }) => {
+const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false, expected, expectedLabel }) => {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -78,6 +78,7 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
             <div style={{ paddingBottom: 2 }}><Trend current={value} previous={previous} /></div>
           </div>
           {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 3 }}>Préc. : {previous}</div>}
+          {expected !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 1 }}>{expectedLabel || 'Attendu'} : {expected}</div>}
         </div>
         {value > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
       </div>
@@ -191,7 +192,7 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
             <KpiCard label="Pipe total" color="#854D0E" bg="#FEF9C3"
               value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')}
               previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
-            <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`p-${selectedWeek}-${refreshKey}`} />
+            <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`p-${selectedWeek}-${refreshKey}`} expected={selectedWeek > 1 ? sum(prevData, 'presentations_a_monter') : undefined} expectedLabel={`Attendu (décl. S${selectedWeek - 1})`} />
             <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`s-${selectedWeek}-${refreshKey}`} />
             <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`d-${selectedWeek}-${refreshKey}`} />
             <KpiCardDetail label="Fins mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} key={`f-${selectedWeek}-${refreshKey}`} />
