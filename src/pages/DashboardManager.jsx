@@ -93,7 +93,8 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
                 <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                   {d.client && <span style={{ fontSize: 10, color, opacity: 0.7 }}>🏢 {d.client}</span>}
                   {d.tjm && <span style={{ fontSize: 10, color, opacity: 0.7 }}>💰 {d.tjm}</span>}
-                  {d.date && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                  {d.date_signature && <span style={{ fontSize: 10, color, opacity: 0.7 }}>✍️ Signé le {new Date(d.date_signature).toLocaleDateString('fr-FR')}</span>}
+                  {d.date && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {type === 'signature' ? 'Démarrage envisagé ' : ''}{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
                 </div>
               </div>
             </div>
