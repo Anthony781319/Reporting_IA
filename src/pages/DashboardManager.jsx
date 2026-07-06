@@ -187,6 +187,7 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
             <KpiCard label="RDV" value={sum(weekData, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" previous={p('total_rdv')} />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
+            <KpiCard label="Prés. à monter" value={sum(weekData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
             <KpiCard label="Pipe total" color="#854D0E" bg="#FEF9C3"
               value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')}
               previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
@@ -296,6 +297,7 @@ function FocusIAMini({ saisies, iaList, selectedWeek, semaine, annee, refreshKey
             <KpiCard label="RDV" value={sum(iaData, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" previous={p('total_rdv')} />
             <KpiCard label="Solutions" value={sum(iaData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(iaData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
+            <KpiCard label="Prés. à monter" value={sum(iaData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
             <KpiCard label="Pipe" color="#92400E" bg="#FEF3C7"
               value={sum(iaData, 'besoins_sans_solution') + sum(iaData, 'attente_retour') + sum(iaData, 'attente_retour_prez')}
               previous={selectedWeek > 1 ? sum(iaPrev, 'besoins_sans_solution') + sum(iaPrev, 'attente_retour') + sum(iaPrev, 'attente_retour_prez') : undefined} />
