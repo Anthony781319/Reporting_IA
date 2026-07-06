@@ -87,7 +87,8 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
                 <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
                   {d.client && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-building" style={{ fontSize: 12 }} aria-hidden="true" />{d.client}</span>}
                   {d.tjm && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-coin" style={{ fontSize: 12 }} aria-hidden="true" />{d.tjm}</span>}
-                  {d.date && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} aria-hidden="true" />{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                  {d.date_signature && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-signature" style={{ fontSize: 12 }} aria-hidden="true" />Signé le {new Date(d.date_signature).toLocaleDateString('fr-FR')}</span>}
+                  {d.date && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color, opacity: 0.7 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} aria-hidden="true" />{type === 'signature' ? 'Démarrage envisagé ' : ''}{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
                 </div>
               </div>
             </div>
