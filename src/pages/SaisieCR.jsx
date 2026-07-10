@@ -93,7 +93,7 @@ export default function SaisieCR({ crNom }) {
   const addRdv = async () => {
     if (!rdvForm.identite_candidat) return
     const { data, error } = await supabase.from('cr_rendez_vous').insert({ cr_nom: crNom, semaine, annee, ...rdvForm }).select().single()
-    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setRdvList([...rdvList, data])
     setRdvForm({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
     setShowRdvForm(false)
@@ -108,7 +108,7 @@ export default function SaisieCR({ crNom }) {
   const addPres = async () => {
     if (!presForm.identite_candidat) return
     const { data, error } = await supabase.from('cr_presentations').insert({ cr_nom: crNom, semaine, annee, ...presForm }).select().single()
-    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setPresList([...presList, data])
     setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
     setShowPresForm(false)
@@ -123,7 +123,7 @@ export default function SaisieCR({ crNom }) {
   const addSig = async () => {
     if (!sigForm.identite_candidat) return
     const { data, error } = await supabase.from('cr_signatures').insert({ cr_nom: crNom, semaine, annee, ...sigForm }).select().single()
-    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setSigList([...sigList, data])
     setSigForm({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
     setShowSigForm(false)
@@ -161,7 +161,7 @@ export default function SaisieCR({ crNom }) {
       type_envoi: cvForm.type_envoi,
       besoin_concerne: cvForm.type_envoi === 'besoin' ? cvForm.besoin_concerne : null
     }).select().single()
-    if (error || !data) { showToast('❌ Erreur lors de l\'ajout'); return }
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setCvList([...cvList, { ...data, ias_concernees: cvForm.ias_concernees.join(', ') }])
     setCvForm({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
     setShowCvForm(false)
