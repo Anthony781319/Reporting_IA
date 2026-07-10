@@ -56,6 +56,7 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
   const [details, setDetails] = useState([])
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   const cfg = DETAIL_CONFIG[type]
   const fields = DETAIL_FIELDS[type]
 
@@ -72,9 +73,14 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
     const required = fields.filter(f => f.key === 'nom_prenom' || f.key === 'client')
     if (required.some(f => !form[f.key]?.trim())) return
     setSaving(true)
-    const { data } = await supabase.from('details_resultats').insert({ ia_id: iaId, semaine, annee, type, ...form }).select().single()
-    if (data) setDetails(d => [...d, data])
-    setForm({})
+    setError('')
+    const { data, error: err } = await supabase.from('details_resultats').insert({ ia_id: iaId, semaine, annee, type, ...form }).select().single()
+    if (data) {
+      setDetails(d => [...d, data])
+      setForm({})
+    } else {
+      setError(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
+    }
     setSaving(false)
   }
 
@@ -143,6 +149,11 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
                 style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 {saving ? 'Ajout...' : '+ Ajouter'}
               </button>
+              {error && (
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
+                  ⚠️ {error}
+                </div>
+              )}
             </div>
           )}
 
