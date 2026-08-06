@@ -21,7 +21,18 @@ const SEMESTRES = [
 // exclut les comptes techniques de la table ia (mêmes règles que le reste de l'appli)
 const isBM = (ia) => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.nom !== 'RH' && ia.type !== 'cr'
 
+const STORAGE_KEY = 'bilanEquipe_excludedIds'
 const round1 = (n) => Math.round(n * 10) / 10
+
+const loadExcluded = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+const saveExcluded = (ids) => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ids)) } catch {}
+}
 
 // ─────────────────────────────────────────────
 // UI PIECES
@@ -64,13 +75,60 @@ function MetricChart({ metric, rows, teamAvg }) {
   )
 }
 
+function MembreFilter({ allBms, excludedIds, onToggle, onResetAll }) {
+  const [open, setOpen] = useState(false)
+  const nbExclus = excludedIds.length
+
+  return (
+    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: 12, padding: '10px 14px', marginBottom: 20 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', fontSize: 13, fontWeight: 600, padding: 0 }}>
+        <span>
+          <i className="ti ti-filter" aria-hidden="true" style={{ marginRight: 6 }}></i>
+          Membres pris en compte
+          {nbExclus > 0 && <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: 6 }}>({nbExclus} exclu{nbExclus > 1 ? 's' : ''})</span>}
+        </span>
+        <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true"></i>
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {allBms.map(ia => {
+              const excluded = excludedIds.includes(ia.id)
+              return (
+                <button key={ia.id} onClick={() => onToggle(ia.id)}
+                  style={{
+                    borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    border: excluded ? '1px solid var(--color-border)' : '1px solid transparent',
+                    background: excluded ? 'transparent' : '#DBEAFE',
+                    color: excluded ? 'var(--color-text-muted)' : '#1E40AF',
+                    textDecoration: excluded ? 'line-through' : 'none',
+                  }}>
+                  {ia.nom}
+                </button>
+              )
+            })}
+          </div>
+          {nbExclus > 0 && (
+            <button onClick={onResetAll} style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+              Tout réinclure
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
 export default function BilanEquipe() {
   const [annee, setAnnee] = useState(new Date().getFullYear())
   const [semestreId, setSemestreId] = useState(1)
-  const [rows, setRows] = useState([])
+  const [allBms, setAllBms] = useState([])
+  const [saisies, setSaisies] = useState([])
+  const [excludedIds, setExcludedIds] = useState(loadExcluded)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -82,7 +140,7 @@ export default function BilanEquipe() {
     setError(null)
 
     async function fetchData() {
-      const [{ data: saisies, error: err1 }, { data: iaList, error: err2 }] = await Promise.all([
+      const [{ data: saisiesData, error: err1 }, { data: iaList, error: err2 }] = await Promise.all([
         supabase.from('saisies').select('*').eq('annee', annee).gte('semaine', semestre.from).lte('semaine', semestre.to),
         supabase.from('ia').select('*').order('nom'),
       ])
@@ -90,22 +148,32 @@ export default function BilanEquipe() {
       if (!active) return
       if (err1 || err2) { setError((err1 || err2).message); setLoading(false); return }
 
-      const bms = (iaList || []).filter(isBM)
-
-      const agg = bms.map(ia => {
-        const mine = (saisies || []).filter(s => s.ia_id === ia.id)
-        const out = { id: ia.id, nom: ia.nom }
-        METRICS.forEach(m => { out[m.key] = mine.reduce((sum, s) => sum + (s[m.key] || 0), 0) })
-        return out
-      }).sort((a, b) => a.nom.localeCompare(b.nom))
-
-      setRows(agg)
+      setAllBms((iaList || []).filter(isBM))
+      setSaisies(saisiesData || [])
       setLoading(false)
     }
 
     fetchData()
     return () => { active = false }
   }, [annee, semestreId])
+
+  const toggleExcluded = (id) => {
+    setExcludedIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      saveExcluded(next)
+      return next
+    })
+  }
+  const resetAll = () => { setExcludedIds([]); saveExcluded([]) }
+
+  const activeBms = allBms.filter(ia => !excludedIds.includes(ia.id))
+
+  const rows = activeBms.map(ia => {
+    const mine = saisies.filter(s => s.ia_id === ia.id)
+    const out = { id: ia.id, nom: ia.nom }
+    METRICS.forEach(m => { out[m.key] = mine.reduce((sum, s) => sum + (s[m.key] || 0), 0) })
+    return out
+  }).sort((a, b) => a.nom.localeCompare(b.nom))
 
   const teamAverages = {}
   METRICS.forEach(m => {
@@ -134,11 +202,15 @@ export default function BilanEquipe() {
         </div>
       </div>
 
+      {!loading && allBms.length > 0 && (
+        <MembreFilter allBms={allBms} excludedIds={excludedIds} onToggle={toggleExcluded} onResetAll={resetAll} />
+      )}
+
       {error && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 12 }}>❌ {error}</div>}
       {loading ? (
         <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Chargement…</div>
       ) : rows.length === 0 ? (
-        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Aucune donnée sur cette période.</div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Aucune donnée sur cette période pour les membres sélectionnés.</div>
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 24 }}>
