@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import P1Page from './pages/P1Page'
 import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
+import BilanEquipe from './pages/BilanEquipe'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
@@ -51,6 +52,7 @@ export default function App() {
 
   const adminTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
+    { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'admin',             icon: 'ti-settings',       label: 'Admin' },
@@ -106,6 +108,7 @@ export default function App() {
 
       <div className="content">
         {tab === 'dashboard-manager' && <DashboardManager />}
+        {tab === 'bilan-equipe'      && <BilanEquipe />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
         {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
         {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
