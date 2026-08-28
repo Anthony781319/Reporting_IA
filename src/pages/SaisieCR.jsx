@@ -43,7 +43,7 @@ export default function SaisieCR({ crNom }) {
 
   useEffect(() => {
     supabase.from('ia').select('*').order('nom').then(({ data }) => {
-      setIaList((data || []).filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week'))
+      setIaList((data || []).filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien'))
     })
   }, [])
 
