@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
+const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
 
 const currentWeek = () => {
   const now = new Date()
