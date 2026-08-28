@@ -632,7 +632,7 @@ export default function Dashboard({ ytdOnly = false }) {
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
     ])
     setSaisies(all || [])
-    setIaList(ia || [])
+    setIaList((ia || []).filter(i => i.statut !== 'ancien'))
     setP1Data(p1 || [])
     if (showLoading) setLoading(false)
   }
