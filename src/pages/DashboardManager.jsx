@@ -12,7 +12,7 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
-const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
+const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
 
 const AVATAR_COLORS = [
   ['#EDE9FE','#6D28D9'],['#D1FAE5','#065F46'],['#FEF3C7','#92400E'],
