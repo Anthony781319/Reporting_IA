@@ -160,7 +160,7 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'ia') {
-    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week')
+    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien')
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
