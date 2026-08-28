@@ -7,6 +7,7 @@ const PORTALS = [
   { id: 'ia',          icon: '💼', label: "Le Commerce", desc: 'Accès à ton espace reporting',   bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement', icon: '👥', label: 'Recrutement',          desc: 'Accès à ton espace recrutement', bg: '#E1F5EE', color: '#0F6E56' },
   { id: 'manager',     icon: '🎯', label: 'Manager',              desc: 'Accès dashboard & pilotage',     bg: '#FAEEDA', color: '#BA7517' },
+  { id: 'admin',       icon: '⚙️', label: 'Admin',                desc: "Gestion de l'équipe",             bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
 const MANAGER_OPTIONS = [
