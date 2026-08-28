@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
+const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
 
 const PORTALS = [
   { id: 'ia',          icon: '💼', label: "Le Commerce", desc: 'Accès à ton espace reporting',   bg: '#EEEDFE', color: '#534AB7' },
