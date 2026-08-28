@@ -19,7 +19,7 @@ const SEMESTRES = [
 ]
 
 // exclut les comptes techniques de la table ia (mêmes règles que le reste de l'appli)
-const isBM = (ia) => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.nom !== 'RH' && ia.type !== 'cr'
+const isBM = (ia) => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.nom !== 'RH' && ia.type !== 'cr' && ia.statut !== 'ancien'
 
 const STORAGE_KEY = 'bilanEquipe_excludedIds'
 const round1 = (n) => Math.round(n * 10) / 10
