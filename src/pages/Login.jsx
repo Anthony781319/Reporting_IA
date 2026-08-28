@@ -282,4 +282,19 @@ const handleAdminLogin = () => {
       </div>
     )
   }
-}
+if (portal === 'admin') {
+    return (
+      <div style={loginWrap}>
+        <BackButton onClick={handleBack} />
+        <Header icon="⚙️" title="Admin" />
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div style={labelStyle}>Mot de passe</div>
+          <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+          {error && <ErrorMsg msg={error} />}
+          <button onClick={handleAdminLogin} style={{ width: '100%', padding: 13, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            Se connecter
+          </button>
+        </div>
+      </div>
+    )
+  }}
