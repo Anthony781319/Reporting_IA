@@ -17,17 +17,18 @@ const RH_PASSWORD = 'rh'
 
 export default function App() {
   const [user, setUser] = useState(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [isManager, setIsManager] = useState(false)
+  const [isAdminOnly, setIsAdminOnly] = useState(false)
   const [isP1, setIsP1] = useState(false)
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
   const [tab, setTab] = useState('saisie')
 
   const resetRoles = () => {
-    setIsAdmin(false); setIsP1(false); setIsCR(false); setIsRH(false)
+    setIsManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false)
   }
 
-const handleLogin = (ia, password, initialTab) => {
+  const handleLogin = (ia, password, initialTab) => {
     if (ia.nom === 'RH' && password === RH_PASSWORD) {
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
     }
@@ -38,7 +39,11 @@ const handleLogin = (ia, password, initialTab) => {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
     if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
-      resetRoles(); setUser(ia); setIsAdmin(true); setTab(initialTab || 'dashboard-manager'); return true
+      resetRoles()
+      setUser(ia)
+      if (initialTab === 'admin') { setIsAdminOnly(true); setTab('admin') }
+      else { setIsManager(true); setTab('dashboard-manager') }
+      return true
     }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
@@ -50,20 +55,20 @@ const handleLogin = (ia, password, initialTab) => {
 
   if (!user) return <Login onLogin={handleLogin} />
 
-  const adminTabs = [
+  const managerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
-    { id: 'admin',             icon: 'ti-settings',       label: 'Admin' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
   ]
+  const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
   const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
   const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
 
-  const tabs = isAdmin ? adminTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
+  const tabs = isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
 
   const getAvatar = () => {
     if (user.nom === 'P1 of the week') return 'P1'
@@ -72,7 +77,8 @@ const handleLogin = (ia, password, initialTab) => {
   }
 
   const getTitle = () => {
-    if (isAdmin) return 'Reporting IA'
+    if (isManager) return 'Reporting IA'
+    if (isAdminOnly) return 'Admin'
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
     return 'Reporting'
