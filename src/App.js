@@ -27,7 +27,7 @@ export default function App() {
     setIsAdmin(false); setIsP1(false); setIsCR(false); setIsRH(false)
   }
 
-  const handleLogin = (ia, password) => {
+const handleLogin = (ia, password, initialTab) => {
     if (ia.nom === 'RH' && password === RH_PASSWORD) {
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
     }
@@ -38,7 +38,7 @@ export default function App() {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
     if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
-      resetRoles(); setUser(ia); setIsAdmin(true); setTab('dashboard-manager'); return true
+      resetRoles(); setUser(ia); setIsAdmin(true); setTab(initialTab || 'dashboard-manager'); return true
     }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
