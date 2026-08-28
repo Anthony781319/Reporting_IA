@@ -4,7 +4,7 @@ import { supabase } from '../supabase'
 const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
 
 const PORTALS = [
-  { id: 'ia',          icon: '💼', label: "Ingénieur d'affaires", desc: 'Accès à ton espace reporting',   bg: '#EEEDFE', color: '#534AB7' },
+  { id: 'ia',          icon: '💼', label: "Le Commerce", desc: 'Accès à ton espace reporting',   bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement', icon: '👥', label: 'Recrutement',          desc: 'Accès à ton espace recrutement', bg: '#E1F5EE', color: '#0F6E56' },
   { id: 'manager',     icon: '🎯', label: 'Manager',              desc: 'Accès dashboard & pilotage',     bg: '#FAEEDA', color: '#BA7517' },
 ]
@@ -164,7 +164,7 @@ export default function Login({ onLogin }) {
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
-        <Header icon="💼" title="Ingénieur d'affaires" />
+        <Header icon="💼" title="Le Commerce" />
         <div style={{ width: '100%', maxWidth: 400 }}>
           <div style={labelStyle}>Je suis...</div>
           {loading ? <Loader /> : (
