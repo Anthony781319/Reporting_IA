@@ -34,7 +34,7 @@ export default function Equipe() {
       const { data: ia } = await supabase.from('ia').select('*').order('nom')
       const { data: saisies } = await supabase.from('saisies').select('*').eq('annee', annee)
 
-      const result = (ia || []).map((i, idx) => {
+      const result = (ia || []).filter(i => i.statut !== 'ancien').map((i, idx) => {
         const all = (saisies || []).filter(s => s.ia_id === i.id)
         const totalRdv        = all.reduce((s, d) => s + (d.total_rdv     || 0), 0)
         const totalPrez       = all.reduce((s, d) => s + (d.presentations || 0), 0)
