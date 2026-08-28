@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const CR_LIST = ['Younes', 'Soundous', 'Zayneb', 'Shaymae', 'Soukaina']
+const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
 
 export default function LoginCR({ onLogin, onBack }) {
   const [nom, setNom] = useState('')
