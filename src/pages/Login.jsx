@@ -129,9 +129,9 @@ export default function Login({ onLogin }) {
     if (!ok) setRhError('Mot de passe incorrect')
   }
 
-  const handleManagerLogin = () => {
+const handleAdminLogin = () => {
     if (!password) return setError('Entre ton mot de passe')
-    const ok = onLogin({ nom: 'Anthony' }, password)
+    const ok = onLogin({ nom: 'Anthony' }, password, 'admin')
     if (!ok) setError('Mot de passe incorrect')
   }
 
