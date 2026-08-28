@@ -11,6 +11,8 @@ const AVATAR_COLORS = [
 
 export default function Admin({ onSelectIA, selectedIaId }) {
   const [iaList, setIaList] = useState([])
+  const [anciensList, setAnciensList] = useState([])
+  const [showAnciens, setShowAnciens] = useState(false)
   const [nom, setNom] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
@@ -23,25 +25,39 @@ export default function Admin({ onSelectIA, selectedIaId }) {
 
   const loadIA = async () => {
     const { data } = await supabase.from('ia').select('*').order('nom')
-    setIaList(data || [])
+    const all = data || []
+    setIaList(all.filter(ia => ia.statut !== 'ancien'))
+    setAnciensList(all.filter(ia => ia.statut === 'ancien'))
     setLoading(false)
   }
 
   const addIA = async () => {
     if (!nom.trim() || !email.trim()) return setMsg('Prénom et email requis')
     setAdding(true)
-    const { error } = await supabase.from('ia').insert({ nom: nom.trim(), email: email.trim() })
+    const { error } = await supabase.from('ia').insert({ nom: nom.trim(), email: email.trim(), statut: 'actif' })
     if (error) setMsg('Erreur : ' + error.message)
     else { setNom(''); setEmail(''); setMsg('IA ajouté !'); await loadIA() }
     setAdding(false)
     setTimeout(() => setMsg(''), 3000)
   }
 
-  const removeIA = async (id) => {
-    if (!window.confirm('Supprimer cet IA ? Ses données seront effacées.')) return
-    await supabase.from('ia').delete().eq('id', id)
+  // Archiver : l'IA a quitté la société. Ses données sont conservées, il disparaît juste des menus actifs.
+  const archiveIA = async (id) => {
+    if (!window.confirm("Archiver cet IA ? Il n'apparaîtra plus dans les menus actifs, mais ses données historiques sont conservées dans \"Anciens IA\".")) return
+    await supabase.from('ia').update({ statut: 'ancien' }).eq('id', id)
     if (selectedIaId === id) onSelectIA(null, null)
     if (saisieIA?.id === id) setSaisieIA(null)
+    await loadIA()
+  }
+
+  const reactivateIA = async (id) => {
+    await supabase.from('ia').update({ statut: 'actif' }).eq('id', id)
+    await loadIA()
+  }
+
+  const removeIA = async (id) => {
+    if (!window.confirm('Supprimer définitivement cet IA ? Ses données seront effacées, cette action est irréversible.')) return
+    await supabase.from('ia').delete().eq('id', id)
     await loadIA()
   }
 
@@ -120,9 +136,9 @@ export default function Admin({ onSelectIA, selectedIaId }) {
               </div>
               <span style={{ flex: 1, fontSize: 14, color: isSelected ? '#3C3489' : 'var(--color-text-primary)', fontWeight: isSelected ? 500 : 400 }}>{ia.nom}</span>
               {isSelected && <span style={{ fontSize: 11, color: '#534AB7', fontWeight: 500 }}>✓ Sélectionné</span>}
-              <button onClick={e => { e.stopPropagation(); removeIA(ia.id) }}
+              <button onClick={e => { e.stopPropagation(); archiveIA(ia.id) }} title="Archiver (a quitté la société)"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
-                <i className="ti ti-trash" aria-hidden="true"></i>
+                <i className="ti ti-archive" aria-hidden="true"></i>
               </button>
             </div>
           )
@@ -152,6 +168,41 @@ export default function Admin({ onSelectIA, selectedIaId }) {
           {adding ? 'Ajout...' : '+ Ajouter'}
         </button>
       </div>
+
+      {/* Section Anciens IA */}
+      <div style={{ height: 1, background: 'var(--color-border-tertiary)', margin: '24px 0' }} />
+      <div onClick={() => setShowAnciens(!showAnciens)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: showAnciens ? 14 : 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+          🗄️ Anciens IA {anciensList.length > 0 && `(${anciensList.length})`}
+        </div>
+        <i className={`ti ti-chevron-${showAnciens ? 'up' : 'down'}`} aria-hidden="true" style={{ color: 'var(--color-text-secondary)' }}></i>
+      </div>
+
+      {showAnciens && (
+        anciensList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '8px 0' }}>Aucun IA archivé pour le moment.</div>
+        ) : (
+          <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
+            {anciensList.map((ia, i) => (
+              <div key={ia.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#F3F4F6', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>
+                  {ia.nom.slice(0, 2).toUpperCase()}
+                </div>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-secondary)' }}>{ia.nom}</span>
+                <button onClick={() => reactivateIA(ia.id)} title="Réactiver"
+                  style={{ background: 'none', border: '1.5px solid #6D28D9', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#6D28D9', marginRight: 4 }}>
+                  ↩️ Réactiver
+                </button>
+                <button onClick={() => removeIA(ia.id)} title="Supprimer définitivement"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+                  <i className="ti ti-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
     </div>
   )
 }
