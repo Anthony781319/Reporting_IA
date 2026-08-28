@@ -733,7 +733,7 @@ export default function DashboardManager() {
       supabase.from('cr_cv_proposes').select('*').eq('annee', annee),
     ])
     setSaisies(all || [])
-    setIaList(ia || [])
+    setIaList((ia || []).filter(i => i.statut !== 'ancien'))
     setP1Data(p1 || [])
     setCvProposes(cv || [])
     setLoading(false)
