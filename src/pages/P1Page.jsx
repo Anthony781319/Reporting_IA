@@ -124,41 +124,43 @@ export default function P1Page() {
         </select>
       </div>
 
-      <div style={{ background: '#534AB712', borderLeft: '3px solid #534AB7', borderRadius: '8px 8px 0 0', padding: '12px 16px' }}>
+      <div style={{ background: '#534AB712', borderLeft: '3px solid #534AB7', borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#534AB7' }}>📋 P1 de la semaine — S{selectedWeek - 1}</div>
         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>{p1Data.length} priorité{p1Data.length > 1 ? 's' : ''} active{p1Data.length > 1 ? 's' : ''}</div>
       </div>
 
-      <div style={{ border: '1px solid #534AB725', borderTop: 'none', borderRadius: '0 0 10px 10px', marginBottom: 24, overflow: 'hidden' }}>
-        {iaWithP1.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13 }}>Aucun P1 saisi pour cette semaine</div>
-        ) : iaWithP1.map((nom, idx) => (
-          <div key={nom} style={{ borderBottom: idx < iaWithP1.length - 1 ? '1px solid #534AB715' : 'none' }}>
-            <div style={{ padding: '12px 16px', background: '#534AB7', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                {nom.slice(0, 2).toUpperCase()}
+      {iaWithP1.length === 0 ? (
+        <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 13, border: '1px solid #534AB725', borderRadius: 10, marginBottom: 24 }}>Aucun P1 saisi pour cette semaine</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14, marginBottom: 24, alignItems: 'start' }}>
+          {iaWithP1.map(nom => (
+            <div key={nom} style={{ border: '1px solid #534AB725', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', background: '#534AB7', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                  {nom.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{nom}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>{currentGrouped[nom].length} P1</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{nom}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>{currentGrouped[nom].length} P1</div>
+              <div style={{ padding: '12px 14px', background: 'var(--color-background-primary)' }}>
+                {currentGrouped[nom].map(p => <P1Card key={p.id} p={p} />)}
               </div>
             </div>
-            <div style={{ padding: '12px 14px', background: 'var(--color-background-primary)' }}>
-              {currentGrouped[nom].map(p => <P1Card key={p.id} p={p} />)}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {iaWithPrevP1.length > 0 && (
         <>
-          <div style={{ background: '#88878012', borderLeft: '3px solid #888780', borderRadius: '8px 8px 0 0', padding: '12px 16px' }}>
+          <div style={{ background: '#88878012', borderLeft: '3px solid #888780', borderRadius: 10, padding: '12px 16px', marginBottom: 12 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#888780' }}>🕐 P1 semaine précédente — S{selectedWeek - 2}</div>
             <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>{prevP1Data.length} priorité{prevP1Data.length > 1 ? 's' : ''}</div>
           </div>
-          <div style={{ border: '1px solid #88878025', borderTop: 'none', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
-            {iaWithPrevP1.map((nom, idx) => (
-              <div key={nom} style={{ borderBottom: idx < iaWithPrevP1.length - 1 ? '1px solid #f0eeea' : 'none' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14, alignItems: 'start' }}>
+            {iaWithPrevP1.map(nom => (
+              <div key={nom} style={{ border: '1px solid #88878025', borderRadius: 12, overflow: 'hidden' }}>
                 <div style={{ padding: '12px 16px', background: '#888780', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 9, background: 'rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                     {nom.slice(0, 2).toUpperCase()}
