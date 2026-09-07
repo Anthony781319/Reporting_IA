@@ -169,10 +169,46 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
 }
 
 const emptyForm = {
-  decouvertes: 0, prospects: 0, clients: 0, presentations: 0,
   besoins_detectes: 0, rdv_candidats: 0, cv_envoyes: 0,
   attente_retour: 0, attente_retour_prez: 0, besoins_sans_solution: 0,
   signatures: 0, demarrages: 0, fins_de_mission: 0, presentations_a_monter: 0,
+}
+
+const RDV_OBJET_OPTIONS = [
+  { value: 'prospect',     label: 'Prospect' },
+  { value: 'decouverte',   label: 'Découverte' },
+  { value: 'client',       label: 'Client' },
+  { value: 'presentation', label: 'Présentation' },
+]
+const OBJET_COLORS = { prospect: '#534AB7', decouverte: '#0F6E56', client: '#BA7517', presentation: '#993556' }
+
+const emptyRdv = { client: '', nom: '', prenom: '', fonction: '', date_meeting: '', objet_meeting: '', compte_rendu: '' }
+
+const rdvLabelStyle = { display: 'block', fontSize: 11, color: '#534AB7', opacity: 0.8, marginBottom: 4, fontWeight: 500 }
+const rdvInputStyle = { padding: '8px 12px', borderRadius: 8, border: '1px solid #534AB740', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
+
+const RdvCard = ({ r, onRemove }) => {
+  const color = OBJET_COLORS[r.objet_meeting] || '#534AB7'
+  const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 10 }}>
+      <div style={{ padding: '10px 14px', background: color, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{objetLabel}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.client || '—'}</span>
+        </div>
+        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>}
+      </div>
+      <div style={{ padding: '10px 14px', background: 'var(--color-background-primary)' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+          {[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}
+          {r.fonction && <span style={{ fontWeight: 400, opacity: 0.7 }}> · {r.fonction}</span>}
+        </div>
+        {r.date_meeting && <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>📅 {new Date(r.date_meeting).toLocaleDateString('fr-FR')}</div>}
+        {r.compte_rendu && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6, fontStyle: 'italic' }}>« {r.compte_rendu} »</div>}
+      </div>
+    </div>
+  )
 }
 
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
@@ -236,23 +272,33 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [p1List, setP1List] = useState([])
   const [newP1, setNewP1] = useState(emptyP1)
   const [savingP1, setSavingP1] = useState(false)
+  const [rdvList, setRdvList] = useState([])
+  const [newRdv, setNewRdv] = useState(emptyRdv)
+  const [savingRdv, setSavingRdv] = useState(false)
+  const [errorRdv, setErrorRdv] = useState('')
 
-  const totalRdv = form.decouvertes + form.prospects + form.clients + form.presentations
+  const rdvCounts = {
+    decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
+    prospects:     rdvList.filter(r => r.objet_meeting === 'prospect').length,
+    clients:       rdvList.filter(r => r.objet_meeting === 'client').length,
+    presentations: rdvList.filter(r => r.objet_meeting === 'presentation').length,
+  }
+  const totalRdv = rdvList.length
   const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
   const p1Complete = P1_STEPS.every(s => newP1[s.key] && newP1[s.key].trim())
+  const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting
 
   useEffect(() => {
     if (!iaId) return
     const load = async () => {
       setLoading(true)
-      const [{ data }, { data: p1Data }] = await Promise.all([
+      const [{ data }, { data: p1Data }, { data: rdvData }] = await Promise.all([
         supabase.from('saisies').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).single(),
-        supabase.from('p1').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee)
+        supabase.from('p1').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee),
+        supabase.from('rdv_details').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).order('created_at'),
       ])
       if (data) {
         setForm({
-          decouvertes: data.decouvertes || 0, prospects: data.prospects || 0,
-          clients: data.clients || 0, presentations: data.presentations || 0,
           besoins_detectes: data.besoins_detectes || 0, rdv_candidats: data.rdv_candidats || 0,
           cv_envoyes: data.cv_envoyes || 0, attente_retour: data.attente_retour || 0,
           attente_retour_prez: data.attente_retour_prez || 0, besoins_sans_solution: data.besoins_sans_solution || 0,
@@ -261,6 +307,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         })
       } else { setForm(emptyForm) }
       setP1List(p1Data || [])
+      setRdvList(rdvData || [])
       setLoading(false)
     }
     load()
@@ -271,12 +318,33 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const handleSave = async () => {
     setSaving(true)
     await supabase.from('saisies').upsert(
-      { ia_id: iaId, semaine: selectedWeek, annee, ...form, total_rdv: totalRdv, presentation_planifiee: totalPipe },
+      { ia_id: iaId, semaine: selectedWeek, annee, ...form,
+        decouvertes: rdvCounts.decouvertes, prospects: rdvCounts.prospects, clients: rdvCounts.clients, presentations: rdvCounts.presentations,
+        total_rdv: totalRdv, presentation_planifiee: totalPipe },
       { onConflict: 'ia_id,semaine,annee' }
     )
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  const addRdv = async () => {
+    if (!rdvComplete) return
+    setSavingRdv(true)
+    setErrorRdv('')
+    const { data, error: err } = await supabase.from('rdv_details').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newRdv }).select().single()
+    if (data) {
+      setRdvList(l => [...l, data])
+      setNewRdv(emptyRdv)
+    } else {
+      setErrorRdv(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
+    }
+    setSavingRdv(false)
+  }
+
+  const removeRdv = async (id) => {
+    await supabase.from('rdv_details').delete().eq('id', id)
+    setRdvList(l => l.filter(r => r.id !== id))
   }
 
   const addP1 = async () => {
@@ -316,15 +384,66 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       ) : (
         <div>
           <Section title="RDV Commerciaux" color="#534AB7">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
-              <Counter label="Decouvertes"   value={form.decouvertes}   onChange={set('decouvertes')}   color="#534AB7" />
-              <Counter label="Prospects"     value={form.prospects}     onChange={set('prospects')}     color="#534AB7" />
-              <Counter label="Clients"       value={form.clients}       onChange={set('clients')}       color="#534AB7" />
-              <Counter label="Presentations" value={form.presentations} onChange={set('presentations')} color="#534AB7" />
+            {rdvList.map(r => (
+              <RdvCard key={r.id} r={r} onRemove={() => removeRdv(r.id)} />
+            ))}
+
+            <div style={{ background: '#534AB708', borderRadius: 10, padding: 12, border: '1px dashed #534AB740' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                + Ajouter un RDV
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <div>
+                  <label style={rdvLabelStyle}>Client</label>
+                  <input type="text" placeholder="Nom du client" value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Objet du meeting</label>
+                  <select value={newRdv.objet_meeting} onChange={e => setNewRdv(r => ({ ...r, objet_meeting: e.target.value }))} style={rdvInputStyle}>
+                    <option value="">Choisir...</option>
+                    {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Nom</label>
+                  <input type="text" placeholder="Nom" value={newRdv.nom} onChange={e => setNewRdv(r => ({ ...r, nom: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Prénom</label>
+                  <input type="text" placeholder="Prénom" value={newRdv.prenom} onChange={e => setNewRdv(r => ({ ...r, prenom: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Fonction</label>
+                  <input type="text" placeholder="Ex: DRH, Directeur IT..." value={newRdv.fonction} onChange={e => setNewRdv(r => ({ ...r, fonction: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Date du meeting</label>
+                  <input type="date" value={newRdv.date_meeting} onChange={e => setNewRdv(r => ({ ...r, date_meeting: e.target.value }))} style={rdvInputStyle} />
+                </div>
+              </div>
+              <label style={rdvLabelStyle}>Mini compte rendu</label>
+              <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
+                style={{ ...rdvInputStyle, resize: 'vertical' }} />
+              <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
+                style={{ marginTop: 10, width: '100%', padding: '9px', background: rdvComplete ? '#534AB7' : 'var(--color-background-secondary)', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
+                {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
+              </button>
+              {errorRdv && (
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
+                  ⚠️ {errorRdv}
+                </div>
+              )}
             </div>
+
             <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
-            {/* Accordion détail présentations */}
-            <DetailAccordion type="presentation" count={form.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+              <span>Découvertes : {rdvCounts.decouvertes}</span>
+              <span>Prospects : {rdvCounts.prospects}</span>
+              <span>Clients : {rdvCounts.clients}</span>
+              <span>Présentations : {rdvCounts.presentations}</span>
+            </div>
+            {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation */}
+            <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56">
