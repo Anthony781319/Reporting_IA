@@ -503,8 +503,10 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                 </div>
                 <div style={{ flex: '1 1 160px' }}>
                   <label style={rdvLabelStyle}>Objet du meeting *</label>
-                  <select value={newRdv.objet_meeting} onChange={e => setNewRdv(r => ({ ...r, objet_meeting: e.target.value }))} style={rdvInputStyle}>
-                    <option value="">Choisir...</option>
+                                    <select value={newRdv.objet_meeting} onChange={e => setNewRdv(r => ({ ...r, objet_meeting: e.target.value }))} style={rdvInputStyle}>
+                    <option value="" style={{ background: '#2B2940', color: TEXT_STRONG }}>Choisir...</option>
+                    {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{o.label}</option>)}
+                  </select>
                     {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
