@@ -7,7 +7,7 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
-const Section = ({ title, color, icon, children }) => (
+const Section = ({ title, color, icon, plain, children }) => (
   <div style={{ marginBottom: 28 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
       {icon && (
@@ -17,9 +17,13 @@ const Section = ({ title, color, icon, children }) => (
       )}
       <div style={{ fontSize: 14, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
     </div>
-    <div style={{ background: color + '07', border: '1.5px solid ' + color + '25', borderRadius: 18, padding: 20, boxShadow: '0 4px 16px ' + color + '10' }}>
-      {children}
-    </div>
+    {plain ? (
+      <div>{children}</div>
+    ) : (
+      <div style={{ background: color + '07', border: '1.5px solid ' + color + '25', borderRadius: 18, padding: 20, boxShadow: '0 4px 16px ' + color + '10' }}>
+        {children}
+      </div>
+    )}
   </div>
 )
 
@@ -238,21 +242,22 @@ const RdvTable = ({ list, onRemove }) => {
 
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 
+const P1_COLOR = '#BA7517'
 const P1_STEPS = [
-  { key: 'profil',       label: 'Profil recherche',   placeholder: 'Ex: Ingenieur DevOps senior', color: '#534AB7', num: 1 },
-  { key: 'client',       label: 'Client',              placeholder: 'Nom du client',               color: '#0F6E56', num: 2 },
-  { key: 'experience',   label: 'Experience requise',  placeholder: 'Ex: 5 ans minimum',           color: '#BA7517', num: 3 },
-  { key: 'technologies', label: 'Technologies',        placeholder: 'Ex: Ansible, Kubernetes',     color: '#993556', num: 4 },
-  { key: 'salaire_max',  label: 'Salaire max',         placeholder: 'Ex: 55k',                    color: '#185FA5', num: 5 },
-  { key: 'langues',      label: 'Langues',             placeholder: 'Ex: Anglais, Francais',       color: '#185FA5', num: 6 },
-  { key: 'lieu',         label: 'Lieu de mission',     placeholder: 'Ex: Paris / Remote',          color: '#5F5E5A', num: 7 },
+  { key: 'profil',       label: 'Profil recherche',   placeholder: 'Ex: Ingenieur DevOps senior', color: P1_COLOR, num: 1 },
+  { key: 'client',       label: 'Client',              placeholder: 'Nom du client',               color: P1_COLOR, num: 2 },
+  { key: 'experience',   label: 'Experience requise',  placeholder: 'Ex: 5 ans minimum',           color: P1_COLOR, num: 3 },
+  { key: 'technologies', label: 'Technologies',        placeholder: 'Ex: Ansible, Kubernetes',     color: P1_COLOR, num: 4 },
+  { key: 'salaire_max',  label: 'Salaire max',         placeholder: 'Ex: 55k',                    color: P1_COLOR, num: 5 },
+  { key: 'langues',      label: 'Langues',             placeholder: 'Ex: Anglais, Francais',       color: P1_COLOR, num: 6 },
+  { key: 'lieu',         label: 'Lieu de mission',     placeholder: 'Ex: Paris / Remote',          color: P1_COLOR, num: 7 },
 ]
 
 const P1Card = ({ p, onRemove }) => {
   if (p.description && !p.profil) {
     return (
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1.5px solid #534AB7', marginBottom: 10 }}>
-        <div style={{ background: '#534AB7', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${P1_COLOR}`, marginBottom: 10 }}>
+        <div style={{ background: P1_COLOR, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 14 }}>🎯</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', flex: 1 }}>{p.description}</span>
           {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1, padding: 0 }}>x</button>}
@@ -261,20 +266,20 @@ const P1Card = ({ p, onRemove }) => {
     )
   }
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1.5px solid #534AB7', marginBottom: 10 }}>
-      <div style={{ padding: '12px 14px', background: '#fff', borderBottom: '1px solid #534AB720', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${P1_COLOR}`, marginBottom: 10 }}>
+      <div style={{ padding: '12px 14px', background: 'var(--color-background-primary)', borderBottom: `1px solid ${P1_COLOR}20`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#26215C', marginBottom: 3 }}>{p.profil}</div>
-          {p.client && <div style={{ fontSize: 12, color: '#534AB7', fontWeight: 600 }}>🏢 {p.client}</div>}
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 3 }}>{p.profil}</div>
+          {p.client && <div style={{ fontSize: 12, color: P1_COLOR, fontWeight: 600 }}>🏢 {p.client}</div>}
         </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#534AB7', fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
+        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P1_COLOR, fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
       </div>
-      <div style={{ padding: '10px 12px', background: '#fff', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        {p.experience && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.experience}</div></div>}
-        {p.salaire_max && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.salaire_max}</div></div>}
-        {p.technologies && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.technologies}</div></div>}
-        {p.langues && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.langues}</div></div>}
-        {p.lieu && <div style={{ background: '#F5F4FD', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: '#7F77DD', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: '#3C3489', marginTop: 2 }}>{p.lieu}</div></div>}
+      <div style={{ padding: '10px 12px', background: 'var(--color-background-primary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {p.experience && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.experience}</div></div>}
+        {p.salaire_max && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.salaire_max}</div></div>}
+        {p.technologies && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.technologies}</div></div>}
+        {p.langues && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.langues}</div></div>}
+        {p.lieu && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.lieu}</div></div>}
       </div>
     </div>
   )
@@ -464,7 +469,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
       ) : (
         <div>
-                   <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event">
+                   <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event"plain>
             <RdvTable list={rdvList} onRemove={removeRdv} />
 
             <div style={{ background: 'var(--color-background-primary)', borderRadius: 16, padding: 20, border: '1.5px solid #534AB720', boxShadow: '0 2px 12px rgba(83,74,183,0.05)' }}>
@@ -608,13 +613,10 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
-          {/* P1 */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#BA7517', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Priorites P1</div>
-            <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid #BA751740', borderRadius: 12, padding: 14 }}>
-              {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
-                <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
-              ))}
+                    <Section title="Priorités P1" color={P1_COLOR} icon="ti-target">
+            {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
+              <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
+            ))}
               <div style={{ marginBottom: 12 }}>
                 {P1_STEPS.map(step => {
                   if (step.key === 'langues') return null
@@ -625,7 +627,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                       <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
                       </div>
-                      <div style={{ flex: 1, background: step.color + '12', padding: '10px 12px' }}>
+                                          <div style={{ flex: 1, background: 'var(--color-background-primary)', padding: '10px 12px' }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
                         {isSalaireLangues ? (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -640,12 +642,11 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                   )
                 })}
               </div>
-              <button onClick={addP1} disabled={savingP1 || !p1Complete}
-                style={{ width: '100%', padding: '11px', background: p1Complete ? '#BA7517' : 'var(--color-background-secondary)', color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
-                {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
-              </button>
-            </div>
-          </div>
+                         <button onClick={addP1} disabled={savingP1 || !p1Complete}
+              style={{ width: '100%', padding: '11px', background: p1Complete ? P1_COLOR : 'var(--color-background-secondary)', color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
+              {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
+            </button>
+          </Section>
 
           <button onClick={handleSave} disabled={saving}
             style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}>
