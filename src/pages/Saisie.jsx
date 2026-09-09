@@ -553,4 +553,118 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               </div>
 
               {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact via un simple liseré (pas de carte) */}
-                          <div style={{ borderLeft: '3px solid ' + (!selectedContactId ? lighten('#0F6E56', 0.2) : 'rgba(255,255,255,0.18)'), paddingLeft: 14, marginBottom: 16 }}>
+              <div style={{ borderLeft: '3px solid ' + (!selectedContactId ? lighten('#0F6E56', 0.2) : 'rgba(255,255,255,0.18)'), paddingLeft: 14, marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: !selectedContactId ? lighten('#0F6E56', 0.3) : TEXT_MUTED, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {selectedContactId ? 'Coordonnées du contact' : 'Nouveau contact — coordonnées *'}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ flex: '1 1 220px' }}>
+                    <label style={rdvLabelStyle}>Email</label>
+                    <input type="email" placeholder="prenom.nom@client.com" value={newRdv.email} onChange={e => setNewRdv(r => ({ ...r, email: e.target.value }))} style={rdvInputStyle} />
+                  </div>
+                  <div style={{ flex: '1 1 220px' }}>
+                    <label style={rdvLabelStyle}>Téléphone</label>
+                    <input type="tel" placeholder="06 12 34 56 78" value={newRdv.telephone} onChange={e => setNewRdv(r => ({ ...r, telephone: e.target.value }))} style={rdvInputStyle} />
+                  </div>
+                </div>
+                {needsContactInfo && newRdv.nom.trim() && (
+                  <div style={{ fontSize: 11, color: lighten('#BA7517', 0.3), fontWeight: 600, marginTop: 10 }}>
+                    ⚠️ Renseigne au moins un email ou un téléphone pour ce nouveau contact.
+                  </div>
+                )}
+              </div>
+
+              <label style={rdvLabelStyle}>Mini compte rendu *</label>
+              <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
+                style={{ ...rdvInputStyle, resize: 'vertical' }} />
+              <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
+                style={{ marginTop: 14, width: '100%', padding: '11px', background: rdvComplete ? RDV_COLOR : 'transparent', color: rdvComplete ? '#fff' : TEXT_MUTED, border: rdvComplete ? 'none' : '1.5px solid rgba(255,255,255,0.16)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
+                {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
+              </button>
+              {errorRdv && (
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
+                  ⚠️ {errorRdv}
+                </div>
+              )}
+            </div>
+
+            <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, color: TEXT_MUTED }}>
+              <span>Découvertes : {rdvCounts.decouvertes}</span>
+              <span>Prospects : {rdvCounts.prospects}</span>
+              <span>Clients : {rdvCounts.clients}</span>
+              <span>Présentations : {rdvCounts.presentations}</span>
+            </div>
+            {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation */}
+            <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
+          </Section>
+
+          <Section title="Gestion du Pipe" color="#0F6E56" bg="#122420" icon="ti-filter">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+              <Counter label="Besoins Detectes"      value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
+              <Counter label="RDV Candidat"           value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
+              <Counter label="Solutions Envoyees"     value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
+              <Counter label="Attente Reponse Client" value={form.attente_retour}       onChange={set('attente_retour')}       color="#0F6E56" />
+              <Counter label="Attente Retour Prez"   value={form.attente_retour_prez}  onChange={set('attente_retour_prez')}  color="#0F6E56" />
+              <Counter label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} color="#0F6E56" />
+            </div>
+            <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
+          </Section>
+
+          <Section title="Resultats" color="#993556" bg="#2A1922" icon="ti-trophy">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+              <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
+              <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
+              <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
+              <Counter label="Pres. a monter"  value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
+            </div>
+            {/* Accordions détails résultats */}
+            <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
+          </Section>
+
+          <Section title="Priorités P1" color={P1_COLOR} bg="#2A2116" icon="ti-target">
+            {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
+              <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
+            ))}
+            <div style={{ marginBottom: 12 }}>
+              {P1_STEPS.map(step => {
+                if (step.key === 'langues') return null
+                const langStep = P1_STEPS.find(s => s.key === 'langues')
+                const isSalaireLangues = step.key === 'salaire_max'
+                return (
+                  <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: '1.5px solid ' + step.color + '60' }}>
+                    <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
+                    </div>
+                    <div style={{ flex: 1, background: 'transparent', padding: '10px 12px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: lighten(step.color, 0.3), marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
+                      {isSalaireLangues ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '50', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                          <input type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '50', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                      ) : (
+                        <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '50', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <button onClick={addP1} disabled={savingP1 || !p1Complete}
+              style={{ width: '100%', padding: '11px', background: p1Complete ? P1_COLOR : 'rgba(255,255,255,0.08)', color: p1Complete ? '#ffffff' : TEXT_MUTED, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
+              {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
+            </button>
+          </Section>
+
+          <button onClick={handleSave} disabled={saving}
+            style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}>
+            {saving ? 'Enregistrement...' : saved ? 'Semaine enregistree !' : 'Enregistrer la semaine ' + selectedWeek}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
