@@ -187,26 +187,42 @@ const emptyRdv = { client: '', nom: '', prenom: '', fonction: '', date_meeting: 
 const rdvLabelStyle = { display: 'block', fontSize: 11, color: '#534AB7', opacity: 0.8, marginBottom: 4, fontWeight: 500 }
 const rdvInputStyle = { padding: '8px 12px', borderRadius: 8, border: '1px solid #534AB740', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
 
-const RdvCard = ({ r, onRemove }) => {
-  const color = OBJET_COLORS[r.objet_meeting] || '#534AB7'
-  const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
+const RdvTable = ({ list, onRemove }) => {
+  if (list.length === 0) return null
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${color}`, marginBottom: 10 }}>
-      <div style={{ padding: '10px 14px', background: color, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ padding: '2px 8px', borderRadius: 20, background: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{objetLabel}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.client || '—'}</span>
-        </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>}
-      </div>
-      <div style={{ padding: '10px 14px', background: 'var(--color-background-primary)' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)' }}>
-          {[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}
-          {r.fonction && <span style={{ fontWeight: 400, opacity: 0.7 }}> · {r.fonction}</span>}
-        </div>
-        {r.date_meeting && <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>📅 {new Date(r.date_meeting).toLocaleDateString('fr-FR')}</div>}
-        {r.compte_rendu && <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6, fontStyle: 'italic' }}>« {r.compte_rendu} »</div>}
-      </div>
+    <div style={{ overflowX: 'auto', marginBottom: 12, borderRadius: 10, border: '1px solid #534AB720' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 700 }}>
+        <thead>
+          <tr style={{ textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#534AB708' }}>
+            <th style={{ padding: '8px' }}>Objet</th>
+            <th style={{ padding: '8px' }}>Client</th>
+            <th style={{ padding: '8px' }}>Contact</th>
+            <th style={{ padding: '8px' }}>Fonction</th>
+            <th style={{ padding: '8px' }}>Date</th>
+            <th style={{ padding: '8px' }}>Compte rendu</th>
+            <th style={{ padding: '8px' }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map(r => {
+            const color = OBJET_COLORS[r.objet_meeting] || '#534AB7'
+            const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
+            return (
+              <tr key={r.id} style={{ borderTop: '1px solid #534AB720' }}>
+                <td style={{ padding: '8px' }}><span style={{ padding: '2px 8px', borderRadius: 20, background: color, color: '#fff', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
+                <td style={{ padding: '8px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.client || '—'}</td>
+                <td style={{ padding: '8px', color: 'var(--color-text-primary)' }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
+                <td style={{ padding: '8px', color: 'var(--color-text-secondary)' }}>{r.fonction || '—'}</td>
+                <td style={{ padding: '8px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
+                <td style={{ padding: '8px', color: 'var(--color-text-secondary)', fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
+                <td style={{ padding: '8px' }}>
+                  {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12 }}>✕</button>}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -276,6 +292,8 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [newRdv, setNewRdv] = useState(emptyRdv)
   const [savingRdv, setSavingRdv] = useState(false)
   const [errorRdv, setErrorRdv] = useState('')
+  const [contactSuggestions, setContactSuggestions] = useState([])
+  const [selectedContactId, setSelectedContactId] = useState(null)
 
   const rdvCounts = {
     decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
@@ -308,10 +326,37 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       } else { setForm(emptyForm) }
       setP1List(p1Data || [])
       setRdvList(rdvData || [])
+      setNewRdv(emptyRdv)
+      setSelectedContactId(null)
+      setContactSuggestions([])
       setLoading(false)
     }
     load()
   }, [iaId, selectedWeek])
+
+  // Recherche de contacts existants pendant la saisie du nom (avec un petit délai pour ne pas spammer la base)
+  useEffect(() => {
+    const term = newRdv.nom.trim()
+    if (selectedContactId || term.length < 2) { setContactSuggestions([]); return }
+    const timeout = setTimeout(async () => {
+      const { data: matches } = await supabase.from('contacts').select('*').ilike('nom', `%${term}%`).limit(5)
+      if (!matches || matches.length === 0) { setContactSuggestions([]); return }
+      const ids = matches.map(c => c.id)
+      const { data: history } = await supabase.from('rdv_details').select('contact_id, client, date_meeting').in('contact_id', ids).order('date_meeting', { ascending: false })
+      const withHistory = matches.map(c => {
+        const last = (history || []).find(h => h.contact_id === c.id)
+        return { ...c, lastClient: last?.client, lastDate: last?.date_meeting }
+      })
+      setContactSuggestions(withHistory)
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [newRdv.nom, selectedContactId])
+
+  const pickContact = (c) => {
+    setSelectedContactId(c.id)
+    setNewRdv(r => ({ ...r, nom: c.nom, prenom: c.prenom || '' }))
+    setContactSuggestions([])
+  }
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
 
@@ -332,10 +377,25 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     if (!rdvComplete) return
     setSavingRdv(true)
     setErrorRdv('')
-    const { data, error: err } = await supabase.from('rdv_details').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newRdv }).select().single()
+
+    // Si on n'a pas cliqué sur un contact existant, on en crée un nouveau (identité = nom + prénom uniquement)
+    let contactId = selectedContactId
+    if (!contactId) {
+      const { data: newContact, error: contactErr } = await supabase.from('contacts')
+        .insert({ nom: newRdv.nom.trim(), prenom: newRdv.prenom.trim() || null }).select().single()
+      if (contactErr) {
+        setErrorRdv(`Erreur contact : ${contactErr.message}`)
+        setSavingRdv(false)
+        return
+      }
+      contactId = newContact.id
+    }
+
+    const { data, error: err } = await supabase.from('rdv_details').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newRdv, contact_id: contactId }).select().single()
     if (data) {
       setRdvList(l => [...l, data])
       setNewRdv(emptyRdv)
+      setSelectedContactId(null)
     } else {
       setErrorRdv(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
     }
@@ -384,15 +444,13 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       ) : (
         <div>
           <Section title="RDV Commerciaux" color="#534AB7">
-            {rdvList.map(r => (
-              <RdvCard key={r.id} r={r} onRemove={() => removeRdv(r.id)} />
-            ))}
+            <RdvTable list={rdvList} onRemove={removeRdv} />
 
             <div style={{ background: '#534AB708', borderRadius: 10, padding: 12, border: '1px dashed #534AB740' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
                 + Ajouter un RDV
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginBottom: 8 }}>
                 <div>
                   <label style={rdvLabelStyle}>Client</label>
                   <input type="text" placeholder="Nom du client" value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
@@ -404,9 +462,29 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                     {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={rdvLabelStyle}>Nom</label>
-                  <input type="text" placeholder="Nom" value={newRdv.nom} onChange={e => setNewRdv(r => ({ ...r, nom: e.target.value }))} style={rdvInputStyle} />
+                  <input type="text" placeholder="Nom" value={newRdv.nom} autoComplete="off"
+                    onChange={e => { setNewRdv(r => ({ ...r, nom: e.target.value })); setSelectedContactId(null) }}
+                    style={rdvInputStyle} />
+                  {selectedContactId && (
+                    <div style={{ fontSize: 10, color: '#0F6E56', marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, historique lié</div>
+                  )}
+                  {!selectedContactId && contactSuggestions.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--color-background-primary)', border: '1.5px solid #534AB7', borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                      {contactSuggestions.map(c => (
+                        <div key={c.id} onClick={() => pickContact(c)}
+                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #534AB720', fontSize: 12 }}>
+                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{[c.prenom, c.nom].filter(Boolean).join(' ')}</div>
+                          {c.lastClient && (
+                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                              déjà vu chez {c.lastClient}{c.lastDate ? ' le ' + new Date(c.lastDate).toLocaleDateString('fr-FR') : ''}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={rdvLabelStyle}>Prénom</label>
