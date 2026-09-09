@@ -553,4 +553,4 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               </div>
 
               {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact via un simple liseré (pas de carte) */}
-              <div style={{ borderLeft: `3px
+                          <div style={{ borderLeft: '3px solid ' + (!selectedContactId ? lighten('#0F6E56', 0.2) : 'rgba(255,255,255,0.18)'), paddingLeft: 14, marginBottom: 16 }}>
