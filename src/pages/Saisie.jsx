@@ -464,31 +464,46 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
       ) : (
         <div>
-          <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event">
+                   <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event">
             <RdvTable list={rdvList} onRemove={removeRdv} />
 
-            <div style={{ background: 'var(--color-background-primary)', borderRadius: 14, padding: 16, border: '1.5px dashed #534AB740' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                + Ajouter un RDV
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <label style={rdvLabelStyle}>Client (groupe / raison sociale)</label>
-                  <input type="text" placeholder="Ex: BNP Paribas, RATP..." value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
+            <div style={{ background: 'var(--color-background-primary)', borderRadius: 16, padding: 20, border: '1.5px solid #534AB720', boxShadow: '0 2px 12px rgba(83,74,183,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <div style={{ width: 24, height: 24, borderRadius: 7, background: '#534AB718', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <i className="ti ti-plus" style={{ fontSize: 13, color: '#534AB7' }} aria-hidden="true" />
                 </div>
-                <div>
-                  <label style={rdvLabelStyle}>Entité / BU (optionnel)</label>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un RDV</div>
+              </div>
+
+              {/* Ligne 1 : contexte du rendez-vous */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: '2 1 220px' }}>
+                  <label style={rdvLabelStyle}>Client *</label>
+                  <input type="text" placeholder="Ex: BNP Paribas, RATP (raison sociale)" value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div style={{ flex: '1 1 140px' }}>
+                  <label style={rdvLabelStyle}>Entité / BU</label>
                   <input type="text" placeholder="Ex: ITGP, TSI..." value={newRdv.entite} onChange={e => setNewRdv(r => ({ ...r, entite: e.target.value }))} style={rdvInputStyle} />
                 </div>
-                <div>
-                  <label style={rdvLabelStyle}>Objet du meeting</label>
+                <div style={{ flex: '1 1 160px' }}>
+                  <label style={rdvLabelStyle}>Objet du meeting *</label>
                   <select value={newRdv.objet_meeting} onChange={e => setNewRdv(r => ({ ...r, objet_meeting: e.target.value }))} style={rdvInputStyle}>
                     <option value="">Choisir...</option>
                     {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div style={{ position: 'relative' }}>
-                  <label style={rdvLabelStyle}>Nom</label>
+                <div style={{ flex: '1 1 150px' }}>
+                  <label style={rdvLabelStyle}>Date du meeting *</label>
+                  <input type="date" value={newRdv.date_meeting} onChange={e => setNewRdv(r => ({ ...r, date_meeting: e.target.value }))} style={rdvInputStyle} />
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: '#534AB715', margin: '0 0 16px' }} />
+
+              {/* Ligne 2 : identité du contact */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: '1 1 180px', position: 'relative' }}>
+                  <label style={rdvLabelStyle}>Nom *</label>
                   <input type="text" placeholder="Nom" value={newRdv.nom} autoComplete="off"
                     onChange={e => { setNewRdv(r => ({ ...r, nom: e.target.value })); setSelectedContactId(null) }}
                     style={rdvInputStyle} />
@@ -511,37 +526,43 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                     </div>
                   )}
                 </div>
-                <div>
+                <div style={{ flex: '1 1 180px' }}>
                   <label style={rdvLabelStyle}>Prénom</label>
                   <input type="text" placeholder="Prénom" value={newRdv.prenom} onChange={e => setNewRdv(r => ({ ...r, prenom: e.target.value }))} style={rdvInputStyle} />
                 </div>
-                <div>
+                <div style={{ flex: '1 1 180px' }}>
                   <label style={rdvLabelStyle}>Fonction</label>
                   <input type="text" placeholder="Ex: DRH, Directeur IT..." value={newRdv.fonction} onChange={e => setNewRdv(r => ({ ...r, fonction: e.target.value }))} style={rdvInputStyle} />
                 </div>
-                <div>
-                  <label style={rdvLabelStyle}>Date du meeting</label>
-                  <input type="date" value={newRdv.date_meeting} onChange={e => setNewRdv(r => ({ ...r, date_meeting: e.target.value }))} style={rdvInputStyle} />
-                </div>
-                <div>
-                  <label style={rdvLabelStyle}>Email {!selectedContactId && '(nouveau contact)'}</label>
-                  <input type="email" placeholder="prenom.nom@client.com" value={newRdv.email} onChange={e => setNewRdv(r => ({ ...r, email: e.target.value }))} style={rdvInputStyle} />
-                </div>
-                <div>
-                  <label style={rdvLabelStyle}>Téléphone {!selectedContactId && '(nouveau contact)'}</label>
-                  <input type="tel" placeholder="06 12 34 56 78" value={newRdv.telephone} onChange={e => setNewRdv(r => ({ ...r, telephone: e.target.value }))} style={rdvInputStyle} />
-                </div>
               </div>
-              {needsContactInfo && newRdv.nom.trim() && (
-                <div style={{ fontSize: 11, color: '#BA7517', fontWeight: 600, marginBottom: 8 }}>
-                  ⚠️ Nouveau contact : renseigne au moins un email ou un téléphone.
+
+              {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact */}
+              <div style={{ background: !selectedContactId ? '#0F6E5608' : 'transparent', border: !selectedContactId ? '1px solid #0F6E5625' : '1px solid transparent', borderRadius: 12, padding: !selectedContactId ? 14 : 0, marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F6E56', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {selectedContactId ? 'Coordonnées du contact' : 'Nouveau contact — coordonnées *'}
                 </div>
-              )}
-              <label style={rdvLabelStyle}>Mini compte rendu</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ flex: '1 1 220px' }}>
+                    <label style={rdvLabelStyle}>Email</label>
+                    <input type="email" placeholder="prenom.nom@client.com" value={newRdv.email} onChange={e => setNewRdv(r => ({ ...r, email: e.target.value }))} style={rdvInputStyle} />
+                  </div>
+                  <div style={{ flex: '1 1 220px' }}>
+                    <label style={rdvLabelStyle}>Téléphone</label>
+                    <input type="tel" placeholder="06 12 34 56 78" value={newRdv.telephone} onChange={e => setNewRdv(r => ({ ...r, telephone: e.target.value }))} style={rdvInputStyle} />
+                  </div>
+                </div>
+                {needsContactInfo && newRdv.nom.trim() && (
+                  <div style={{ fontSize: 11, color: '#BA7517', fontWeight: 600, marginTop: 10 }}>
+                    ⚠️ Renseigne au moins un email ou un téléphone pour ce nouveau contact.
+                  </div>
+                )}
+              </div>
+
+              <label style={rdvLabelStyle}>Mini compte rendu *</label>
               <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
                 style={{ ...rdvInputStyle, resize: 'vertical' }} />
               <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
-                style={{ marginTop: 12, width: '100%', padding: '11px', background: rdvComplete ? '#534AB7' : 'var(--color-background-secondary)', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
+                style={{ marginTop: 14, width: '100%', padding: '11px', background: rdvComplete ? '#534AB7' : 'var(--color-background-secondary)', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
                 {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
               </button>
               {errorRdv && (
