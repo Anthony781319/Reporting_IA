@@ -201,18 +201,18 @@ const rdvInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px sol
 const RdvTable = ({ list, onRemove }) => {
   if (list.length === 0) return null
   return (
-    <div style={{ overflowX: 'auto', marginBottom: 16, borderRadius: 14, border: '1px solid #534AB725' }}>
+    <div style={{ overflowX: 'auto', marginBottom: 20, borderBottom: '1px solid #534AB725', paddingBottom: 4 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 820 }}>
         <thead>
-          <tr style={{ textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#534AB70C' }}>
-            <th style={{ padding: '12px' }}>Objet</th>
-            <th style={{ padding: '12px' }}>Client</th>
-            <th style={{ padding: '12px' }}>Entité</th>
-            <th style={{ padding: '12px' }}>Contact</th>
-            <th style={{ padding: '12px' }}>Fonction</th>
-            <th style={{ padding: '12px' }}>Date</th>
-            <th style={{ padding: '12px' }}>Compte rendu</th>
-            <th style={{ padding: '12px' }}></th>
+          <tr style={{ textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #534AB725' }}>
+            <th style={{ padding: '0 8px 10px' }}>Objet</th>
+            <th style={{ padding: '0 8px 10px' }}>Client</th>
+            <th style={{ padding: '0 8px 10px' }}>Entité</th>
+            <th style={{ padding: '0 8px 10px' }}>Contact</th>
+            <th style={{ padding: '0 8px 10px' }}>Fonction</th>
+            <th style={{ padding: '0 8px 10px' }}>Date</th>
+            <th style={{ padding: '0 8px 10px' }}>Compte rendu</th>
+            <th style={{ padding: '0 8px 10px' }}></th>
           </tr>
         </thead>
         <tbody>
@@ -220,16 +220,16 @@ const RdvTable = ({ list, onRemove }) => {
             const color = OBJET_COLORS[r.objet_meeting] || '#534AB7'
             const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
             return (
-              <tr key={r.id} style={{ borderTop: '1px solid #534AB720' }}>
-                <td style={{ padding: '12px' }}><span style={{ padding: '3px 10px', borderRadius: 20, background: color, color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
-                <td style={{ padding: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.client || '—'}</td>
-                <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>{r.entite || '—'}</td>
-                <td style={{ padding: '12px', color: 'var(--color-text-primary)' }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
-                <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>{r.fonction || '—'}</td>
-                <td style={{ padding: '12px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
-                <td style={{ padding: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
-                <td style={{ padding: '12px' }}>
-                  {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12 }}>✕</button>}
+              <tr key={r.id} style={{ borderTop: '1px solid #534AB715' }}>
+                <td style={{ padding: '10px 8px' }}><span style={{ padding: '3px 10px', borderRadius: 20, background: color, color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
+                <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.client || '—'}</td>
+                <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)' }}>{r.entite || '—'}</td>
+                <td style={{ padding: '10px 8px', color: 'var(--color-text-primary)' }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
+                <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)' }}>{r.fonction || '—'}</td>
+                <td style={{ padding: '10px 8px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
+                <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
+                <td style={{ padding: '10px 8px' }}>
+                  {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991B1B', fontSize: 14, opacity: 0.7 }}>✕</button>}
                 </td>
               </tr>
             )
@@ -469,14 +469,12 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
       ) : (
         <div>
-                   <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event"plain>
+          <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event">
             <RdvTable list={rdvList} onRemove={removeRdv} />
 
-            <div style={{ background: 'var(--color-background-primary)', borderRadius: 16, padding: 20, border: '1.5px solid #534AB720', boxShadow: '0 2px 12px rgba(83,74,183,0.05)' }}>
+            <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 7, background: '#534AB718', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <i className="ti ti-plus" style={{ fontSize: 13, color: '#534AB7' }} aria-hidden="true" />
-                </div>
+                <i className="ti ti-plus" style={{ fontSize: 14, color: '#534AB7' }} aria-hidden="true" />
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un RDV</div>
               </div>
 
@@ -541,9 +539,9 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                 </div>
               </div>
 
-              {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact */}
-              <div style={{ background: !selectedContactId ? '#0F6E5608' : 'transparent', border: !selectedContactId ? '1px solid #0F6E5625' : '1px solid transparent', borderRadius: 12, padding: !selectedContactId ? 14 : 0, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F6E56', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact via un simple liseré (pas de carte) */}
+              <div style={{ borderLeft: `3px solid ${!selectedContactId ? '#0F6E56' : '#534AB740'}`, paddingLeft: 14, marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: !selectedContactId ? '#0F6E56' : 'var(--color-text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {selectedContactId ? 'Coordonnées du contact' : 'Nouveau contact — coordonnées *'}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -567,7 +565,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
                 style={{ ...rdvInputStyle, resize: 'vertical' }} />
               <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
-                style={{ marginTop: 14, width: '100%', padding: '11px', background: rdvComplete ? '#534AB7' : 'var(--color-background-secondary)', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
+                style={{ marginTop: 14, width: '100%', padding: '11px', background: rdvComplete ? '#534AB7' : 'transparent', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: rdvComplete ? 'none' : '1.5px solid #534AB740', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
                 {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
               </button>
               {errorRdv && (
@@ -613,36 +611,36 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
-                    <Section title="Priorités P1" color={P1_COLOR} icon="ti-target">
+          <Section title="Priorités P1" color={P1_COLOR} icon="ti-target">
             {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
               <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
             ))}
-              <div style={{ marginBottom: 12 }}>
-                {P1_STEPS.map(step => {
-                  if (step.key === 'langues') return null
-                  const langStep = P1_STEPS.find(s => s.key === 'langues')
-                  const isSalaireLangues = step.key === 'salaire_max'
-                  return (
-                    <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: '1.5px solid ' + step.color }}>
-                      <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
-                      </div>
-                                          <div style={{ flex: 1, background: 'var(--color-background-primary)', padding: '10px 12px' }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
-                        {isSalaireLangues ? (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                            <input type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                          </div>
-                        ) : (
-                          <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                        )}
-                      </div>
+            <div style={{ marginBottom: 12 }}>
+              {P1_STEPS.map(step => {
+                if (step.key === 'langues') return null
+                const langStep = P1_STEPS.find(s => s.key === 'langues')
+                const isSalaireLangues = step.key === 'salaire_max'
+                return (
+                  <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: '1.5px solid ' + step.color }}>
+                    <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
                     </div>
-                  )
-                })}
-              </div>
-                         <button onClick={addP1} disabled={savingP1 || !p1Complete}
+                    <div style={{ flex: 1, background: 'var(--color-background-primary)', padding: '10px 12px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
+                      {isSalaireLangues ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                          <input type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                      ) : (
+                        <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <button onClick={addP1} disabled={savingP1 || !p1Complete}
               style={{ width: '100%', padding: '11px', background: p1Complete ? P1_COLOR : 'var(--color-background-secondary)', color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
               {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
             </button>
