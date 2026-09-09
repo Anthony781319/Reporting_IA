@@ -7,20 +7,31 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
-const Section = ({ title, color, icon, plain, children }) => (
+// Eclaircit une couleur hexa vers du pastel (pour du texte lisible sur fond sombre)
+const lighten = (hex, amt) => {
+  const n = parseInt(hex.replace('#', ''), 16)
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
+  const mix = c => Math.round(c + (255 - c) * amt)
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
+}
+
+const TEXT_STRONG = '#F5F4F8'
+const TEXT_MUTED = '#ACA9BA'
+
+const Section = ({ title, color, bg, icon, plain, children }) => (
   <div style={{ marginBottom: 28 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
       {icon && (
-        <div style={{ width: 28, height: 28, borderRadius: 9, background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <i className={`ti ${icon}`} style={{ fontSize: 16, color }} aria-hidden="true" />
+        <div style={{ width: 28, height: 28, borderRadius: 9, background: color + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <i className={`ti ${icon}`} style={{ fontSize: 16, color: lighten(color, 0.3) }} aria-hidden="true" />
         </div>
       )}
-      <div style={{ fontSize: 14, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: lighten(color, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
     </div>
     {plain ? (
       <div>{children}</div>
     ) : (
-      <div style={{ background: color + '07', border: '1.5px solid ' + color + '25', borderRadius: 18, padding: 20, boxShadow: '0 4px 16px ' + color + '10' }}>
+      <div style={{ background: bg || (color + '12'), border: '1.5px solid ' + color + '40', borderRadius: 18, padding: 20, boxShadow: '0 6px 24px rgba(0,0,0,0.3)' }}>
         {children}
       </div>
     )}
@@ -29,21 +40,21 @@ const Section = ({ title, color, icon, plain, children }) => (
 
 const Counter = ({ label, value, onChange, color }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', textAlign: 'center' }}>{label}</span>
+    <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_MUTED, textAlign: 'center' }}>{label}</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <button onClick={() => onChange(Math.max(0, value - 1))}
-        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
-      <span style={{ fontSize: 22, fontWeight: 700, minWidth: 30, textAlign: 'center', color }}>{value}</span>
+        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + lighten(color, 0.3), background: 'transparent', color: lighten(color, 0.3), fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
+      <span style={{ fontSize: 22, fontWeight: 700, minWidth: 30, textAlign: 'center', color: lighten(color, 0.3) }}>{value}</span>
       <button onClick={() => onChange(value + 1)}
-        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
+        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + lighten(color, 0.3), background: 'transparent', color: lighten(color, 0.3), fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
     </div>
   </div>
 )
 
 const TotalField = ({ label, value, color }) => (
-  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + color + '25', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)' }}>{label}</span>
-    <span style={{ fontSize: 20, fontWeight: 700, color }}>{value}</span>
+  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + color + '35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_MUTED }}>{label}</span>
+    <span style={{ fontSize: 20, fontWeight: 700, color: lighten(color, 0.3) }}>{value}</span>
   </div>
 )
 
@@ -55,11 +66,12 @@ const DETAIL_FIELDS = {
   fin_mission:  [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'date', label: 'Date de fin de mission', type: 'date' }],
 }
 
+// color = teinte claire (texte/icônes sur fond sombre), fill = teinte saturée (pastilles pleines + texte blanc), bg = fond sombre de la ligne/du header
 const DETAIL_CONFIG = {
-  signature:    { label: 'Signatures',       color: '#9D174D', bg: '#FCE7F3', icon: '✍️' },
-  presentation: { label: 'Présentations',    color: '#1E40AF', bg: '#DBEAFE', icon: '📋' },
-  demarrage:    { label: 'Démarrages',       color: '#065F46', bg: '#D1FAE5', icon: '🚀' },
-  fin_mission:  { label: 'Fins de mission',  color: '#92400E', bg: '#FEF3C7', icon: '🏁' },
+  signature:    { label: 'Signatures',       color: '#F472A8', fill: '#9D174D', bg: '#2A1520', icon: '✍️' },
+  presentation: { label: 'Présentations',    color: '#7CA8F0', fill: '#1E40AF', bg: '#141F35', icon: '📋' },
+  demarrage:    { label: 'Démarrages',       color: '#4ED8A8', fill: '#065F46', bg: '#0F241D', icon: '🚀' },
+  fin_mission:  { label: 'Fins de mission',  color: '#F0B860', fill: '#92400E', bg: '#2A1D10', icon: '🏁' },
 }
 
 const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
@@ -103,14 +115,14 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
   if (count === 0) return null
 
   return (
-    <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}40` }}>
+    <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}50` }}>
       {/* Header accordion */}
       <div onClick={() => setOpen(o => !o)}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: cfg.bg, cursor: 'pointer' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>{cfg.icon}</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>Détail {cfg.label}</span>
-          <span style={{ padding: '2px 8px', borderRadius: 20, background: cfg.color, color: '#fff', fontSize: 11, fontWeight: 700 }}>
+          <span style={{ padding: '2px 8px', borderRadius: 20, background: cfg.fill, color: '#fff', fontSize: 11, fontWeight: 700 }}>
             {details.length}/{count}
           </span>
         </div>
@@ -118,50 +130,50 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
       </div>
 
       {open && (
-        <div style={{ background: 'var(--color-background-primary)', padding: 14 }}>
+        <div style={{ background: cfg.bg, padding: 14 }}>
 
           {/* Liste des détails existants */}
           {details.map(d => (
-            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: cfg.bg, borderRadius: 10, marginBottom: 6 }}>
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: 10, marginBottom: 6 }}>
               <i className="ti ti-user" style={{ fontSize: 16, color: cfg.color, flexShrink: 0 }} aria-hidden="true" />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: cfg.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: TEXT_STRONG, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                  {d.client && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.7 }}><i className="ti ti-building" style={{ fontSize: 12 }} aria-hidden="true" />{d.client}</span>}
-                  {d.tjm && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.7 }}><i className="ti ti-coin" style={{ fontSize: 12 }} aria-hidden="true" />{d.tjm}</span>}
-                  {d.date_signature && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.7 }}><i className="ti ti-signature" style={{ fontSize: 12 }} aria-hidden="true" />Signé le {new Date(d.date_signature).toLocaleDateString('fr-FR')}</span>}
-                  {d.date && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.7 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} aria-hidden="true" />{type === 'signature' ? 'Démarrage envisagé ' : ''}{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                  {d.client && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-building" style={{ fontSize: 12 }} aria-hidden="true" />{d.client}</span>}
+                  {d.tjm && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-coin" style={{ fontSize: 12 }} aria-hidden="true" />{d.tjm}</span>}
+                  {d.date_signature && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-signature" style={{ fontSize: 12 }} aria-hidden="true" />Signé le {new Date(d.date_signature).toLocaleDateString('fr-FR')}</span>}
+                  {d.date && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} aria-hidden="true" />{type === 'signature' ? 'Démarrage envisagé ' : ''}{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
                 </div>
               </div>
               <button onClick={() => removeDetail(d.id)}
-                style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12, flexShrink: 0 }}>✕</button>
+                style={{ background: 'rgba(248,113,113,0.15)', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#F87171', fontSize: 12, flexShrink: 0 }}>✕</button>
             </div>
           ))}
 
           {/* Formulaire ajout */}
           {details.length < count && (
-            <div style={{ background: `${cfg.color}08`, borderRadius: 10, padding: 12, border: `1px dashed ${cfg.color}40` }}>
+            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 12, border: `1px dashed ${cfg.color}50` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
                 + Ajouter un détail ({details.length + 1}/{count})
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: fields.length > 2 ? '1fr 1fr' : '1fr', gap: 8 }}>
                 {fields.map(f => (
                   <div key={f.key}>
-                    <label style={{ display: 'block', fontSize: 11, color: cfg.color, opacity: 0.8, marginBottom: 4, fontWeight: 500 }}>{f.label}</label>
+                    <label style={{ display: 'block', fontSize: 11, color: cfg.color, opacity: 0.9, marginBottom: 4, fontWeight: 500 }}>{f.label}</label>
                     <input type={f.type || 'text'} placeholder={f.placeholder || f.label}
                       value={form[f.key] || ''}
                       onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box' }}
+                      style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 13, width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
                 ))}
               </div>
               <button onClick={addDetail} disabled={saving}
-                style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.fill, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 {saving ? 'Ajout...' : '+ Ajouter'}
               </button>
               {error && (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
                   ⚠️ {error}
                 </div>
               )}
@@ -195,16 +207,17 @@ const OBJET_COLORS = { prospect: '#534AB7', decouverte: '#0F6E56', client: '#BA7
 
 const emptyRdv = { client: '', entite: '', nom: '', prenom: '', fonction: '', date_meeting: '', objet_meeting: '', compte_rendu: '', email: '', telephone: '' }
 
-const rdvLabelStyle = { display: 'block', fontSize: 12, color: '#534AB7', opacity: 0.85, marginBottom: 5, fontWeight: 600 }
-const rdvInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid #534AB740', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
+const RDV_COLOR = '#534AB7'
+const rdvLabelStyle = { display: 'block', fontSize: 12, color: lighten(RDV_COLOR, 0.35), marginBottom: 5, fontWeight: 600 }
+const rdvInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
 
 const RdvTable = ({ list, onRemove }) => {
   if (list.length === 0) return null
   return (
-    <div style={{ overflowX: 'auto', marginBottom: 20, borderBottom: '1px solid #534AB725', paddingBottom: 4 }}>
+    <div style={{ overflowX: 'auto', marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: 4 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 820 }}>
         <thead>
-          <tr style={{ textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #534AB725' }}>
+          <tr style={{ textAlign: 'left', color: TEXT_MUTED, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
             <th style={{ padding: '0 8px 10px' }}>Objet</th>
             <th style={{ padding: '0 8px 10px' }}>Client</th>
             <th style={{ padding: '0 8px 10px' }}>Entité</th>
@@ -220,16 +233,16 @@ const RdvTable = ({ list, onRemove }) => {
             const color = OBJET_COLORS[r.objet_meeting] || '#534AB7'
             const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
             return (
-              <tr key={r.id} style={{ borderTop: '1px solid #534AB715' }}>
+              <tr key={r.id} style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                 <td style={{ padding: '10px 8px' }}><span style={{ padding: '3px 10px', borderRadius: 20, background: color, color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
-                <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.client || '—'}</td>
-                <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)' }}>{r.entite || '—'}</td>
-                <td style={{ padding: '10px 8px', color: 'var(--color-text-primary)' }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
-                <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)' }}>{r.fonction || '—'}</td>
-                <td style={{ padding: '10px 8px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
-                <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
+                <td style={{ padding: '10px 8px', fontWeight: 600, color: TEXT_STRONG }}>{r.client || '—'}</td>
+                <td style={{ padding: '10px 8px', color: TEXT_MUTED }}>{r.entite || '—'}</td>
+                <td style={{ padding: '10px 8px', color: TEXT_STRONG }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
+                <td style={{ padding: '10px 8px', color: TEXT_MUTED }}>{r.fonction || '—'}</td>
+                <td style={{ padding: '10px 8px', whiteSpace: 'nowrap', color: TEXT_MUTED }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
+                <td style={{ padding: '10px 8px', color: TEXT_MUTED, fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
                 <td style={{ padding: '10px 8px' }}>
-                  {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991B1B', fontSize: 14, opacity: 0.7 }}>✕</button>}
+                  {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F87171', fontSize: 14, opacity: 0.85 }}>✕</button>}
                 </td>
               </tr>
             )
@@ -266,20 +279,20 @@ const P1Card = ({ p, onRemove }) => {
     )
   }
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${P1_COLOR}`, marginBottom: 10 }}>
-      <div style={{ padding: '12px 14px', background: 'var(--color-background-primary)', borderBottom: `1px solid ${P1_COLOR}20`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${P1_COLOR}60`, marginBottom: 10 }}>
+      <div style={{ padding: '12px 14px', background: 'transparent', borderBottom: `1px solid ${P1_COLOR}30`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 3 }}>{p.profil}</div>
-          {p.client && <div style={{ fontSize: 12, color: P1_COLOR, fontWeight: 600 }}>🏢 {p.client}</div>}
+          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG, marginBottom: 3 }}>{p.profil}</div>
+          {p.client && <div style={{ fontSize: 12, color: lighten(P1_COLOR, 0.3), fontWeight: 600 }}>🏢 {p.client}</div>}
         </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: P1_COLOR, fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
+        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: lighten(P1_COLOR, 0.3), fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
       </div>
-      <div style={{ padding: '10px 12px', background: 'var(--color-background-primary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        {p.experience && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.experience}</div></div>}
-        {p.salaire_max && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.salaire_max}</div></div>}
-        {p.technologies && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.technologies}</div></div>}
-        {p.langues && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.langues}</div></div>}
-        {p.lieu && <div style={{ background: P1_COLOR + '0C', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 2 }}>{p.lieu}</div></div>}
+      <div style={{ padding: '10px 12px', background: 'transparent', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {p.experience && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.experience}</div></div>}
+        {p.salaire_max && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.salaire_max}</div></div>}
+        {p.technologies && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.technologies}</div></div>}
+        {p.langues && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.langues}</div></div>}
+        {p.lieu && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.lieu}</div></div>}
       </div>
     </div>
   )
@@ -469,13 +482,13 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
       ) : (
         <div>
-          <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event">
+          <Section title="RDV Commerciaux" color="#534AB7" bg="#211F30" icon="ti-calendar-event">
             <RdvTable list={rdvList} onRemove={removeRdv} />
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <i className="ti ti-plus" style={{ fontSize: 14, color: '#534AB7' }} aria-hidden="true" />
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un RDV</div>
+                <i className="ti ti-plus" style={{ fontSize: 14, color: lighten(RDV_COLOR, 0.35) }} aria-hidden="true" />
+                <div style={{ fontSize: 12, fontWeight: 700, color: lighten(RDV_COLOR, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un RDV</div>
               </div>
 
               {/* Ligne 1 : contexte du rendez-vous */}
@@ -501,7 +514,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                 </div>
               </div>
 
-              <div style={{ height: 1, background: '#534AB715', margin: '0 0 16px' }} />
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0 0 16px' }} />
 
               {/* Ligne 2 : identité du contact */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
@@ -511,16 +524,16 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                     onChange={e => { setNewRdv(r => ({ ...r, nom: e.target.value })); setSelectedContactId(null) }}
                     style={rdvInputStyle} />
                   {selectedContactId && (
-                    <div style={{ fontSize: 10, color: '#0F6E56', marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, historique lié</div>
+                    <div style={{ fontSize: 10, color: lighten('#0F6E56', 0.3), marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, historique lié</div>
                   )}
                   {!selectedContactId && contactSuggestions.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--color-background-primary)', border: '1.5px solid #534AB7', borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#2B2940', border: '1.5px solid ' + lighten(RDV_COLOR, 0.2), borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.45)' }}>
                       {contactSuggestions.map(c => (
                         <div key={c.id} onClick={() => pickContact(c)}
-                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #534AB720', fontSize: 12 }}>
-                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{[c.prenom, c.nom].filter(Boolean).join(' ')}</div>
+                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12 }}>
+                          <div style={{ fontWeight: 600, color: TEXT_STRONG }}>{[c.prenom, c.nom].filter(Boolean).join(' ')}</div>
                           {c.lastClient && (
-                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                            <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
                               déjà vu chez {c.lastClient}{c.lastDate ? ' le ' + new Date(c.lastDate).toLocaleDateString('fr-FR') : ''}
                             </div>
                           )}
@@ -540,118 +553,4 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               </div>
 
               {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact via un simple liseré (pas de carte) */}
-              <div style={{ borderLeft: `3px solid ${!selectedContactId ? '#0F6E56' : '#534AB740'}`, paddingLeft: 14, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: !selectedContactId ? '#0F6E56' : 'var(--color-text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {selectedContactId ? 'Coordonnées du contact' : 'Nouveau contact — coordonnées *'}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <label style={rdvLabelStyle}>Email</label>
-                    <input type="email" placeholder="prenom.nom@client.com" value={newRdv.email} onChange={e => setNewRdv(r => ({ ...r, email: e.target.value }))} style={rdvInputStyle} />
-                  </div>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <label style={rdvLabelStyle}>Téléphone</label>
-                    <input type="tel" placeholder="06 12 34 56 78" value={newRdv.telephone} onChange={e => setNewRdv(r => ({ ...r, telephone: e.target.value }))} style={rdvInputStyle} />
-                  </div>
-                </div>
-                {needsContactInfo && newRdv.nom.trim() && (
-                  <div style={{ fontSize: 11, color: '#BA7517', fontWeight: 600, marginTop: 10 }}>
-                    ⚠️ Renseigne au moins un email ou un téléphone pour ce nouveau contact.
-                  </div>
-                )}
-              </div>
-
-              <label style={rdvLabelStyle}>Mini compte rendu *</label>
-              <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
-                style={{ ...rdvInputStyle, resize: 'vertical' }} />
-              <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
-                style={{ marginTop: 14, width: '100%', padding: '11px', background: rdvComplete ? '#534AB7' : 'transparent', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: rdvComplete ? 'none' : '1.5px solid #534AB740', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
-                {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
-              </button>
-              {errorRdv && (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
-                  ⚠️ {errorRdv}
-                </div>
-              )}
-            </div>
-
-            <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, color: 'var(--color-text-secondary)' }}>
-              <span>Découvertes : {rdvCounts.decouvertes}</span>
-              <span>Prospects : {rdvCounts.prospects}</span>
-              <span>Clients : {rdvCounts.clients}</span>
-              <span>Présentations : {rdvCounts.presentations}</span>
-            </div>
-            {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation */}
-            <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
-          </Section>
-
-          <Section title="Gestion du Pipe" color="#0F6E56" icon="ti-filter">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <Counter label="Besoins Detectes"      value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
-              <Counter label="RDV Candidat"           value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
-              <Counter label="Solutions Envoyees"     value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
-              <Counter label="Attente Reponse Client" value={form.attente_retour}       onChange={set('attente_retour')}       color="#0F6E56" />
-              <Counter label="Attente Retour Prez"   value={form.attente_retour_prez}  onChange={set('attente_retour_prez')}  color="#0F6E56" />
-              <Counter label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} color="#0F6E56" />
-            </div>
-            <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
-          </Section>
-
-          <Section title="Resultats" color="#993556" icon="ti-trophy">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
-              <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
-              <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
-              <Counter label="Pres. a monter"  value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
-            </div>
-            {/* Accordions détails résultats */}
-            <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} />
-            <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} />
-            <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
-          </Section>
-
-          <Section title="Priorités P1" color={P1_COLOR} icon="ti-target">
-            {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
-              <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
-            ))}
-            <div style={{ marginBottom: 12 }}>
-              {P1_STEPS.map(step => {
-                if (step.key === 'langues') return null
-                const langStep = P1_STEPS.find(s => s.key === 'langues')
-                const isSalaireLangues = step.key === 'salaire_max'
-                return (
-                  <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: '1.5px solid ' + step.color }}>
-                    <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'var(--color-background-primary)', padding: '10px 12px' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: step.color, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
-                      {isSalaireLangues ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                          <input type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                        </div>
-                      ) : (
-                        <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '40', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <button onClick={addP1} disabled={savingP1 || !p1Complete}
-              style={{ width: '100%', padding: '11px', background: p1Complete ? P1_COLOR : 'var(--color-background-secondary)', color: p1Complete ? '#ffffff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
-              {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
-            </button>
-          </Section>
-
-          <button onClick={handleSave} disabled={saving}
-            style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}>
-            {saving ? 'Enregistrement...' : saved ? 'Semaine enregistree !' : 'Enregistrer la semaine ' + selectedWeek}
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
+              <div style={{ borderLeft: `3px
