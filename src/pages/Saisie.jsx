@@ -306,6 +306,12 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const p1Complete = P1_STEPS.every(s => newP1[s.key] && newP1[s.key].trim())
   const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting
 
+  // Débloque la largeur du conteneur global (par défaut limité à 480px, pensé pour mobile)
+  useEffect(() => {
+    const app = document.querySelector('.app')
+    if (app) app.classList.add('wide')
+    return () => { if (app) app.classList.remove('wide') }
+  }, [])
   useEffect(() => {
     if (!iaId) return
     const load = async () => {
@@ -525,7 +531,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 16 }}>
               <Counter label="Besoins Detectes"      value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
               <Counter label="RDV Candidat"           value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
               <Counter label="Solutions Envoyees"     value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
@@ -537,7 +543,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           </Section>
 
           <Section title="Resultats" color="#993556">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 16 }}>
               <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
               <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
               <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
