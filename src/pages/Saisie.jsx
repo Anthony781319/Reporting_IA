@@ -7,32 +7,39 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
-const Section = ({ title, color, children }) => (
-  <div style={{ marginBottom: 20 }}>
-    <div style={{ fontSize: 12, fontWeight: 500, color, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{title}</div>
-    <div style={{ background: 'var(--color-background-primary)', border: '1.5px solid ' + color + '40', borderRadius: 12, padding: 14 }}>
+const Section = ({ title, color, icon, children }) => (
+  <div style={{ marginBottom: 28 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+      {icon && (
+        <div style={{ width: 28, height: 28, borderRadius: 9, background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <i className={`ti ${icon}`} style={{ fontSize: 16, color }} aria-hidden="true" />
+        </div>
+      )}
+      <div style={{ fontSize: 14, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+    </div>
+    <div style={{ background: color + '07', border: '1.5px solid ' + color + '25', borderRadius: 18, padding: 20, boxShadow: '0 4px 16px ' + color + '10' }}>
       {children}
     </div>
   </div>
 )
 
 const Counter = ({ label, value, onChange, color }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>{label}</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)', textAlign: 'center' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <button onClick={() => onChange(Math.max(0, value - 1))}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
-      <span style={{ fontSize: 18, fontWeight: 600, minWidth: 24, textAlign: 'center', color }}>{value}</span>
+        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
+      <span style={{ fontSize: 22, fontWeight: 700, minWidth: 30, textAlign: 'center', color }}>{value}</span>
       <button onClick={() => onChange(value + 1)}
-        style={{ width: 32, height: 32, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
+        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + color, background: 'transparent', color, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
     </div>
   </div>
 )
 
 const TotalField = ({ label, value, color }) => (
-  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid ' + color + '20', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{label}</span>
-    <span style={{ fontSize: 16, fontWeight: 600, color }}>{value}</span>
+  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + color + '25', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)' }}>{label}</span>
+    <span style={{ fontSize: 20, fontWeight: 700, color }}>{value}</span>
   </div>
 )
 
@@ -182,25 +189,26 @@ const RDV_OBJET_OPTIONS = [
 ]
 const OBJET_COLORS = { prospect: '#534AB7', decouverte: '#0F6E56', client: '#BA7517', presentation: '#993556' }
 
-const emptyRdv = { client: '', nom: '', prenom: '', fonction: '', date_meeting: '', objet_meeting: '', compte_rendu: '' }
+const emptyRdv = { client: '', entite: '', nom: '', prenom: '', fonction: '', date_meeting: '', objet_meeting: '', compte_rendu: '', email: '', telephone: '' }
 
-const rdvLabelStyle = { display: 'block', fontSize: 11, color: '#534AB7', opacity: 0.8, marginBottom: 4, fontWeight: 500 }
-const rdvInputStyle = { padding: '8px 12px', borderRadius: 8, border: '1px solid #534AB740', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 13, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
+const rdvLabelStyle = { display: 'block', fontSize: 12, color: '#534AB7', opacity: 0.85, marginBottom: 5, fontWeight: 600 }
+const rdvInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid #534AB740', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)', fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
 
 const RdvTable = ({ list, onRemove }) => {
   if (list.length === 0) return null
   return (
-    <div style={{ overflowX: 'auto', marginBottom: 12, borderRadius: 10, border: '1px solid #534AB720' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 700 }}>
+    <div style={{ overflowX: 'auto', marginBottom: 16, borderRadius: 14, border: '1px solid #534AB725' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 820 }}>
         <thead>
-          <tr style={{ textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', background: '#534AB708' }}>
-            <th style={{ padding: '8px' }}>Objet</th>
-            <th style={{ padding: '8px' }}>Client</th>
-            <th style={{ padding: '8px' }}>Contact</th>
-            <th style={{ padding: '8px' }}>Fonction</th>
-            <th style={{ padding: '8px' }}>Date</th>
-            <th style={{ padding: '8px' }}>Compte rendu</th>
-            <th style={{ padding: '8px' }}></th>
+          <tr style={{ textAlign: 'left', color: 'var(--color-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', background: '#534AB70C' }}>
+            <th style={{ padding: '12px' }}>Objet</th>
+            <th style={{ padding: '12px' }}>Client</th>
+            <th style={{ padding: '12px' }}>Entité</th>
+            <th style={{ padding: '12px' }}>Contact</th>
+            <th style={{ padding: '12px' }}>Fonction</th>
+            <th style={{ padding: '12px' }}>Date</th>
+            <th style={{ padding: '12px' }}>Compte rendu</th>
+            <th style={{ padding: '12px' }}></th>
           </tr>
         </thead>
         <tbody>
@@ -209,13 +217,14 @@ const RdvTable = ({ list, onRemove }) => {
             const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
             return (
               <tr key={r.id} style={{ borderTop: '1px solid #534AB720' }}>
-                <td style={{ padding: '8px' }}><span style={{ padding: '2px 8px', borderRadius: 20, background: color, color: '#fff', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
-                <td style={{ padding: '8px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.client || '—'}</td>
-                <td style={{ padding: '8px', color: 'var(--color-text-primary)' }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
-                <td style={{ padding: '8px', color: 'var(--color-text-secondary)' }}>{r.fonction || '—'}</td>
-                <td style={{ padding: '8px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
-                <td style={{ padding: '8px', color: 'var(--color-text-secondary)', fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
-                <td style={{ padding: '8px' }}>
+                <td style={{ padding: '12px' }}><span style={{ padding: '3px 10px', borderRadius: 20, background: color, color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
+                <td style={{ padding: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.client || '—'}</td>
+                <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>{r.entite || '—'}</td>
+                <td style={{ padding: '12px', color: 'var(--color-text-primary)' }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
+                <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>{r.fonction || '—'}</td>
+                <td style={{ padding: '12px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
+                <td style={{ padding: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
+                <td style={{ padding: '12px' }}>
                   {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: '#FEE2E2', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#991B1B', fontSize: 12 }}>✕</button>}
                 </td>
               </tr>
@@ -304,7 +313,9 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const totalRdv = rdvList.length
   const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
   const p1Complete = P1_STEPS.every(s => newP1[s.key] && newP1[s.key].trim())
-  const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting
+  // Pour un nouveau contact (pas encore rattaché), on exige au moins un email ou un téléphone
+  const needsContactInfo = !selectedContactId && !newRdv.email.trim() && !newRdv.telephone.trim()
+  const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting && newRdv.compte_rendu.trim() && !needsContactInfo
 
   // Débloque la largeur du conteneur global (par défaut limité à 480px, pensé pour mobile)
   useEffect(() => {
@@ -312,6 +323,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     if (app) app.classList.add('wide')
     return () => { if (app) app.classList.remove('wide') }
   }, [])
+
   useEffect(() => {
     if (!iaId) return
     const load = async () => {
@@ -360,7 +372,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
   const pickContact = (c) => {
     setSelectedContactId(c.id)
-    setNewRdv(r => ({ ...r, nom: c.nom, prenom: c.prenom || '' }))
+    setNewRdv(r => ({ ...r, nom: c.nom, prenom: c.prenom || '', email: c.email || '', telephone: c.telephone || '' }))
     setContactSuggestions([])
   }
 
@@ -384,11 +396,12 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     setSavingRdv(true)
     setErrorRdv('')
 
-    // Si on n'a pas cliqué sur un contact existant, on en crée un nouveau (identité = nom + prénom uniquement)
+    // Si on n'a pas cliqué sur un contact existant, on en crée un nouveau (identité = nom + prénom, avec un email et/ou un téléphone)
     let contactId = selectedContactId
     if (!contactId) {
       const { data: newContact, error: contactErr } = await supabase.from('contacts')
-        .insert({ nom: newRdv.nom.trim(), prenom: newRdv.prenom.trim() || null }).select().single()
+        .insert({ nom: newRdv.nom.trim(), prenom: newRdv.prenom.trim() || null, email: newRdv.email.trim() || null, telephone: newRdv.telephone.trim() || null })
+        .select().single()
       if (contactErr) {
         setErrorRdv(`Erreur contact : ${contactErr.message}`)
         setSavingRdv(false)
@@ -397,7 +410,9 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       contactId = newContact.id
     }
 
-    const { data, error: err } = await supabase.from('rdv_details').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newRdv, contact_id: contactId }).select().single()
+    // email/telephone ne concernent que le contact, pas la table rdv_details
+    const { email, telephone, ...rdvFields } = newRdv
+    const { data, error: err } = await supabase.from('rdv_details').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...rdvFields, contact_id: contactId }).select().single()
     if (data) {
       setRdvList(l => [...l, data])
       setNewRdv(emptyRdv)
@@ -449,17 +464,21 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
       ) : (
         <div>
-          <Section title="RDV Commerciaux" color="#534AB7">
+          <Section title="RDV Commerciaux" color="#534AB7" icon="ti-calendar-event">
             <RdvTable list={rdvList} onRemove={removeRdv} />
 
-            <div style={{ background: '#534AB708', borderRadius: 10, padding: 12, border: '1px dashed #534AB740' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+            <div style={{ background: 'var(--color-background-primary)', borderRadius: 14, padding: 16, border: '1.5px dashed #534AB740' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#534AB7', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
                 + Ajouter un RDV
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 10 }}>
                 <div>
-                  <label style={rdvLabelStyle}>Client</label>
-                  <input type="text" placeholder="Nom du client" value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
+                  <label style={rdvLabelStyle}>Client (groupe / raison sociale)</label>
+                  <input type="text" placeholder="Ex: BNP Paribas, RATP..." value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Entité / BU (optionnel)</label>
+                  <input type="text" placeholder="Ex: ITGP, TSI..." value={newRdv.entite} onChange={e => setNewRdv(r => ({ ...r, entite: e.target.value }))} style={rdvInputStyle} />
                 </div>
                 <div>
                   <label style={rdvLabelStyle}>Objet du meeting</label>
@@ -504,12 +523,25 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                   <label style={rdvLabelStyle}>Date du meeting</label>
                   <input type="date" value={newRdv.date_meeting} onChange={e => setNewRdv(r => ({ ...r, date_meeting: e.target.value }))} style={rdvInputStyle} />
                 </div>
+                <div>
+                  <label style={rdvLabelStyle}>Email {!selectedContactId && '(nouveau contact)'}</label>
+                  <input type="email" placeholder="prenom.nom@client.com" value={newRdv.email} onChange={e => setNewRdv(r => ({ ...r, email: e.target.value }))} style={rdvInputStyle} />
+                </div>
+                <div>
+                  <label style={rdvLabelStyle}>Téléphone {!selectedContactId && '(nouveau contact)'}</label>
+                  <input type="tel" placeholder="06 12 34 56 78" value={newRdv.telephone} onChange={e => setNewRdv(r => ({ ...r, telephone: e.target.value }))} style={rdvInputStyle} />
+                </div>
               </div>
+              {needsContactInfo && newRdv.nom.trim() && (
+                <div style={{ fontSize: 11, color: '#BA7517', fontWeight: 600, marginBottom: 8 }}>
+                  ⚠️ Nouveau contact : renseigne au moins un email ou un téléphone.
+                </div>
+              )}
               <label style={rdvLabelStyle}>Mini compte rendu</label>
               <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
                 style={{ ...rdvInputStyle, resize: 'vertical' }} />
               <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
-                style={{ marginTop: 10, width: '100%', padding: '9px', background: rdvComplete ? '#534AB7' : 'var(--color-background-secondary)', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
+                style={{ marginTop: 12, width: '100%', padding: '11px', background: rdvComplete ? '#534AB7' : 'var(--color-background-secondary)', color: rdvComplete ? '#fff' : 'var(--color-text-secondary)', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
                 {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
               </button>
               {errorRdv && (
@@ -530,8 +562,8 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
-          <Section title="Gestion du Pipe" color="#0F6E56">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 16 }}>
+          <Section title="Gestion du Pipe" color="#0F6E56" icon="ti-filter">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
               <Counter label="Besoins Detectes"      value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
               <Counter label="RDV Candidat"           value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
               <Counter label="Solutions Envoyees"     value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
@@ -542,8 +574,8 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
           </Section>
 
-          <Section title="Resultats" color="#993556">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 16 }}>
+          <Section title="Resultats" color="#993556" icon="ti-trophy">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
               <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
               <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
               <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
