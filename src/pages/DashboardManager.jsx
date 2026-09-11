@@ -200,45 +200,6 @@ const RdvKpiCard = ({ value, previous, semaine, annee, iaId, iaList }) => {
     </div>
   )
 }
-
-  return (
-    <div>
-      <div onClick={handleClick} style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: value > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>RDV</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
-            <div style={{ paddingBottom: 2 }}><Trend current={value} previous={previous} /></div>
-          </div>
-          {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 3 }}>Préc. : {previous}</div>}
-        </div>
-        {value > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
-      </div>
-      {open && (
-        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
-          {details.length === 0 ? (
-            <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail renseigné</div>
-          ) : details.map(r => (
-            <div key={r.id} style={{ background: '#fff', borderRadius: 8, padding: '8px 10px', marginBottom: 6, border: '1.5px solid #C4B5FD' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#4C1D95' }}>{r.client || '—'}</div>
-                <span style={{ fontSize: 9, fontWeight: 700, color: '#4C1D95', background: '#EDE9FE', borderRadius: 5, padding: '1px 6px', flexShrink: 0 }}>{RDV_OBJET_LABELS[r.objet_meeting] || r.objet_meeting}</span>
-              </div>
-              <div style={{ fontSize: 11, color: '#6D28D9', marginTop: 2 }}>
-                {[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}{r.fonction && ` · ${r.fonction}`}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-                {r.date_meeting && <span style={{ fontSize: 10, color: '#7C3AED', opacity: 0.7 }}>📅 {new Date(r.date_meeting).toLocaleDateString('fr-FR')}</span>}
-                {r.ia?.nom && <span style={{ fontSize: 10, color: '#7C3AED', opacity: 0.7 }}>👤 {r.ia.nom}</span>}
-              </div>
-              {r.compte_rendu && <div style={{ fontSize: 11, color: '#4C1D95', opacity: 0.85, marginTop: 4, fontStyle: 'italic' }}>« {r.compte_rendu} »</div>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 const P1KpiCard = ({ value, previous, data, recurringIds }) => {
   const [open, setOpen] = useState(false)
   const color = '#6D28D9', bg = '#EDE9FE'
