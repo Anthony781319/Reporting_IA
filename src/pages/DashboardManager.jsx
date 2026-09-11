@@ -893,10 +893,17 @@ function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, anne
 // ─────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
 // ─────────────────────────────────────────────
-export default function DashboardManager() {
+// Sous-équipes managées par une personne autre qu'Anthony (accès manager restreint).
+// Pour ajouter un futur sous-manager : un nouvel objet ici + son login dans App.js.
+const MANAGER_SUBTEAMS = [
+  { id: 'romain', label: 'Romain', members: ['Luxhana', 'Virginie', 'Andrea'] },
+]
+
+export default function DashboardManager({ restrictedScope = null }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
   const [selectedWeek, setSelectedWeek] = useState(semaine)
+  const [scopeId, setScopeId] = useState(restrictedScope ? null : 'all')
   const [saisies, setSaisies] = useState([])
   const [iaList, setIaList] = useState([])
   const [p1Data, setP1Data] = useState([])
@@ -934,24 +941,46 @@ export default function DashboardManager() {
     </div>
   )
 
+  // Périmètre actif : soit imposé (accès manager restreint, ex. Romain),
+  // soit choisi par Anthony via le sélecteur ci-dessous ("all" = toute l'équipe).
+  const activeScope = restrictedScope || (scopeId && scopeId !== 'all' ? MANAGER_SUBTEAMS.find(s => s.id === scopeId) : null)
+  const scopedIaList = activeScope ? iaList.filter(ia => activeScope.members.includes(ia.nom)) : iaList
+  const scopedIds = new Set(scopedIaList.map(ia => ia.id))
+  const scopedSaisies = activeScope ? saisies.filter(s => scopedIds.has(s.ia_id)) : saisies
+  const scopedP1Data = activeScope ? p1Data.filter(p => scopedIds.has(p.ia_id)) : p1Data
+
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
 
-      {/* Bouton réunion */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px', borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
-        <button onClick={() => setShowReunion(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          🗓 Préparer la réunion — S{selectedWeek - 1}
-        </button>
-      </div>
+      {/* Sélecteur de périmètre (Anthony = tout le monde, ou un sous-manager) — masqué pour un accès déjà restreint */}
+      {!restrictedScope && (
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px 0', flexShrink: 0 }}>
+          {[{ id: 'all', label: 'Anthony' }, ...MANAGER_SUBTEAMS].map(s => (
+            <button key={s.id} onClick={() => setScopeId(s.id)}
+              style={{ padding: '6px 14px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', background: scopeId === s.id ? '#4F46E5' : '#EEF2FF', color: scopeId === s.id ? '#fff' : '#4F46E5' }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Split panels */}
+      {/* Bouton réunion */}
+      {!restrictedScope && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px', borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
+          <button onClick={() => setShowReunion(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            🗓 Préparer la réunion — S{selectedWeek - 1}
+          </button>
+        </div>
+      )}
+
+      {/* Split panels (le panneau Recrutement ne concerne pas un accès manager restreint à une équipe commerciale) */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ flex: 1, borderRight: '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
+        <div style={{ flex: 1, borderRight: restrictedScope ? 'none' : '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
           <PanneauCommerce
-            saisies={saisies}
-            iaList={iaList}
-            p1Data={p1Data}
+            saisies={scopedSaisies}
+            iaList={scopedIaList}
+            p1Data={scopedP1Data}
             selectedWeek={selectedWeek}
             setSelectedWeek={setSelectedWeek}
             semaine={semaine}
@@ -960,9 +989,11 @@ export default function DashboardManager() {
             onRefresh={() => { load(); setRefreshKey(k => k + 1) }}
           />
         </div>
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} />
-        </div>
+        {!restrictedScope && (
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} />
+          </div>
+        )}
       </div>
 
       {/* Modale réunion */}
