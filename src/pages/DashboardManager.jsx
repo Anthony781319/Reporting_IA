@@ -999,8 +999,8 @@ export default function DashboardManager({ restrictedScope = null }) {
       {/* Modale réunion */}
       {showReunion && (
         <ModalReunion
-          saisies={saisies}
-          iaList={iaList}
+          saisies={scopedSaisies}
+          iaList={scopedIaList}
           selectedWeek={selectedWeek - 1}
           cvProposes={cvProposes}
           onClose={() => setShowReunion(false)}
