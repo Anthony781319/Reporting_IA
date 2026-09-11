@@ -336,7 +336,6 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
           <SectionTitle title="KPIs semaine" color="#6D28D9" icon="📊" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
             <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaList={iaList} key={`rdv-${selectedWeek}-${refreshKey}`} />
-<KpiCard label="Cumul RDV (année)" value={sum(saisies, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
             <KpiCard label="Prés. à monter" value={sum(weekData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
