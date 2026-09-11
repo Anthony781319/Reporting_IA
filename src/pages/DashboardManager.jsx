@@ -893,17 +893,10 @@ function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, anne
 // ─────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
 // ─────────────────────────────────────────────
-// Sous-équipes managées par une personne autre qu'Anthony (accès manager restreint).
-// Pour ajouter un futur sous-manager : un nouvel objet ici + son login dans App.js.
-const MANAGER_SUBTEAMS = [
-  { id: 'romain', label: 'Romain', members: ['Luxhana', 'Virginie', 'Andrea'] },
-]
-
 export default function DashboardManager({ restrictedScope = null }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
   const [selectedWeek, setSelectedWeek] = useState(semaine)
-  const [scopeId, setScopeId] = useState(restrictedScope ? null : 'all')
   const [saisies, setSaisies] = useState([])
   const [iaList, setIaList] = useState([])
   const [p1Data, setP1Data] = useState([])
@@ -941,9 +934,9 @@ export default function DashboardManager({ restrictedScope = null }) {
     </div>
   )
 
-  // Périmètre actif : soit imposé (accès manager restreint, ex. Romain),
-  // soit choisi par Anthony via le sélecteur ci-dessous ("all" = toute l'équipe).
-  const activeScope = restrictedScope || (scopeId && scopeId !== 'all' ? MANAGER_SUBTEAMS.find(s => s.id === scopeId) : null)
+  // Périmètre actif : imposé quand cette instance est dédiée à un sous-manager
+  // (accès restreint de Romain, ou onglet "Dashboard Romain" côté Anthony) ; sinon vue complète.
+  const activeScope = restrictedScope || null
   const scopedIaList = activeScope ? iaList.filter(ia => activeScope.members.includes(ia.nom)) : iaList
   const scopedIds = new Set(scopedIaList.map(ia => ia.id))
   const scopedSaisies = activeScope ? saisies.filter(s => scopedIds.has(s.ia_id)) : saisies
@@ -951,18 +944,6 @@ export default function DashboardManager({ restrictedScope = null }) {
 
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
-
-      {/* Sélecteur de périmètre (Anthony = tout le monde, ou un sous-manager) — masqué pour un accès déjà restreint */}
-      {!restrictedScope && (
-        <div style={{ display: 'flex', gap: 6, padding: '10px 16px 0', flexShrink: 0 }}>
-          {[{ id: 'all', label: 'Anthony' }, ...MANAGER_SUBTEAMS].map(s => (
-            <button key={s.id} onClick={() => setScopeId(s.id)}
-              style={{ padding: '6px 14px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer', background: scopeId === s.id ? '#4F46E5' : '#EEF2FF', color: scopeId === s.id ? '#fff' : '#4F46E5' }}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Bouton réunion */}
       {!restrictedScope && (
