@@ -106,7 +106,7 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
 }
 const RDV_OBJET_LABELS = { prospect: 'Prospect', decouverte: 'Découverte', client: 'Client', presentation: 'Présentation' }
 
-const RdvKpiCard = ({ value, previous, semaine, annee, iaId }) => {
+const RdvKpiCard = ({ value, previous, semaine, annee, iaId, iaList }) => {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -125,6 +125,81 @@ const RdvKpiCard = ({ value, previous, semaine, annee, iaId }) => {
     }
     setOpen(o => !o)
   }
+
+  // Vue équipe (pas d'iaId) : répartition par IA (pour repérer les 0 d'un coup d'œil)
+  // et par type de RDV, plutôt que la liste brute individuelle (réservée à Focus IA).
+  const equipeView = !iaId && !!iaList
+  const byIa = equipeView
+    ? iaList
+        .filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+        .map(ia => ({ id: ia.id, nom: ia.nom, count: details.filter(d => d.ia_id === ia.id).length }))
+        .sort((a, b) => a.count - b.count)
+    : []
+  const byType = equipeView
+    ? Object.entries(RDV_OBJET_LABELS)
+        .map(([key, label]) => ({ key, label, count: details.filter(d => d.objet_meeting === key).length }))
+        .filter(t => t.count > 0)
+    : []
+
+  return (
+    <div>
+      <div onClick={handleClick} style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: value > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>RDV</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+            <div style={{ paddingBottom: 2 }}><Trend current={value} previous={previous} /></div>
+          </div>
+          {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 3 }}>Préc. : {previous}</div>}
+        </div>
+        {value > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && (
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
+          {equipeView ? (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>Par membre de l'équipe</div>
+              {byIa.map(m => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: m.count === 0 ? '#FEF2F2' : '#fff', border: `1.5px solid ${m.count === 0 ? '#FECACA' : '#DDD6FE'}` }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: m.count === 0 ? '#B91C1C' : '#4C1D95' }}>{m.nom}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: m.count === 0 ? '#B91C1C' : '#6D28D9' }}>{m.count}</span>
+                </div>
+              ))}
+
+              {byType.length > 0 && (
+                <>
+                  <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '10px 0 6px' }}>Par type de RDV</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {byType.map(t => (
+                      <span key={t.key} style={{ fontSize: 11, fontWeight: 700, color: '#4C1D95', background: '#EDE9FE', borderRadius: 6, padding: '4px 9px' }}>{t.label} · {t.count}</span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          ) : details.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail renseigné</div>
+          ) : details.map(r => (
+            <div key={r.id} style={{ background: '#fff', borderRadius: 8, padding: '8px 10px', marginBottom: 6, border: '1.5px solid #C4B5FD' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#4C1D95' }}>{r.client || '—'}</div>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#4C1D95', background: '#EDE9FE', borderRadius: 5, padding: '1px 6px', flexShrink: 0 }}>{RDV_OBJET_LABELS[r.objet_meeting] || r.objet_meeting}</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#6D28D9', marginTop: 2 }}>
+                {[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}{r.fonction && ` · ${r.fonction}`}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                {r.date_meeting && <span style={{ fontSize: 10, color: '#7C3AED', opacity: 0.7 }}>📅 {new Date(r.date_meeting).toLocaleDateString('fr-FR')}</span>}
+                {r.ia?.nom && <span style={{ fontSize: 10, color: '#7C3AED', opacity: 0.7 }}>👤 {r.ia.nom}</span>}
+              </div>
+              {r.compte_rendu && <div style={{ fontSize: 11, color: '#4C1D95', opacity: 0.85, marginTop: 4, fontStyle: 'italic' }}>« {r.compte_rendu} »</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
   return (
     <div>
@@ -299,7 +374,8 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
         <>
           <SectionTitle title="KPIs semaine" color="#6D28D9" icon="📊" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
-            <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} key={`rdv-${selectedWeek}-${refreshKey}`} />
+            <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaList={iaList} key={`rdv-${selectedWeek}-${refreshKey}`} />
+<KpiCard label="Cumul RDV (année)" value={sum(saisies, 'total_rdv')} color="#6D28D9" bg="#EDE9FE" />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
             <KpiCard label="Prés. à monter" value={sum(weekData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
