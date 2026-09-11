@@ -16,7 +16,7 @@ const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 // Accès manager restreint : Romain gère Luxhana, Virginie et Andrea en plus de sa propre saisie.
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
-const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea']
+const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Romain']
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -29,7 +29,7 @@ export default function App() {
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
@@ -49,6 +49,9 @@ export default function App() {
       else { setIsManager(true); setTab('dashboard-manager') }
       return true
     }
+    if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
+      resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
+    }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
     }
@@ -61,6 +64,7 @@ export default function App() {
 
   const managerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
+    { id: 'dashboard-romain',  icon: 'ti-layout-columns', label: 'Dashboard Romain' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
@@ -123,6 +127,7 @@ export default function App() {
 
       <div className="content">
         {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : null} />}
+        {tab === 'dashboard-romain'  && <DashboardManager restrictedScope={{ label: 'Romain', members: ROMAIN_TEAM }} />}
         {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : null} />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
         {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
