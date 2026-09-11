@@ -14,17 +14,21 @@ import './App.css'
 const ADMIN_PASSWORD = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
+// Accès manager restreint : Romain gère Luxhana, Virginie et Andrea en plus de sa propre saisie.
+const ROMAIN_MANAGER_PASSWORD = 'chervet'
+const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea']
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [isManager, setIsManager] = useState(false)
+  const [isTeamManager, setIsTeamManager] = useState(false)
   const [isAdminOnly, setIsAdminOnly] = useState(false)
   const [isP1, setIsP1] = useState(false)
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
   const [tab, setTab] = useState('saisie')
 
-  const resetRoles = () => {
+   const resetRoles = () => {
     setIsManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false)
   }
 
@@ -62,13 +66,18 @@ export default function App() {
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
   ]
+  const teamManagerTabs = [
+    { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
+    { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
+    { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
+  ]
   const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
   const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
   const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
 
-  const tabs = isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
+  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
 
   const getAvatar = () => {
     if (user.nom === 'P1 of the week') return 'P1'
@@ -113,8 +122,8 @@ export default function App() {
       )}
 
       <div className="content">
-        {tab === 'dashboard-manager' && <DashboardManager />}
-        {tab === 'bilan-equipe'      && <BilanEquipe />}
+        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : null} />}
+        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : null} />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
         {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
         {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
