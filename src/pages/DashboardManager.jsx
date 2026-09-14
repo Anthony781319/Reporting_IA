@@ -902,7 +902,7 @@ export default function DashboardManager({ restrictedScope = null }) {
   const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
-    const [showReunion, setShowReunion] = useState(false)
+  const [showReunion, setShowReunion] = useState(false)
 
   const load = async () => {
     const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
@@ -978,6 +978,7 @@ export default function DashboardManager({ restrictedScope = null }) {
       {showReunion && (
         <ModalReunion
           saisies={scopedSaisies}
+          iaList={scopedIaList}
           selectedWeek={selectedWeek - 1}
           onClose={() => setShowReunion(false)}
         />
@@ -986,25 +987,46 @@ export default function DashboardManager({ restrictedScope = null }) {
   )
 }
 
-// Grande carte de synthèse équipe (réunion) : valeur + tendance vs semaine précédente
-function ReunionCard({ icon, label, value, previous, sublabel, color, bg }) {
+// Grande carte de synthèse équipe (réunion) : valeur + tendance vs semaine précédente,
+// avec un détail par IA dépliable (nom + valeur), les 0 remontés en premier et surlignés.
+function ReunionCard({ icon, label, value, previous, sublabel, color, bg, breakdown }) {
+  const [open, setOpen] = useState(false)
+  const hasBreakdown = breakdown && breakdown.length > 0
+  const sorted = hasBreakdown ? [...breakdown].sort((a, b) => a.value - b.value) : []
+
   return (
-    <div style={{ background: bg, borderRadius: 14, padding: '16px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85 }}>{label}</span>
+    <div style={{ background: bg, borderRadius: 14, overflow: 'hidden' }}>
+      <div onClick={() => hasBreakdown && setOpen(o => !o)} style={{ padding: '16px 18px', cursor: hasBreakdown ? 'pointer' : 'default' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 18 }}>{icon}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>{label}</span>
+          {hasBreakdown && <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color, opacity: 0.6, fontSize: 13 }}></i>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+          <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+          {previous !== undefined && <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>}
+        </div>
+        {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Semaine précédente : {previous}</div>}
+        {sublabel && <div style={{ fontSize: 11, color, opacity: 0.7, marginTop: 6 }}>{sublabel}</div>}
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
-        <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
-        {previous !== undefined && <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>}
-      </div>
-      {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Semaine précédente : {previous}</div>}
-      {sublabel && <div style={{ fontSize: 11, color, opacity: 0.7, marginTop: 6 }}>{sublabel}</div>}
+
+      {open && hasBreakdown && (
+        <div style={{ padding: '0 18px 16px' }}>
+          <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
+            {sorted.map(m => (
+              <div key={m.nom} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: m.value === 0 ? '#FEF2F2' : 'rgba(255,255,255,0.6)', border: `1.5px solid ${m.value === 0 ? '#FECACA' : color + '25'}` }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: m.value === 0 ? '#B91C1C' : color }}>{m.nom}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: m.value === 0 ? '#B91C1C' : color }}>{m.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function ModalReunion({ saisies, selectedWeek, onClose }) {
+function ModalReunion({ saisies, iaList, selectedWeek, onClose }) {
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -1015,6 +1037,12 @@ function ModalReunion({ saisies, selectedWeek, onClose }) {
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
   const pipe = (data) => sum(data, 'besoins_sans_solution') + sum(data, 'attente_retour') + sum(data, 'attente_retour_prez')
+
+  const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+  // Détail par IA : sommé sur la semaine affichée (S{selectedWeek}), tous les membres de l'équipe
+  // apparaissent (y compris à 0) pour repérer d'un coup d'œil qui n'a rien déclaré.
+  const byIa = (key) => iasFiltrees.map(ia => ({ nom: ia.nom, value: sum(weekData.filter(s => s.ia_id === ia.id), key) }))
+  const pipeByIa = iasFiltrees.map(ia => ({ nom: ia.nom, value: pipe(weekData.filter(s => s.ia_id === ia.id)) }))
 
   const rdv = sum(weekData, 'total_rdv')
   const rdvPrev = sum(prevData, 'total_rdv')
@@ -1042,14 +1070,14 @@ function ModalReunion({ saisies, selectedWeek, onClose }) {
 
         {/* KPIs équipe */}
         <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, background: '#1a1a2e', borderRadius: '0 0 18px 18px' }}>
-          <ReunionCard icon="📅" label="RDV réalisés" value={rdv} previous={rdvPrev} color="#6D28D9" bg="#EDE9FE" />
-          <ReunionCard icon="🎉" label="Signatures" value={signatures} previous={signaturesPrev} color="#9D174D" bg="#FCE7F3" />
+          <ReunionCard icon="📅" label="RDV réalisés" value={rdv} previous={rdvPrev} color="#6D28D9" bg="#EDE9FE" breakdown={byIa('total_rdv')} />
+          <ReunionCard icon="🎉" label="Signatures" value={signatures} previous={signaturesPrev} color="#9D174D" bg="#FCE7F3" breakdown={byIa('signatures')} />
           <ReunionCard icon="✅" label="Présentations réalisées" value={prezRealisees}
             sublabel={`Annoncées en S${selectedWeek - 1} : ${prezAnnonceesSemPrec} · ${prezAnnonceesSemPrec > 0 ? Math.round((prezRealisees / prezAnnonceesSemPrec) * 100) + '% réalisé' : 'aucune annonce'}`}
-            color="#1E40AF" bg="#DBEAFE" />
-          <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" />
+            color="#1E40AF" bg="#DBEAFE" breakdown={byIa('presentations')} />
+          <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" breakdown={pipeByIa} />
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
-            sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" />
+            sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
         </div>
       </div>
     </div>,
