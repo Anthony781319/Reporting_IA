@@ -3,7 +3,17 @@ import { supabase } from '../supabase'
 
 const RDV_OBJET_LABELS = { prospect: 'Prospect', decouverte: 'Découverte', client: 'Client', presentation: 'Présentation' }
 
-function ContactRow({ c, open, onToggle }) {
+function ContactRow({ c, open, onToggle, onDelete, deleting }) {
+  const label = [c.prenom, c.nom].filter(Boolean).join(' ') || '—'
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation()
+    const warning = c.nbRdv > 0
+      ? `${label} a ${c.nbRdv} RDV enregistré${c.nbRdv > 1 ? 's' : ''}. Supprimer ce contact supprimera aussi son historique. Continuer ?`
+      : `Supprimer le contact "${label}" ? Cette action est irréversible.`
+    if (window.confirm(warning)) onDelete(c.id, label)
+  }
+
   return (
     <div style={{ background: 'var(--color-bg-secondary)', borderRadius: 12, marginBottom: 8, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
       <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', cursor: 'pointer' }}>
@@ -12,7 +22,7 @@ function ContactRow({ c, open, onToggle }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-            {[c.prenom, c.nom].filter(Boolean).join(' ') || '—'}
+            {label}
           </div>
           <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 1 }}>
             {c.lastClient || '—'}{c.lastFonction && ` · ${c.lastFonction}`}
@@ -26,6 +36,10 @@ function ContactRow({ c, open, onToggle }) {
             </div>
           )}
         </div>
+        <button onClick={handleDeleteClick} disabled={deleting} title="Supprimer ce contact"
+          style={{ background: 'none', border: 'none', cursor: deleting ? 'default' : 'pointer', color: deleting ? 'var(--color-text-muted)' : '#BE185D', opacity: deleting ? 0.5 : 0.7, fontSize: 14, flexShrink: 0, padding: 4 }}>
+          <i className="ti ti-trash" aria-hidden="true"></i>
+        </button>
         <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color: 'var(--color-text-muted)', fontSize: 14, flexShrink: 0 }}></i>
       </div>
 
@@ -71,6 +85,7 @@ export default function Contacts() {
   const [search, setSearch] = useState('')
   const [iaFilter, setIaFilter] = useState('')
   const [openId, setOpenId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -114,6 +129,18 @@ export default function Contacts() {
 
   const iaOptions = useMemo(() => [...new Set(rows.flatMap(r => r.ias))].sort(), [rows])
 
+  const handleDelete = async (id, label) => {
+    setDeletingId(id)
+    // Un contact peut avoir des RDV liés (rdv_details.contact_id) : on les supprime d'abord pour éviter une erreur de clé étrangère.
+    const { error: rdvErr } = await supabase.from('rdv_details').delete().eq('contact_id', id)
+    if (rdvErr) { setError(`Erreur lors de la suppression des RDV de "${label}" : ${rdvErr.message}`); setDeletingId(null); return }
+    const { error: contactErr } = await supabase.from('contacts').delete().eq('id', id)
+    if (contactErr) { setError(`Erreur lors de la suppression de "${label}" : ${contactErr.message}`); setDeletingId(null); return }
+    setContacts(cs => cs.filter(c => c.id !== id))
+    setRdvs(rs => rs.filter(r => r.contact_id !== id))
+    setDeletingId(null)
+  }
+
   const filtered = rows
     .filter(r => {
       const term = search.trim().toLowerCase()
@@ -155,7 +182,8 @@ export default function Contacts() {
         <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Aucun contact ne correspond à ta recherche.</div>
       ) : (
         filtered.map(c => (
-          <ContactRow key={c.id} c={c} open={openId === c.id} onToggle={() => setOpenId(id => id === c.id ? null : c.id)} />
+          <ContactRow key={c.id} c={c} open={openId === c.id} onToggle={() => setOpenId(id => id === c.id ? null : c.id)}
+            onDelete={handleDelete} deleting={deletingId === c.id} />
         ))
       )}
     </div>
