@@ -64,7 +64,7 @@ export default function App() {
 
   const managerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
-    { id: 'dashboard-romain',  icon: 'ti-layout-columns', label: 'Dashboard Romain' },
+        {tab === 'dashboard-romain'  && <DashboardManager restrictedScope={{ label: 'Romain', members: ROMAIN_TEAM }} />}
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
