@@ -64,7 +64,6 @@ export default function App() {
 
   const managerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
-        {tab === 'dashboard-romain'  && <DashboardManager restrictedScope={{ label: 'Romain', members: ROMAIN_TEAM }} />}
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
@@ -127,7 +126,6 @@ export default function App() {
 
       <div className="content">
         {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : null} />}
-        {tab === 'dashboard-romain'  && <DashboardManager restrictedScope={{ label: 'Romain', members: ROMAIN_TEAM }} />}
         {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : null} />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
         {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
