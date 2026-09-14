@@ -902,20 +902,17 @@ export default function DashboardManager({ restrictedScope = null }) {
   const [p1Data, setP1Data] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [showReunion, setShowReunion] = useState(false)
-  const [cvProposes, setCvProposes] = useState([])
+    const [showReunion, setShowReunion] = useState(false)
 
   const load = async () => {
-    const [{ data: all }, { data: ia }, { data: p1 }, { data: cv }] = await Promise.all([
+    const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
       supabase.from('ia').select('*').order('nom'),
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee),
-      supabase.from('cr_cv_proposes').select('*').eq('annee', annee),
     ])
     setSaisies(all || [])
     setIaList((ia || []).filter(i => i.statut !== 'ancien'))
     setP1Data(p1 || [])
-    setCvProposes(cv || [])
     setLoading(false)
   }
 
@@ -981,9 +978,7 @@ export default function DashboardManager({ restrictedScope = null }) {
       {showReunion && (
         <ModalReunion
           saisies={scopedSaisies}
-          iaList={scopedIaList}
           selectedWeek={selectedWeek - 1}
-          cvProposes={cvProposes}
           onClose={() => setShowReunion(false)}
         />
       )}
@@ -991,7 +986,25 @@ export default function DashboardManager({ restrictedScope = null }) {
   )
 }
 
-function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
+// Grande carte de synthèse équipe (réunion) : valeur + tendance vs semaine précédente
+function ReunionCard({ icon, label, value, previous, sublabel, color, bg }) {
+  return (
+    <div style={{ background: bg, borderRadius: 14, padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 18 }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85 }}>{label}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+        <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+        {previous !== undefined && <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>}
+      </div>
+      {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Semaine précédente : {previous}</div>}
+      {sublabel && <div style={{ fontSize: 11, color, opacity: 0.7, marginTop: 6 }}>{sublabel}</div>}
+    </div>
+  )
+}
+
+function ModalReunion({ saisies, selectedWeek, onClose }) {
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -1001,120 +1014,42 @@ function ModalReunion({ saisies, iaList, selectedWeek, cvProposes, onClose }) {
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
+  const pipe = (data) => sum(data, 'besoins_sans_solution') + sum(data, 'attente_retour') + sum(data, 'attente_retour_prez')
 
-  const iasFiltrees = iaList.filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+  const rdv = sum(weekData, 'total_rdv')
+  const rdvPrev = sum(prevData, 'total_rdv')
+  const signatures = sum(weekData, 'signatures')
+  const signaturesPrev = sum(prevData, 'signatures')
+  const prezRealisees = sum(weekData, 'presentations')
+  const prezAnnonceesSemPrec = sum(prevData, 'presentations_a_monter')
+  const pipeActuel = pipe(weekData)
+  const pipePrec = pipe(prevData)
+  const prezAMonterCetteSemaine = sum(weekData, 'presentations_a_monter')
+  const prezAMonterPrec = sum(prevData, 'presentations_a_monter')
 
   return createPortal(
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#1a1a2e', zIndex: 9999, overflowY: 'auto', padding: '24px 16px' }}>
-      <div style={{ background: '#1a1a2e', borderRadius: 18, width: '100%', maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ background: '#1a1a2e', borderRadius: 18, width: '100%', maxWidth: 900, margin: '0 auto' }}>
 
         {/* Header modale */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>🗓 Réunion — Semaine {selectedWeek}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>Synthèse par collaborateur · Commerce</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>Synthèse équipe · Commerce</div>
           </div>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: '#fff' }}>✕ Fermer</button>
         </div>
 
-        {/* Fiches IA */}
-        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, background: '#1a1a2e', borderRadius: '0 0 18px 18px' }}>
-          {iasFiltrees.map((ia, idx) => {
-            const data = weekData.filter(s => s.ia_id === ia.id)
-            const prev = prevData.filter(s => s.ia_id === ia.id)
-            const prevPrevData = saisies.filter(s => s.ia_id === ia.id && s.semaine === selectedWeek - 1)
-            const attente = sum(data, 'attente_retour')
-            const attentePrez = sum(data, 'attente_retour_prez')
-            const prezAMonter = sum(data, 'presentations_a_monter')
-            const prezRealisees = sum(data, 'presentations')
-            const prezAMonterSemPrev = sum(prevPrevData, 'presentations_a_monter')
-            const rdv = sum(data, 'total_rdv')
-            const sign = sum(data, 'signatures')
-
-            // CV proposés par les CR à cette IA cette semaine
-            const cvCetteIA = cvProposes.filter(cv =>
-              cv.semaine === selectedWeek &&
-              cv.ias_concernees && cv.ias_concernees.toLowerCase().includes(ia.nom.toLowerCase())
-            )
-
-            const [bg, fg] = AVATAR_COLORS[idx % AVATAR_COLORS.length]
-            const hasAlert = attente > 3 || prezAMonter > 2 || cvCetteIA.length > 0
-
-            return (
-              <div key={ia.id} style={{ background: bg, borderRadius: 14, padding: '16px', border: `2px solid ${hasAlert ? fg : bg}` }}>
-                {/* En-tête fiche */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
-                    {ia.nom.slice(0,2).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: fg }}>{ia.nom}</div>
-                    <div style={{ fontSize: 10, color: fg, opacity: 0.7 }}>S{selectedWeek}</div>
-                  </div>
-                  {sign > 0 && <span style={{ fontSize: 16 }}>🎉</span>}
-                </div>
-
-                {/* KPIs clés S-1 */}
-                <div style={{ fontSize: 10, fontWeight: 700, color: fg, opacity: 0.6, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>S{selectedWeek}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
-                  {[
-                    { label: 'Prez réalisées', val: prezRealisees, icon: '✅', alert: false },
-                    { label: 'Attente retour', val: attentePrez, icon: '📨', alert: attentePrez > 2 },
-                    { label: 'Prez à monter', val: prezAMonter, icon: '📋', alert: prezAMonter > 2 },
-                  ].map(k => (
-                    <div key={k.label} style={{ background: k.alert ? '#FEF3C7' : 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '8px 4px', textAlign: 'center', border: k.alert ? '1px solid #F59E0B' : 'none' }}>
-                      <div style={{ fontSize: 14 }}>{k.icon}</div>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: k.alert ? '#92400E' : fg }}>{k.val}</div>
-                      <div style={{ fontSize: 8, color: k.alert ? '#92400E' : fg, opacity: 0.75, lineHeight: 1.2 }}>{k.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Prez à monter S-2 */}
-                <div style={{ fontSize: 10, fontWeight: 700, color: fg, opacity: 0.6, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>S{selectedWeek - 1} — suivi</div>
-                <div style={{ background: prezAMonterSemPrev > 0 ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>📋</span>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: prezAMonterSemPrev > 0 ? fg : fg, opacity: prezAMonterSemPrev === 0 ? 0.4 : 1 }}>{prezAMonterSemPrev}</div>
-                    <div style={{ fontSize: 10, color: fg, opacity: 0.7 }}>prez à monter déclarées en S{selectedWeek - 1}</div>
-                  </div>
-                  {prezAMonterSemPrev > 0 && prezRealisees > 0 && (
-                    <div style={{ marginLeft: 'auto', textAlign: 'center' }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: '#065F46' }}>→ {prezRealisees}</div>
-                      <div style={{ fontSize: 9, color: '#065F46', opacity: 0.8 }}>réalisées</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* CV proposés par les CR */}
-                {cvCetteIA.length > 0 && (
-                  <div style={{ background: 'rgba(255,255,255,0.85)', borderRadius: 8, padding: '10px', border: `1px solid ${fg}30` }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: fg, marginBottom: 6 }}>👥 CV proposés par recrutement ({cvCetteIA.length})</div>
-                    {cvCetteIA.map((cv, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: i < cvCetteIA.length - 1 ? `1px solid ${fg}15` : 'none' }}>
-                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: fg, flexShrink: 0 }} />
-                        <div>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: fg }}>{cv.identite_candidat}</span>
-                          {cv.profil && <span style={{ fontSize: 11, color: fg, opacity: 0.7, marginLeft: 6 }}>{cv.profil}</span>}
-                          <span style={{ fontSize: 10, color: fg, opacity: 0.6, marginLeft: 6 }}>· {cv.cr_nom}</span>
-                          {cv.type_envoi === 'besoin'
-                            ? <span style={{ fontSize: 10, color: '#92400E', marginLeft: 6 }}>· 📌 {cv.besoin_concerne}</span>
-                            : cv.type_envoi === 'push' && <span style={{ fontSize: 10, color: fg, opacity: 0.6, marginLeft: 6 }}>· 🚀 Push</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Aucune activité */}
-                {attentePrez === 0 && prezAMonter === 0 && prezRealisees === 0 && prezAMonterSemPrev === 0 && cvCetteIA.length === 0 && (
-                  <div style={{ textAlign: 'center', fontSize: 11, color: fg, opacity: 0.5, fontStyle: 'italic', padding: '8px 0' }}>
-                    Aucune activité déclarée
-                  </div>
-                )}
-              </div>
-            )
-          })}
+        {/* KPIs équipe */}
+        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, background: '#1a1a2e', borderRadius: '0 0 18px 18px' }}>
+          <ReunionCard icon="📅" label="RDV réalisés" value={rdv} previous={rdvPrev} color="#6D28D9" bg="#EDE9FE" />
+          <ReunionCard icon="🎉" label="Signatures" value={signatures} previous={signaturesPrev} color="#9D174D" bg="#FCE7F3" />
+          <ReunionCard icon="✅" label="Présentations réalisées" value={prezRealisees}
+            sublabel={`Annoncées en S${selectedWeek - 1} : ${prezAnnonceesSemPrec} · ${prezAnnonceesSemPrec > 0 ? Math.round((prezRealisees / prezAnnonceesSemPrec) * 100) + '% réalisé' : 'aucune annonce'}`}
+            color="#1E40AF" bg="#DBEAFE" />
+          <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" />
+          <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
+            sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" />
         </div>
       </div>
     </div>,
