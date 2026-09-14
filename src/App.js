@@ -9,6 +9,7 @@ import P1Page from './pages/P1Page'
 import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import BilanEquipe from './pages/BilanEquipe'
+import Contacts from './pages/Contacts'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
@@ -17,6 +18,8 @@ const RH_PASSWORD = 'rh'
 // Accès manager restreint : Romain gère Luxhana, Virginie et Andrea en plus de sa propre saisie.
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
 const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Romain']
+// Accès à la base de contacts (répertoire clients/prospects issu des saisies des IA).
+const CONTACTS_PASSWORD = 'crm'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -26,10 +29,11 @@ export default function App() {
   const [isP1, setIsP1] = useState(false)
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
+  const [isContacts, setIsContacts] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
@@ -51,6 +55,9 @@ export default function App() {
     }
     if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
       resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
+    }
+    if (ia.nom === 'Contacts' && password === CONTACTS_PASSWORD) {
+      resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
     }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
@@ -79,8 +86,9 @@ export default function App() {
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
   const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
+  const contactsTabs = [{ id: 'contacts', icon: 'ti-address-book', label: 'Contacts' }]
 
-  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : userTabs
+  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : userTabs
 
   const getAvatar = () => {
     if (user.nom === 'P1 of the week') return 'P1'
@@ -93,6 +101,7 @@ export default function App() {
     if (isAdminOnly) return 'Admin'
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
+    if (isContacts) return 'Base Contacts'
     return 'Reporting'
   }
 
@@ -134,6 +143,7 @@ export default function App() {
         {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} />}
         {tab === 'dashboard-rh'      && <DashboardRH />}
         {tab === 'entretiens'        && <Entretiens />}
+        {tab === 'contacts'          && <Contacts />}
       </div>
     </div>
   )
