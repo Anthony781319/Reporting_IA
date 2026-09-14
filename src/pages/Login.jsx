@@ -13,6 +13,7 @@ const PORTALS = [
 const MANAGER_OPTIONS = [
   { id: 'commerce', icon: '📊', label: 'Dashboard Anthony', desc: 'Commerce + Recrutement réunis',   bg: '#DBEAFE', color: '#2563EB', darkColor: '#1E3A8A' },
   { id: 'romain',   icon: '🎯', label: 'Dashboard Romain',  desc: 'Équipe Luxhana, Virginie, Andrea', bg: '#FEF3C7', color: '#B45309', darkColor: '#78350F' },
+  { id: 'contacts', icon: '📇', label: 'Base Contacts',     desc: 'Répertoire clients & prospects',   bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
   { id: 'rh',       icon: '👥', label: 'Dashboard RH',      desc: 'Suivi recrutement & candidats',    bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
 ]
 
@@ -81,11 +82,14 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('')
   const [rhPassword, setRhPassword] = useState('')
   const [romainPassword, setRomainPassword] = useState('')
+  const [contactsPassword, setContactsPassword] = useState('')
   const [showRH, setShowRH] = useState(false)
   const [showRomain, setShowRomain] = useState(false)
+  const [showContacts, setShowContacts] = useState(false)
   const [error, setError] = useState('')
   const [rhError, setRhError] = useState('')
   const [romainError, setRomainError] = useState('')
+  const [contactsError, setContactsError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -104,11 +108,14 @@ export default function Login({ onLogin }) {
     setPassword('')
     setRhPassword('')
     setRomainPassword('')
+    setContactsPassword('')
     setError('')
     setRhError('')
     setRomainError('')
+    setContactsError('')
     setShowRH(false)
     setShowRomain(false)
+    setShowContacts(false)
   }
 
   const handleSubmitIA = () => {
@@ -140,6 +147,12 @@ export default function Login({ onLogin }) {
     if (!romainPassword) return setRomainError('Entre le mot de passe')
     const ok = onLogin({ nom: 'Romain' }, romainPassword)
     if (!ok) setRomainError('Mot de passe incorrect')
+  }
+
+  const handleContactsLogin = () => {
+    if (!contactsPassword) return setContactsError('Entre le mot de passe')
+    const ok = onLogin({ nom: 'Contacts' }, contactsPassword)
+    if (!ok) setContactsError('Mot de passe incorrect')
   }
 
   const handleManagerLogin = () => {
@@ -254,14 +267,15 @@ export default function Login({ onLogin }) {
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {MANAGER_OPTIONS.map(opt => {
-            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : showRH
+            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'contacts' ? showContacts : showRH
             return (
               <div key={opt.id}>
                 <div
                   onClick={() => {
-                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setError('') }
-                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setSelected(null); setRomainError('') }
-                    else { setShowRH(true); setShowRomain(false); setSelected(null); setRhError('') }
+                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowContacts(false); setError('') }
+                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowContacts(false); setSelected(null); setRomainError('') }
+                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setSelected(null); setContactsError('') }
+                    else { setShowRH(true); setShowRomain(false); setShowContacts(false); setSelected(null); setRhError('') }
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', background: opt.bg, border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'), transition: 'all 0.15s' }}>
                   <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
@@ -291,6 +305,17 @@ export default function Login({ onLogin }) {
                     <input type="password" value={romainPassword} onChange={e => { setRomainPassword(e.target.value); setRomainError('') }} onKeyDown={e => e.key === 'Enter' && handleRomainLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
                     {romainError && <ErrorMsg msg={romainError} />}
                     <button onClick={handleRomainLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                      Se connecter
+                    </button>
+                  </div>
+                )}
+
+                {opt.id === 'contacts' && isSelected && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={labelStyle}>Mot de passe</div>
+                    <input type="password" value={contactsPassword} onChange={e => { setContactsPassword(e.target.value); setContactsError('') }} onKeyDown={e => e.key === 'Enter' && handleContactsLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                    {contactsError && <ErrorMsg msg={contactsError} />}
+                    <button onClick={handleContactsLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
                       Se connecter
                     </button>
                   </div>
