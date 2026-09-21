@@ -980,6 +980,7 @@ export default function DashboardManager({ restrictedScope = null }) {
           saisies={scopedSaisies}
           iaList={scopedIaList}
           selectedWeek={selectedWeek - 1}
+          annee={annee}
           onClose={() => setShowReunion(false)}
         />
       )}
@@ -989,6 +990,8 @@ export default function DashboardManager({ restrictedScope = null }) {
 
 // Grande carte de synthèse équipe (réunion) : valeur + tendance vs semaine précédente,
 // avec un détail par IA dépliable (nom + valeur), les 0 remontés en premier et surlignés.
+// Quand un membre du breakdown porte un champ `expected` (ex. prez à monter annoncées en S-1),
+// une 3e couleur (ambre) signale une réalisation partielle, en plus du rouge (rien réalisé alors qu'annoncé).
 function ReunionCard({ icon, label, value, previous, sublabel, color, bg, breakdown }) {
   const [open, setOpen] = useState(false)
   const hasBreakdown = breakdown && breakdown.length > 0
@@ -1013,12 +1016,27 @@ function ReunionCard({ icon, label, value, previous, sublabel, color, bg, breakd
       {open && hasBreakdown && (
         <div style={{ padding: '0 18px 16px' }}>
           <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
-            {sorted.map(m => (
-              <div key={m.nom} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: m.value === 0 ? '#FEF2F2' : 'rgba(255,255,255,0.6)', border: `1.5px solid ${m.value === 0 ? '#FECACA' : color + '25'}` }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: m.value === 0 ? '#B91C1C' : color }}>{m.nom}</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: m.value === 0 ? '#B91C1C' : color }}>{m.value}</span>
-              </div>
-            ))}
+            {sorted.map(m => {
+              const hasExpected = m.expected !== undefined
+              const missed = hasExpected && m.value === 0 && m.expected > 0
+              const partial = hasExpected && m.value > 0 && m.value < m.expected
+              const zero = !hasExpected && m.value === 0
+
+              const bgRow = missed ? '#FEF2F2' : partial ? '#FFFBEB' : zero ? '#FEF2F2' : 'rgba(255,255,255,0.6)'
+              const borderRow = missed ? '#FECACA' : partial ? '#FDE68A' : zero ? '#FECACA' : color + '25'
+              const textRow = missed ? '#B91C1C' : partial ? '#92400E' : zero ? '#B91C1C' : color
+
+              return (
+                <div key={m.nom} style={{ padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: bgRow, border: `1.5px solid ${borderRow}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: textRow }}>{m.nom}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: textRow }}>{m.value}</span>
+                  </div>
+                  {missed && <div style={{ fontSize: 10, color: textRow, opacity: 0.85, marginTop: 2 }}>avait annoncé {m.expected} prez en S-1, aucune réalisée</div>}
+                  {partial && <div style={{ fontSize: 10, color: textRow, opacity: 0.85, marginTop: 2 }}>{m.value}/{m.expected} prez annoncées réalisées</div>}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -1026,12 +1044,24 @@ function ReunionCard({ icon, label, value, previous, sublabel, color, bg, breakd
   )
 }
 
-function ModalReunion({ saisies, iaList, selectedWeek, onClose }) {
+function ModalReunion({ saisies, iaList, selectedWeek, annee, onClose }) {
+  const [crReporting, setCrReporting] = useState([])
+  const [crLoading, setCrLoading] = useState(true)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
   }, [])
+
+  // Recrutement chargé à part (léger, seulement à l'ouverture de la modale) : mêmes 5 KPIs
+  // que le panneau Recrutement, sommés par CR pour la semaine affichée.
+  useEffect(() => {
+    let active = true
+    supabase.from('cr_reporting').select('*').eq('annee', annee).then(({ data }) => {
+      if (active) { setCrReporting(data || []); setCrLoading(false) }
+    })
+    return () => { active = false }
+  }, [annee])
 
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
@@ -1043,6 +1073,13 @@ function ModalReunion({ saisies, iaList, selectedWeek, onClose }) {
   // apparaissent (y compris à 0) pour repérer d'un coup d'œil qui n'a rien déclaré.
   const byIa = (key) => iasFiltrees.map(ia => ({ nom: ia.nom, value: sum(weekData.filter(s => s.ia_id === ia.id), key) }))
   const pipeByIa = iasFiltrees.map(ia => ({ nom: ia.nom, value: pipe(weekData.filter(s => s.ia_id === ia.id)) }))
+  // Présentations : réalisé cette semaine vs annoncé ("prez à monter") en S-1, pour repérer
+  // qui n'a pas fait la prez qu'il/elle avait annoncée (ou ne l'a fait qu'en partie).
+  const prezByIa = iasFiltrees.map(ia => ({
+    nom: ia.nom,
+    value: sum(weekData.filter(s => s.ia_id === ia.id), 'presentations'),
+    expected: sum(prevData.filter(s => s.ia_id === ia.id), 'presentations_a_monter'),
+  }))
 
   const rdv = sum(weekData, 'total_rdv')
   const rdvPrev = sum(prevData, 'total_rdv')
@@ -1054,6 +1091,23 @@ function ModalReunion({ saisies, iaList, selectedWeek, onClose }) {
   const pipePrec = pipe(prevData)
   const prezAMonterCetteSemaine = sum(weekData, 'presentations_a_monter')
   const prezAMonterPrec = sum(prevData, 'presentations_a_monter')
+
+  // Recrutement : mêmes calculs équipe (semaine affichée vs S-1) + détail par CR.
+  const crWeekData = crReporting.filter(r => r.semaine === selectedWeek)
+  const crPrevData = crReporting.filter(r => r.semaine === selectedWeek - 1)
+  const sumCr = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
+  const byCr = (key) => CR_LIST.map(cr => ({ nom: cr, value: sumCr(crWeekData.filter(r => r.cr_nom === cr), key) }))
+
+  const entretiens = sumCr(crWeekData, 'nb_entretiens')
+  const entretiensPrev = sumCr(crPrevData, 'nb_entretiens')
+  const candidatsValides = sumCr(crWeekData, 'nb_candidats_valides')
+  const candidatsValidesPrev = sumCr(crPrevData, 'nb_candidats_valides')
+  const cvEnvoyes = sumCr(crWeekData, 'nb_cv_envoyes')
+  const cvEnvoyesPrev = sumCr(crPrevData, 'nb_cv_envoyes')
+  const presentationsCr = sumCr(crWeekData, 'nb_presentations')
+  const presentationsCrPrev = sumCr(crPrevData, 'nb_presentations')
+  const signaturesCr = sumCr(crWeekData, 'nb_signatures')
+  const signaturesCrPrev = sumCr(crPrevData, 'nb_signatures')
 
   return createPortal(
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#1a1a2e', zIndex: 9999, overflowY: 'auto', padding: '24px 16px' }}>
@@ -1069,15 +1123,31 @@ function ModalReunion({ saisies, iaList, selectedWeek, onClose }) {
         </div>
 
         {/* KPIs équipe */}
-        <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, background: '#1a1a2e', borderRadius: '0 0 18px 18px' }}>
+        <div style={{ padding: '20px 24px 4px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, background: '#1a1a2e' }}>
           <ReunionCard icon="📅" label="RDV réalisés" value={rdv} previous={rdvPrev} color="#6D28D9" bg="#EDE9FE" breakdown={byIa('total_rdv')} />
           <ReunionCard icon="🎉" label="Signatures" value={signatures} previous={signaturesPrev} color="#9D174D" bg="#FCE7F3" breakdown={byIa('signatures')} />
           <ReunionCard icon="✅" label="Présentations réalisées" value={prezRealisees}
             sublabel={`Annoncées en S${selectedWeek - 1} : ${prezAnnonceesSemPrec} · ${prezAnnonceesSemPrec > 0 ? Math.round((prezRealisees / prezAnnonceesSemPrec) * 100) + '% réalisé' : 'aucune annonce'}`}
-            color="#1E40AF" bg="#DBEAFE" breakdown={byIa('presentations')} />
+            color="#1E40AF" bg="#DBEAFE" breakdown={prezByIa} />
           <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" breakdown={pipeByIa} />
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
+        </div>
+
+        {/* KPIs recrutement */}
+        <div style={{ padding: '4px 24px 24px', background: '#1a1a2e', borderRadius: '0 0 18px 18px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '4px 0 12px' }}>👥 Recrutement</div>
+          {crLoading ? (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Chargement…</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+              <ReunionCard icon="🗣" label="Entretiens" value={entretiens} previous={entretiensPrev} color="#534AB7" bg="#EEEDFE" breakdown={byCr('nb_entretiens')} />
+              <ReunionCard icon="✔️" label="Candidats validés" value={candidatsValides} previous={candidatsValidesPrev} color="#085041" bg="#E1F5EE" breakdown={byCr('nb_candidats_valides')} />
+              <ReunionCard icon="📤" label="CV envoyés" value={cvEnvoyes} previous={cvEnvoyesPrev} color="#0C447C" bg="#E6F1FB" breakdown={byCr('nb_cv_envoyes')} />
+              <ReunionCard icon="✅" label="Présentations" value={presentationsCr} previous={presentationsCrPrev} color="#633806" bg="#FAEEDA" breakdown={byCr('nb_presentations')} />
+              <ReunionCard icon="🎉" label="Signatures" value={signaturesCr} previous={signaturesCrPrev} color="#72243E" bg="#FBEAF0" breakdown={byCr('nb_signatures')} />
+            </div>
+          )}
         </div>
       </div>
     </div>,
