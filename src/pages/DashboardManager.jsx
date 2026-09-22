@@ -200,6 +200,47 @@ const RdvKpiCard = ({ value, previous, semaine, annee, iaId, iaList }) => {
     </div>
   )
 }
+
+// Carte "Positionnements ITC" équipe : total de la semaine + tendance vs S-1, dépliable en détail par IA
+// (mêmes conventions visuelles que RdvKpiCard : 0 remontés en premier et surlignés).
+const PositionnementsKpiCard = ({ value, previous, positionnements, iaList }) => {
+  const [open, setOpen] = useState(false)
+  const color = '#4338CA', bg = '#E0E7FF'
+
+  const byIa = iaList
+    .filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+    .map(ia => ({ id: ia.id, nom: ia.nom, count: positionnements.filter(x => x.ia_id === ia.id).length }))
+    .sort((a, b) => a.count - b.count)
+
+  return (
+    <div>
+      <div onClick={() => value > 0 && setOpen(o => !o)}
+        style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: value > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Positionnements ITC</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+            <div style={{ paddingBottom: 2 }}><Trend current={value} previous={previous} /></div>
+          </div>
+          {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 3 }}>Préc. : {previous}</div>}
+        </div>
+        {value > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && (
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>Par membre de l'équipe</div>
+          {byIa.map(m => (
+            <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: m.count === 0 ? '#FEF2F2' : '#fff', border: `1.5px solid ${m.count === 0 ? '#FECACA' : '#C7D2FE'}` }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: m.count === 0 ? '#B91C1C' : '#3730A3' }}>{m.nom}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: m.count === 0 ? '#B91C1C' : '#4338CA' }}>{m.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const P1KpiCard = ({ value, previous, data, recurringIds }) => {
   const [open, setOpen] = useState(false)
   const color = '#6D28D9', bg = '#EDE9FE'
@@ -283,13 +324,16 @@ function Podium({ ranking, accentColor, bgGradient, borderColor }) {
 // ─────────────────────────────────────────────
 // PANNEAU GAUCHE : COMMERCE
 // ─────────────────────────────────────────────
-function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
+function PanneauCommerce({ saisies, iaList, p1Data, positionnements, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
   const [view, setView] = useState('equipe')
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
 
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
   const p = key => selectedWeek > 1 ? sum(prevData, key) : undefined
+
+  const weekPositionnements = positionnements.filter(x => x.semaine === selectedWeek)
+  const prevPositionnements = positionnements.filter(x => x.semaine === selectedWeek - 1)
 
   const weekTrend = Array.from({ length: 6 }, (_, i) => {
     const w = selectedWeek - 5 + i
@@ -336,6 +380,7 @@ function PanneauCommerce({ saisies, iaList, p1Data, selectedWeek, setSelectedWee
           <SectionTitle title="KPIs semaine" color="#6D28D9" icon="📊" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
             <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaList={iaList} key={`rdv-${selectedWeek}-${refreshKey}`} />
+            <PositionnementsKpiCard value={weekPositionnements.length} previous={selectedWeek > 1 ? prevPositionnements.length : undefined} positionnements={weekPositionnements} iaList={iaList} key={`pos-${selectedWeek}-${refreshKey}`} />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
             <KpiCard label="Prés. à monter" value={sum(weekData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
@@ -900,19 +945,22 @@ export default function DashboardManager({ restrictedScope = null }) {
   const [saisies, setSaisies] = useState([])
   const [iaList, setIaList] = useState([])
   const [p1Data, setP1Data] = useState([])
+  const [positionnements, setPositionnements] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showReunion, setShowReunion] = useState(false)
 
   const load = async () => {
-    const [{ data: all }, { data: ia }, { data: p1 }] = await Promise.all([
+    const [{ data: all }, { data: ia }, { data: p1 }, { data: pos }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
       supabase.from('ia').select('*').order('nom'),
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee),
+      supabase.from('positionnements').select('*').eq('annee', annee),
     ])
     setSaisies(all || [])
     setIaList((ia || []).filter(i => i.statut !== 'ancien'))
     setP1Data(p1 || [])
+    setPositionnements(pos || [])
     setLoading(false)
   }
 
@@ -938,6 +986,7 @@ export default function DashboardManager({ restrictedScope = null }) {
   const scopedIds = new Set(scopedIaList.map(ia => ia.id))
   const scopedSaisies = activeScope ? saisies.filter(s => scopedIds.has(s.ia_id)) : saisies
   const scopedP1Data = activeScope ? p1Data.filter(p => scopedIds.has(p.ia_id)) : p1Data
+  const scopedPositionnements = activeScope ? positionnements.filter(p => scopedIds.has(p.ia_id)) : positionnements
 
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
@@ -959,6 +1008,7 @@ export default function DashboardManager({ restrictedScope = null }) {
             saisies={scopedSaisies}
             iaList={scopedIaList}
             p1Data={scopedP1Data}
+            positionnements={scopedPositionnements}
             selectedWeek={selectedWeek}
             setSelectedWeek={setSelectedWeek}
             semaine={semaine}
@@ -979,6 +1029,7 @@ export default function DashboardManager({ restrictedScope = null }) {
         <ModalReunion
           saisies={scopedSaisies}
           iaList={scopedIaList}
+          positionnements={scopedPositionnements}
           selectedWeek={selectedWeek - 1}
           annee={annee}
           onClose={() => setShowReunion(false)}
@@ -1044,7 +1095,7 @@ function ReunionCard({ icon, label, value, previous, sublabel, color, bg, breakd
   )
 }
 
-function ModalReunion({ saisies, iaList, selectedWeek, annee, onClose }) {
+function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, onClose }) {
   const [crReporting, setCrReporting] = useState([])
   const [crLoading, setCrLoading] = useState(true)
 
@@ -1092,6 +1143,11 @@ function ModalReunion({ saisies, iaList, selectedWeek, annee, onClose }) {
   const prezAMonterCetteSemaine = sum(weekData, 'presentations_a_monter')
   const prezAMonterPrec = sum(prevData, 'presentations_a_monter')
 
+  // Positionnements ITC : mêmes conventions (semaine affichée vs S-1 + détail par IA).
+  const weekPositionnements = positionnements.filter(x => x.semaine === selectedWeek)
+  const prevPositionnements = positionnements.filter(x => x.semaine === selectedWeek - 1)
+  const positionnementsByIa = iasFiltrees.map(ia => ({ nom: ia.nom, value: weekPositionnements.filter(x => x.ia_id === ia.id).length }))
+
   // Recrutement : mêmes calculs équipe (semaine affichée vs S-1) + détail par CR.
   const crWeekData = crReporting.filter(r => r.semaine === selectedWeek)
   const crPrevData = crReporting.filter(r => r.semaine === selectedWeek - 1)
@@ -1132,6 +1188,7 @@ function ModalReunion({ saisies, iaList, selectedWeek, annee, onClose }) {
           <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" breakdown={pipeByIa} />
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
+          <ReunionCard icon="📤" label="Positionnements ITC" value={weekPositionnements.length} previous={prevPositionnements.length} color="#4338CA" bg="#E0E7FF" breakdown={positionnementsByIa} />
         </div>
 
         {/* KPIs recrutement */}
