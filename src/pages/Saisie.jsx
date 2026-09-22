@@ -7,6 +7,9 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
+// Date du jour au format attendu par <input type="date"> (yyyy-mm-dd)
+const todayISO = () => new Date().toISOString().slice(0, 10)
+
 // Eclaircit une couleur hexa vers du pastel (pour du texte lisible sur fond sombre)
 const lighten = (hex, amt) => {
   const n = parseInt(hex.replace('#', ''), 16)
@@ -254,7 +257,7 @@ const RdvTable = ({ list, onRemove }) => {
 }
 
 // ─────────────────────────────────────────────
-// PUSH / POSITIONNEMENTS ITC
+// POSITIONNEMENT COLLABORATEUR ITC
 // ─────────────────────────────────────────────
 const POSITIONNEMENT_STATUTS = [
   { value: 'en_attente',             label: 'En attente de retour',    color: '#0369A1' },
@@ -264,7 +267,13 @@ const POSITIONNEMENT_STATUTS = [
   { value: 'signe',                  label: 'Signé / Démarrage',       color: '#0F6E56' },
 ]
 
-const emptyPositionnement = { collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '' }
+const POSITIONNEMENT_TYPE_OPTIONS = [
+  { value: 'besoin', label: 'Positionnement sur besoin' },
+  { value: 'push',   label: 'Push' },
+]
+const POSITIONNEMENT_TYPE_COLORS = { besoin: '#0F6E56', push: '#4338CA' }
+
+const emptyPositionnement = () => ({ collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '', type_positionnement: '', date_push: todayISO() })
 
 const POS_COLOR = '#4338CA'
 const posLabelStyle = { display: 'block', fontSize: 12, color: lighten(POS_COLOR, 0.35), marginBottom: 5, fontWeight: 600 }
@@ -272,11 +281,16 @@ const posInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px sol
 
 const PositionnementCard = ({ p, onStatutChange, onRemove }) => {
   const cfg = POSITIONNEMENT_STATUTS.find(s => s.value === p.statut) || POSITIONNEMENT_STATUTS[0]
+  const typeColor = POSITIONNEMENT_TYPE_COLORS[p.type_positionnement] || POS_COLOR
+  const typeLabel = POSITIONNEMENT_TYPE_OPTIONS.find(t => t.value === p.type_positionnement)?.label
   return (
     <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}60`, marginBottom: 10 }}>
       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG }}>{p.collaborateur_itc}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG }}>{p.collaborateur_itc}</div>
+            {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: typeColor, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{typeLabel}</span>}
+          </div>
           <div style={{ fontSize: 12, color: lighten(POS_COLOR, 0.3), fontWeight: 600, marginTop: 2 }}>🏢 {p.client}</div>
           {(p.nom || p.prenom) && (
             <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
@@ -284,7 +298,7 @@ const PositionnementCard = ({ p, onStatutChange, onRemove }) => {
             </div>
           )}
           <div style={{ fontSize: 10, color: TEXT_MUTED, opacity: 0.7, marginTop: 6 }}>
-            Poussé en S{p.semaine} · Dernière MAJ : S{p.derniere_maj_semaine || p.semaine}
+            {p.date_push ? `Poussé le ${new Date(p.date_push).toLocaleDateString('fr-FR')}` : `Poussé en S${p.semaine}`} · Dernière MAJ : S{p.derniere_maj_semaine || p.semaine}
           </div>
         </div>
         {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F87171', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>}
@@ -368,7 +382,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [contactSuggestions, setContactSuggestions] = useState([])
   const [selectedContactId, setSelectedContactId] = useState(null)
   const [positionnements, setPositionnements] = useState([])
-  const [newPositionnement, setNewPositionnement] = useState(emptyPositionnement)
+  const [newPositionnement, setNewPositionnement] = useState(emptyPositionnement())
   const [savingPositionnement, setSavingPositionnement] = useState(false)
   const [errorPositionnement, setErrorPositionnement] = useState('')
   const [posContactSuggestions, setPosContactSuggestions] = useState([])
@@ -386,7 +400,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   // Pour un nouveau contact (pas encore rattaché), on exige au moins un email ou un téléphone
   const needsContactInfo = !selectedContactId && !newRdv.email.trim() && !newRdv.telephone.trim()
   const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting && newRdv.compte_rendu.trim() && !needsContactInfo
-  const positionnementComplete = newPositionnement.collaborateur_itc.trim() && newPositionnement.client.trim() && newPositionnement.nom.trim()
+  const positionnementComplete = newPositionnement.collaborateur_itc.trim() && newPositionnement.client.trim() && newPositionnement.nom.trim() && newPositionnement.type_positionnement && newPositionnement.date_push
 
   // Débloque la largeur du conteneur global (par défaut limité à 480px, pensé pour mobile)
   useEffect(() => {
@@ -551,6 +565,8 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       nom: newPositionnement.nom.trim(),
       prenom: newPositionnement.prenom.trim() || null,
       fonction: newPositionnement.fonction.trim() || null,
+      type_positionnement: newPositionnement.type_positionnement,
+      date_push: newPositionnement.date_push,
       statut: 'en_attente',
       derniere_maj_semaine: selectedWeek,
       derniere_maj_annee: annee,
@@ -558,7 +574,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
     if (data) {
       setPositionnements(l => [data, ...l])
-      setNewPositionnement(emptyPositionnement)
+      setNewPositionnement(emptyPositionnement())
       setSelectedPosContactId(null)
     } else {
       setErrorPositionnement(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
@@ -731,7 +747,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </Section>
 
-          <Section title="Push / Positionnements ITC" color={POS_COLOR} bg="#1E1B33" icon="ti-send">
+          <Section title="Positionnement collaborateur ITC" color={POS_COLOR} bg="#1E1B33" icon="ti-send">
             {positionnements.map(p => (
               <PositionnementCard key={p.id} p={p} onStatutChange={updatePositionnementStatut} onRemove={() => removePositionnement(p.id)} />
             ))}
@@ -740,6 +756,20 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                 <i className="ti ti-plus" style={{ fontSize: 14, color: lighten(POS_COLOR, 0.35) }} aria-hidden="true" />
                 <div style={{ fontSize: 12, fontWeight: 700, color: lighten(POS_COLOR, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un positionnement</div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: '1 1 200px' }}>
+                  <label style={posLabelStyle}>Type de positionnement *</label>
+                  <select value={newPositionnement.type_positionnement} onChange={e => setNewPositionnement(p => ({ ...p, type_positionnement: e.target.value }))} style={posInputStyle}>
+                    <option value="" style={{ background: '#2B2940', color: TEXT_STRONG }}>Choisir...</option>
+                    {POSITIONNEMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: '1 1 160px' }}>
+                  <label style={posLabelStyle}>Date du push *</label>
+                  <input type="date" value={newPositionnement.date_push} onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))} style={posInputStyle} />
+                </div>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
