@@ -253,6 +253,52 @@ const RdvTable = ({ list, onRemove }) => {
   )
 }
 
+// ─────────────────────────────────────────────
+// PUSH / POSITIONNEMENTS ITC
+// ─────────────────────────────────────────────
+const POSITIONNEMENT_STATUTS = [
+  { value: 'en_attente',             label: 'En attente de retour',    color: '#0369A1' },
+  { value: 'presentation_a_prevoir', label: 'Présentation à prévoir',  color: '#BA7517' },
+  { value: 'presentation_realisee',  label: 'Présentation réalisée',   color: '#1E40AF' },
+  { value: 'sans_suite',             label: 'Sans suite',              color: '#9F1239' },
+  { value: 'signe',                  label: 'Signé / Démarrage',       color: '#0F6E56' },
+]
+
+const emptyPositionnement = { collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '' }
+
+const POS_COLOR = '#4338CA'
+const posLabelStyle = { display: 'block', fontSize: 12, color: lighten(POS_COLOR, 0.35), marginBottom: 5, fontWeight: 600 }
+const posInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
+
+const PositionnementCard = ({ p, onStatutChange, onRemove }) => {
+  const cfg = POSITIONNEMENT_STATUTS.find(s => s.value === p.statut) || POSITIONNEMENT_STATUTS[0]
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}60`, marginBottom: 10 }}>
+      <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG }}>{p.collaborateur_itc}</div>
+          <div style={{ fontSize: 12, color: lighten(POS_COLOR, 0.3), fontWeight: 600, marginTop: 2 }}>🏢 {p.client}</div>
+          {(p.nom || p.prenom) && (
+            <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
+              👤 {[p.prenom, p.nom].filter(Boolean).join(' ')}{p.fonction && ` · ${p.fonction}`}
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: TEXT_MUTED, opacity: 0.7, marginTop: 6 }}>
+            Poussé en S{p.semaine} · Dernière MAJ : S{p.derniere_maj_semaine || p.semaine}
+          </div>
+        </div>
+        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F87171', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>}
+      </div>
+      <div style={{ padding: '0 14px 12px' }}>
+        <select value={p.statut} onChange={e => onStatutChange(p.id, e.target.value)}
+          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.color + '20', color: lighten(cfg.color, 0.4), fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+          {POSITIONNEMENT_STATUTS.map(s => <option key={s.value} value={s.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{s.label}</option>)}
+        </select>
+      </div>
+    </div>
+  )
+}
+
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 
 const P1_COLOR = '#BA7517'
@@ -321,6 +367,12 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [errorRdv, setErrorRdv] = useState('')
   const [contactSuggestions, setContactSuggestions] = useState([])
   const [selectedContactId, setSelectedContactId] = useState(null)
+  const [positionnements, setPositionnements] = useState([])
+  const [newPositionnement, setNewPositionnement] = useState(emptyPositionnement)
+  const [savingPositionnement, setSavingPositionnement] = useState(false)
+  const [errorPositionnement, setErrorPositionnement] = useState('')
+  const [posContactSuggestions, setPosContactSuggestions] = useState([])
+  const [selectedPosContactId, setSelectedPosContactId] = useState(null)
 
   const rdvCounts = {
     decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
@@ -334,6 +386,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   // Pour un nouveau contact (pas encore rattaché), on exige au moins un email ou un téléphone
   const needsContactInfo = !selectedContactId && !newRdv.email.trim() && !newRdv.telephone.trim()
   const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting && newRdv.compte_rendu.trim() && !needsContactInfo
+  const positionnementComplete = newPositionnement.collaborateur_itc.trim() && newPositionnement.client.trim() && newPositionnement.nom.trim()
 
   // Débloque la largeur du conteneur global (par défaut limité à 480px, pensé pour mobile)
   useEffect(() => {
@@ -370,6 +423,14 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     load()
   }, [iaId, selectedWeek])
 
+  // Positionnements ITC : indépendant de la semaine sélectionnée (un positionnement vit sur plusieurs
+  // semaines, seul son statut évolue) — on charge simplement tout ce qui est en cours pour cette IA.
+  useEffect(() => {
+    if (!iaId) return
+    supabase.from('positionnements').select('*').eq('ia_id', iaId).order('created_at', { ascending: false })
+      .then(({ data }) => setPositionnements(data || []))
+  }, [iaId])
+
   // Recherche de contacts existants pendant la saisie du nom (avec un petit délai pour ne pas spammer la base)
   useEffect(() => {
     const term = newRdv.nom.trim()
@@ -392,6 +453,23 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     setSelectedContactId(c.id)
     setNewRdv(r => ({ ...r, nom: c.nom, prenom: c.prenom || '', email: c.email || '', telephone: c.telephone || '' }))
     setContactSuggestions([])
+  }
+
+  // Même logique de rapprochement, pour le formulaire de positionnement
+  useEffect(() => {
+    const term = newPositionnement.nom.trim()
+    if (selectedPosContactId || term.length < 2) { setPosContactSuggestions([]); return }
+    const timeout = setTimeout(async () => {
+      const { data: matches } = await supabase.from('contacts').select('*').ilike('nom', `%${term}%`).limit(5)
+      setPosContactSuggestions(matches || [])
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [newPositionnement.nom, selectedPosContactId])
+
+  const pickPosContact = (c) => {
+    setSelectedPosContactId(c.id)
+    setNewPositionnement(p => ({ ...p, nom: c.nom, prenom: c.prenom || '' }))
+    setPosContactSuggestions([])
   }
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
@@ -444,6 +522,60 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const removeRdv = async (id) => {
     await supabase.from('rdv_details').delete().eq('id', id)
     setRdvList(l => l.filter(r => r.id !== id))
+  }
+
+  const addPositionnement = async () => {
+    if (!positionnementComplete) return
+    setSavingPositionnement(true)
+    setErrorPositionnement('')
+
+    // Même logique de rapprochement que pour les RDV : contact existant relié, sinon nouveau contact créé (nom + prénom suffisent ici)
+    let contactId = selectedPosContactId
+    if (!contactId) {
+      const { data: newContact, error: contactErr } = await supabase.from('contacts')
+        .insert({ nom: newPositionnement.nom.trim(), prenom: newPositionnement.prenom.trim() || null })
+        .select().single()
+      if (contactErr) {
+        setErrorPositionnement(`Erreur contact : ${contactErr.message}`)
+        setSavingPositionnement(false)
+        return
+      }
+      contactId = newContact.id
+    }
+
+    const { data, error: err } = await supabase.from('positionnements').insert({
+      ia_id: iaId, semaine: selectedWeek, annee,
+      collaborateur_itc: newPositionnement.collaborateur_itc.trim(),
+      client: newPositionnement.client.trim(),
+      contact_id: contactId,
+      nom: newPositionnement.nom.trim(),
+      prenom: newPositionnement.prenom.trim() || null,
+      fonction: newPositionnement.fonction.trim() || null,
+      statut: 'en_attente',
+      derniere_maj_semaine: selectedWeek,
+      derniere_maj_annee: annee,
+    }).select().single()
+
+    if (data) {
+      setPositionnements(l => [data, ...l])
+      setNewPositionnement(emptyPositionnement)
+      setSelectedPosContactId(null)
+    } else {
+      setErrorPositionnement(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
+    }
+    setSavingPositionnement(false)
+  }
+
+  const removePositionnement = async (id) => {
+    await supabase.from('positionnements').delete().eq('id', id)
+    setPositionnements(l => l.filter(p => p.id !== id))
+  }
+
+  const updatePositionnementStatut = async (id, statut) => {
+    const { data } = await supabase.from('positionnements')
+      .update({ statut, derniere_maj_semaine: selectedWeek, derniere_maj_annee: annee, updated_at: new Date().toISOString() })
+      .eq('id', id).select().single()
+    if (data) setPositionnements(l => l.map(p => p.id === id ? data : p))
   }
 
   const addP1 = async () => {
@@ -597,6 +729,70 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             </div>
             {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation */}
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
+          </Section>
+
+          <Section title="Push / Positionnements ITC" color={POS_COLOR} bg="#1E1B33" icon="ti-send">
+            {positionnements.map(p => (
+              <PositionnementCard key={p.id} p={p} onStatutChange={updatePositionnementStatut} onRemove={() => removePositionnement(p.id)} />
+            ))}
+
+            <div style={{ marginTop: positionnements.length > 0 ? 16 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <i className="ti ti-plus" style={{ fontSize: 14, color: lighten(POS_COLOR, 0.35) }} aria-hidden="true" />
+                <div style={{ fontSize: 12, fontWeight: 700, color: lighten(POS_COLOR, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un positionnement</div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: '1 1 220px' }}>
+                  <label style={posLabelStyle}>Collaborateur en ITC *</label>
+                  <input type="text" placeholder="Nom du collaborateur poussé" value={newPositionnement.collaborateur_itc} onChange={e => setNewPositionnement(p => ({ ...p, collaborateur_itc: e.target.value }))} style={posInputStyle} />
+                </div>
+                <div style={{ flex: '1 1 220px' }}>
+                  <label style={posLabelStyle}>Client *</label>
+                  <input type="text" placeholder="Raison sociale du client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} style={posInputStyle} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: '1 1 180px', position: 'relative' }}>
+                  <label style={posLabelStyle}>Nom de l'opérationnel visé *</label>
+                  <input type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off"
+                    onChange={e => { setNewPositionnement(p => ({ ...p, nom: e.target.value })); setSelectedPosContactId(null) }}
+                    style={posInputStyle} />
+                  {selectedPosContactId && (
+                    <div style={{ fontSize: 10, color: lighten('#0F6E56', 0.3), marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, relié automatiquement</div>
+                  )}
+                  {!selectedPosContactId && posContactSuggestions.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#2B2940', border: '1.5px solid ' + lighten(POS_COLOR, 0.2), borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.45)' }}>
+                      {posContactSuggestions.map(c => (
+                        <div key={c.id} onClick={() => pickPosContact(c)}
+                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12, fontWeight: 600, color: TEXT_STRONG }}>
+                          {[c.prenom, c.nom].filter(Boolean).join(' ')}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: '1 1 180px' }}>
+                  <label style={posLabelStyle}>Prénom</label>
+                  <input type="text" placeholder="Prénom" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} style={posInputStyle} />
+                </div>
+                <div style={{ flex: '1 1 180px' }}>
+                  <label style={posLabelStyle}>Fonction</label>
+                  <input type="text" placeholder="Ex: DRH, Directeur IT..." value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} style={posInputStyle} />
+                </div>
+              </div>
+
+              <button onClick={addPositionnement} disabled={savingPositionnement || !positionnementComplete}
+                style={{ width: '100%', padding: '11px', background: positionnementComplete ? POS_COLOR : 'transparent', color: positionnementComplete ? '#fff' : TEXT_MUTED, border: positionnementComplete ? 'none' : '1.5px solid rgba(255,255,255,0.16)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: positionnementComplete ? 'pointer' : 'default' }}>
+                {savingPositionnement ? 'Ajout...' : '+ Ajouter ce positionnement'}
+              </button>
+              {errorPositionnement && (
+                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
+                  ⚠️ {errorPositionnement}
+                </div>
+              )}
+            </div>
           </Section>
 
           <Section title="Gestion du Pipe" color="#0F6E56" bg="#122420" icon="ti-filter">
