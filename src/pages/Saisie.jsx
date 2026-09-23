@@ -551,6 +551,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
     // Même logique de rapprochement que pour les RDV : contact existant relié, sinon nouveau contact créé (nom + prénom suffisent ici)
     let contactId = selectedPosContactId
+    let createdContactId = null // trace qu'on vient de créer ce contact, pour pouvoir annuler si la suite échoue
     if (!contactId) {
       const { data: newContact, error: contactErr } = await supabase.from('contacts')
         .insert({ nom: newPositionnement.nom.trim(), prenom: newPositionnement.prenom.trim() || null })
@@ -561,6 +562,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         return
       }
       contactId = newContact.id
+      createdContactId = newContact.id
     }
 
     const { data, error: err } = await supabase.from('positionnements').insert({
@@ -584,6 +586,10 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       setSelectedPosContactId(null)
       setPosFormKey(k => k + 1)
     } else {
+      // Le contact avait été créé en 2 requêtes séparées (pas de vraie transaction côté Supabase) : si
+      // l'enregistrement du positionnement échoue derrière, on supprime le contact qu'on venait de créer
+      // pour ne pas polluer la base contacts avec des doublons orphelins à chaque nouvel essai.
+      if (createdContactId) await supabase.from('contacts').delete().eq('id', createdContactId)
       setErrorPositionnement(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
     }
     setSavingPositionnement(false)
@@ -793,18 +799,18 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: '1 1 220px' }}>
                   <label style={posLabelStyle}>Collaborateur en ITC *</label>
-                  <input type="text" placeholder="Nom du collaborateur poussé" value={newPositionnement.collaborateur_itc} onChange={e => setNewPositionnement(p => ({ ...p, collaborateur_itc: e.target.value }))} style={posInputStyle} />
+                  <input type="text" placeholder="Nom du collaborateur poussé" autoComplete="off" name="pos-collaborateur-itc" value={newPositionnement.collaborateur_itc} onChange={e => setNewPositionnement(p => ({ ...p, collaborateur_itc: e.target.value }))} style={posInputStyle} />
                 </div>
                 <div style={{ flex: '1 1 220px' }}>
                   <label style={posLabelStyle}>Client *</label>
-                  <input type="text" placeholder="Raison sociale du client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} style={posInputStyle} />
+                  <input type="text" placeholder="Raison sociale du client" autoComplete="off" name="pos-client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} style={posInputStyle} />
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
                 <div style={{ flex: '1 1 180px', position: 'relative' }}>
                   <label style={posLabelStyle}>Nom de l'opérationnel visé *</label>
-                  <input type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off"
+                  <input type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off" name="pos-nom-operationnel"
                     onChange={e => { setNewPositionnement(p => ({ ...p, nom: e.target.value })); setSelectedPosContactId(null) }}
                     style={posInputStyle} />
                   {selectedPosContactId && (
@@ -823,11 +829,11 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                 </div>
                 <div style={{ flex: '1 1 180px' }}>
                   <label style={posLabelStyle}>Prénom</label>
-                  <input type="text" placeholder="Prénom" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} style={posInputStyle} />
+                  <input type="text" placeholder="Prénom" autoComplete="off" name="pos-prenom-operationnel" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} style={posInputStyle} />
                 </div>
                 <div style={{ flex: '1 1 180px' }}>
                   <label style={posLabelStyle}>Fonction</label>
-                  <input type="text" placeholder="Ex: DRH, Directeur IT..." value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} style={posInputStyle} />
+                  <input type="text" placeholder="Ex: DRH, Directeur IT..." autoComplete="off" name="pos-fonction" value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} style={posInputStyle} />
                 </div>
               </div>
 
