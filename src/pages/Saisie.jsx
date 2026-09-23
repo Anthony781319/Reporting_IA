@@ -387,6 +387,11 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [errorPositionnement, setErrorPositionnement] = useState('')
   const [posContactSuggestions, setPosContactSuggestions] = useState([])
   const [selectedPosContactId, setSelectedPosContactId] = useState(null)
+  // Incrémenté après chaque ajout réussi pour forcer le remontage du champ date (voir input date_push
+  // plus bas) : un <input type="date"> entièrement piloté par React (value= + onChange) perd le fil de
+  // la saisie clavier dès qu'on tape dans le segment année (bug connu des date inputs contrôlés), d'où
+  // le passage en non-contrôlé (defaultValue) — remonté via `key` uniquement quand on veut le réinitialiser.
+  const [posFormKey, setPosFormKey] = useState(0)
 
   const rdvCounts = {
     decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
@@ -576,6 +581,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       setPositionnements(l => [data, ...l])
       setNewPositionnement(emptyPositionnement())
       setSelectedPosContactId(null)
+      setPosFormKey(k => k + 1)
     } else {
       setErrorPositionnement(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
     }
@@ -768,7 +774,10 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                 </div>
                 <div style={{ flex: '1 1 160px' }}>
                   <label style={posLabelStyle}>Date du push *</label>
-                  <input type="date" value={newPositionnement.date_push} onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))} style={posInputStyle} />
+                  {/* Non-contrôlé (defaultValue) : un input date piloté par value= perd le fil dès qu'on tape dans le
+                      segment année (React réécrit la valeur à chaque frappe et coupe l'accumulation du navigateur).
+                      `key` force juste une réinitialisation propre après un ajout réussi. */}
+                  <input key={posFormKey} type="date" defaultValue={newPositionnement.date_push} onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))} style={posInputStyle} />
                 </div>
               </div>
 
