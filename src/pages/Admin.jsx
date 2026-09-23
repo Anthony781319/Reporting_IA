@@ -21,7 +21,17 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   const [saisieIA, setSaisieIA] = useState(null)
   const [saisieIndex, setSaisieIndex] = useState(0)
 
-  useEffect(() => { loadIA() }, [])
+  // Liste de référence des collaborateurs en intercontrat, utilisée par le menu "Positionnement collaborateur ITC"
+  // dans Ma saisie : les commerciaux choisissent dans cette liste plutôt que de retaper un nom en texte libre,
+  // pour que le manager puisse ensuite compter fiablement le nombre de push par collaborateur.
+  const [itcList, setItcList] = useState([])
+  const [itcAnciens, setItcAnciens] = useState([])
+  const [showItcAnciens, setShowItcAnciens] = useState(false)
+  const [itcNom, setItcNom] = useState('')
+  const [itcAdding, setItcAdding] = useState(false)
+  const [itcMsg, setItcMsg] = useState('')
+
+  useEffect(() => { loadIA(); loadItc() }, [])
 
   const loadIA = async () => {
     const { data } = await supabase.from('ia').select('*').order('nom')
@@ -59,6 +69,41 @@ export default function Admin({ onSelectIA, selectedIaId }) {
     if (!window.confirm('Supprimer définitivement cet IA ? Ses données seront effacées, cette action est irréversible.')) return
     await supabase.from('ia').delete().eq('id', id)
     await loadIA()
+  }
+
+  const loadItc = async () => {
+    const { data } = await supabase.from('collaborateurs_itc').select('*').order('nom')
+    const all = data || []
+    setItcList(all.filter(c => c.statut !== 'ancien'))
+    setItcAnciens(all.filter(c => c.statut === 'ancien'))
+  }
+
+  const addItc = async () => {
+    if (!itcNom.trim()) return setItcMsg('Nom requis')
+    setItcAdding(true)
+    const { error } = await supabase.from('collaborateurs_itc').insert({ nom: itcNom.trim(), statut: 'actif' })
+    if (error) setItcMsg('Erreur : ' + error.message)
+    else { setItcNom(''); setItcMsg('Collaborateur ajouté !'); await loadItc() }
+    setItcAdding(false)
+    setTimeout(() => setItcMsg(''), 3000)
+  }
+
+  // Archiver : le collaborateur n'est plus en intercontrat / a quitté. Il disparaît du menu de saisie,
+  // mais l'historique de ses positionnements passés est conservé (le champ est du texte, pas une clé étrangère).
+  const archiveItc = async (id) => {
+    await supabase.from('collaborateurs_itc').update({ statut: 'ancien' }).eq('id', id)
+    await loadItc()
+  }
+
+  const reactivateItc = async (id) => {
+    await supabase.from('collaborateurs_itc').update({ statut: 'actif' }).eq('id', id)
+    await loadItc()
+  }
+
+  const removeItc = async (id) => {
+    if (!window.confirm('Supprimer définitivement ce collaborateur de la liste ? Cette action est irréversible.')) return
+    await supabase.from('collaborateurs_itc').delete().eq('id', id)
+    await loadItc()
   }
 
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
@@ -195,6 +240,74 @@ export default function Admin({ onSelectIA, selectedIaId }) {
                   ↩️ Réactiver
                 </button>
                 <button onClick={() => removeIA(ia.id)} title="Supprimer définitivement"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+                  <i className="ti ti-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Section Collaborateurs ITC (liste de référence pour le menu "Positionnement collaborateur ITC" de Ma saisie) */}
+      <div style={{ height: 1, background: 'var(--color-border-tertiary)', margin: '24px 0' }} />
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, letterSpacing: '-0.3px' }}>
+        🧑‍💻 Collaborateurs en intercontrat
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+        Liste utilisée par les commerciaux pour déclarer un positionnement — ils choisissent dedans plutôt que de retaper un nom, pour que le comptage par collaborateur reste fiable.
+      </div>
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        {itcList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '11px 14px' }}>Aucun collaborateur ITC pour le moment.</div>
+        ) : itcList.map((c, i) => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+            <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-primary)' }}>{c.nom}</span>
+            <button onClick={() => archiveItc(c.id)} title="Archiver (n'est plus en intercontrat)"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+              <i className="ti ti-archive" aria-hidden="true"></i>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14 }}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Nom du collaborateur</label>
+          <input type="text" value={itcNom} onChange={e => setItcNom(e.target.value)} placeholder="ex: Jean Dupont" style={{ width: '100%' }} />
+        </div>
+        {itcMsg && (
+          <div style={{ fontSize: 12, marginBottom: 10, color: itcMsg.includes('Erreur') ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: itcMsg.includes('Erreur') ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
+            {itcMsg}
+          </div>
+        )}
+        <button onClick={addItc} disabled={itcAdding}
+          style={{ width: '100%', padding: 12, background: '#4338CA', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {itcAdding ? 'Ajout...' : '+ Ajouter'}
+        </button>
+      </div>
+
+      <div onClick={() => setShowItcAnciens(!showItcAnciens)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginTop: 20, marginBottom: showItcAnciens ? 14 : 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+          🗄️ Anciens collaborateurs ITC {itcAnciens.length > 0 && `(${itcAnciens.length})`}
+        </div>
+        <i className={`ti ti-chevron-${showItcAnciens ? 'up' : 'down'}`} aria-hidden="true" style={{ color: 'var(--color-text-secondary)' }}></i>
+      </div>
+
+      {showItcAnciens && (
+        itcAnciens.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '8px 0' }}>Aucun collaborateur archivé pour le moment.</div>
+        ) : (
+          <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
+            {itcAnciens.map((c, i) => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-secondary)' }}>{c.nom}</span>
+                <button onClick={() => reactivateItc(c.id)} title="Réactiver"
+                  style={{ background: 'none', border: '1.5px solid #4338CA', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#4338CA', marginRight: 4 }}>
+                  ↩️ Réactiver
+                </button>
+                <button onClick={() => removeItc(c.id)} title="Supprimer définitivement"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
                   <i className="ti ti-trash" aria-hidden="true"></i>
                 </button>
