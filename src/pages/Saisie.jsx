@@ -1,919 +1,320 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import Saisie from './Saisie'
 
-const currentWeek = () => {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
-}
-
-// Date du jour au format attendu par <input type="date"> (yyyy-mm-dd)
-const todayISO = () => new Date().toISOString().slice(0, 10)
-
-// Eclaircit une couleur hexa vers du pastel (pour du texte lisible sur fond sombre)
-const lighten = (hex, amt) => {
-  const n = parseInt(hex.replace('#', ''), 16)
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255
-  const mix = c => Math.round(c + (255 - c) * amt)
-  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
-}
-
-const TEXT_STRONG = '#F5F4F8'
-const TEXT_MUTED = '#ACA9BA'
-
-const Section = ({ title, color, bg, icon, plain, children }) => (
-  <div style={{ marginBottom: 28 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
-      {icon && (
-        <div style={{ width: 28, height: 28, borderRadius: 9, background: color + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <i className={`ti ${icon}`} style={{ fontSize: 16, color: lighten(color, 0.3) }} aria-hidden="true" />
-        </div>
-      )}
-      <div style={{ fontSize: 14, fontWeight: 700, color: lighten(color, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
-    </div>
-    {plain ? (
-      <div>{children}</div>
-    ) : (
-      <div style={{ background: bg || (color + '12'), border: '1.5px solid ' + color + '40', borderRadius: 18, padding: 20, boxShadow: '0 6px 24px rgba(0,0,0,0.3)' }}>
-        {children}
-      </div>
-    )}
-  </div>
-)
-
-const Counter = ({ label, value, onChange, color }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_MUTED, textAlign: 'center' }}>{label}</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <button onClick={() => onChange(Math.max(0, value - 1))}
-        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + lighten(color, 0.3), background: 'transparent', color: lighten(color, 0.3), fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
-      <span style={{ fontSize: 22, fontWeight: 700, minWidth: 30, textAlign: 'center', color: lighten(color, 0.3) }}>{value}</span>
-      <button onClick={() => onChange(value + 1)}
-        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + lighten(color, 0.3), background: 'transparent', color: lighten(color, 0.3), fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
-    </div>
-  </div>
-)
-
-const TotalField = ({ label, value, color }) => (
-  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + color + '35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_MUTED }}>{label}</span>
-    <span style={{ fontSize: 20, fontWeight: 700, color: lighten(color, 0.3) }}>{value}</span>
-  </div>
-)
-
-// Champs par type
-const DETAIL_FIELDS = {
-  signature:    [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'tjm', label: 'TJM', placeholder: 'Ex: 550€' }, { key: 'date_signature', label: 'Date de signature', type: 'date' }, { key: 'date', label: 'Date de démarrage envisagée', type: 'date' }],
-  presentation: [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'date', label: 'Date de présentation', type: 'date' }],
-  demarrage:    [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'tjm', label: 'TJM', placeholder: 'Ex: 550€' }, { key: 'date', label: 'Date de démarrage', type: 'date' }],
-  fin_mission:  [{ key: 'nom_prenom', label: 'Nom / Prénom', placeholder: 'Ex: Jean Dupont' }, { key: 'client', label: 'Client', placeholder: 'Nom du client' }, { key: 'date', label: 'Date de fin de mission', type: 'date' }],
-}
-
-// color = teinte claire (texte/icônes sur fond sombre), fill = teinte saturée (pastilles pleines + texte blanc), bg = fond sombre de la ligne/du header
-const DETAIL_CONFIG = {
-  signature:    { label: 'Signatures',       color: '#F472A8', fill: '#9D174D', bg: '#2A1520', icon: '✍️' },
-  presentation: { label: 'Présentations',    color: '#7CA8F0', fill: '#1E40AF', bg: '#141F35', icon: '📋' },
-  demarrage:    { label: 'Démarrages',       color: '#4ED8A8', fill: '#065F46', bg: '#0F241D', icon: '🚀' },
-  fin_mission:  { label: 'Fins de mission',  color: '#F0B860', fill: '#92400E', bg: '#2A1D10', icon: '🏁' },
-}
-
-const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
-  const [open, setOpen] = useState(false)
-  const [details, setDetails] = useState([])
-  const [form, setForm] = useState({})
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const cfg = DETAIL_CONFIG[type]
-  const fields = DETAIL_FIELDS[type]
-
-  useEffect(() => {
-    if (count > 0) fetchDetails()
-  }, [count, semaine])
-
-  const fetchDetails = async () => {
-    const { data } = await supabase.from('details_resultats').select('*').eq('ia_id', iaId).eq('semaine', semaine).eq('annee', annee).eq('type', type).order('created_at')
-    if (data) setDetails(data)
-  }
-
-  const addDetail = async () => {
-    const required = fields.filter(f => f.key === 'nom_prenom' || f.key === 'client')
-    if (required.some(f => !form[f.key]?.trim())) return
-    setSaving(true)
-    setError('')
-    const { data, error: err } = await supabase.from('details_resultats').insert({ ia_id: iaId, semaine, annee, type, ...form }).select().single()
-    if (data) {
-      setDetails(d => [...d, data])
-      setForm({})
-    } else {
-      setError(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
-    }
-    setSaving(false)
-  }
-
-  const removeDetail = async (id) => {
-    await supabase.from('details_resultats').delete().eq('id', id)
-    setDetails(d => d.filter(x => x.id !== id))
-  }
-
-  if (count === 0) return null
-
-  return (
-    <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}50` }}>
-      {/* Header accordion */}
-      <div onClick={() => setOpen(o => !o)}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: cfg.bg, cursor: 'pointer' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>{cfg.icon}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>Détail {cfg.label}</span>
-          <span style={{ padding: '2px 8px', borderRadius: 20, background: cfg.fill, color: '#fff', fontSize: 11, fontWeight: 700 }}>
-            {details.length}/{count}
-          </span>
-        </div>
-        <span style={{ fontSize: 18, color: cfg.color, fontWeight: 700 }}>{open ? '▲' : '▼'}</span>
-      </div>
-
-      {open && (
-        <div style={{ background: cfg.bg, padding: 14 }}>
-
-          {/* Liste des détails existants */}
-          {details.map(d => (
-            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: 10, marginBottom: 6 }}>
-              <i className="ti ti-user" style={{ fontSize: 16, color: cfg.color, flexShrink: 0 }} aria-hidden="true" />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: TEXT_STRONG, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
-                  {d.client && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-building" style={{ fontSize: 12 }} aria-hidden="true" />{d.client}</span>}
-                  {d.tjm && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-coin" style={{ fontSize: 12 }} aria-hidden="true" />{d.tjm}</span>}
-                  {d.date_signature && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-signature" style={{ fontSize: 12 }} aria-hidden="true" />Signé le {new Date(d.date_signature).toLocaleDateString('fr-FR')}</span>}
-                  {d.date && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: cfg.color, opacity: 0.85 }}><i className="ti ti-calendar" style={{ fontSize: 12 }} aria-hidden="true" />{type === 'signature' ? 'Démarrage envisagé ' : ''}{new Date(d.date).toLocaleDateString('fr-FR')}</span>}
-                </div>
-              </div>
-              <button onClick={() => removeDetail(d.id)}
-                style={{ background: 'rgba(248,113,113,0.15)', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#F87171', fontSize: 12, flexShrink: 0 }}>✕</button>
-            </div>
-          ))}
-
-          {/* Formulaire ajout */}
-          {details.length < count && (
-            <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 12, border: `1px dashed ${cfg.color}50` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                + Ajouter un détail ({details.length + 1}/{count})
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: fields.length > 2 ? '1fr 1fr' : '1fr', gap: 8 }}>
-                {fields.map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: 'block', fontSize: 11, color: cfg.color, opacity: 0.9, marginBottom: 4, fontWeight: 500 }}>{f.label}</label>
-                    <input type={f.type || 'text'} placeholder={f.placeholder || f.label}
-                      value={form[f.key] || ''}
-                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 13, width: '100%', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <button onClick={addDetail} disabled={saving}
-                style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.fill, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                {saving ? 'Ajout...' : '+ Ajouter'}
-              </button>
-              {error && (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
-                  ⚠️ {error}
-                </div>
-              )}
-            </div>
-          )}
-
-          {details.length >= count && details.length > 0 && (
-            <div style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: cfg.color, fontWeight: 600 }}>
-              ✅ Tous les détails sont renseignés
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-const emptyForm = {
-  besoins_detectes: 0, rdv_candidats: 0, cv_envoyes: 0,
-  attente_retour: 0, attente_retour_prez: 0, besoins_sans_solution: 0,
-  signatures: 0, demarrages: 0, fins_de_mission: 0, presentations_a_monter: 0,
-}
-
-const RDV_OBJET_OPTIONS = [
-  { value: 'prospect',     label: 'Prospect' },
-  { value: 'decouverte',   label: 'Découverte' },
-  { value: 'client',       label: 'Client' },
-  { value: 'presentation', label: 'Présentation' },
-]
-const OBJET_COLORS = { prospect: '#534AB7', decouverte: '#0F6E56', client: '#BA7517', presentation: '#993556' }
-
-const emptyRdv = { client: '', entite: '', nom: '', prenom: '', fonction: '', date_meeting: '', objet_meeting: '', compte_rendu: '', email: '', telephone: '' }
-
-const RDV_COLOR = '#534AB7'
-const rdvLabelStyle = { display: 'block', fontSize: 12, color: lighten(RDV_COLOR, 0.35), marginBottom: 5, fontWeight: 600 }
-const rdvInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
-
-const RdvTable = ({ list, onRemove }) => {
-  if (list.length === 0) return null
-  return (
-    <div style={{ overflowX: 'auto', marginBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: 4 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 820 }}>
-        <thead>
-          <tr style={{ textAlign: 'left', color: TEXT_MUTED, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
-            <th style={{ padding: '0 8px 10px' }}>Objet</th>
-            <th style={{ padding: '0 8px 10px' }}>Client</th>
-            <th style={{ padding: '0 8px 10px' }}>Entité</th>
-            <th style={{ padding: '0 8px 10px' }}>Contact</th>
-            <th style={{ padding: '0 8px 10px' }}>Fonction</th>
-            <th style={{ padding: '0 8px 10px' }}>Date</th>
-            <th style={{ padding: '0 8px 10px' }}>Compte rendu</th>
-            <th style={{ padding: '0 8px 10px' }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {list.map(r => {
-            const color = OBJET_COLORS[r.objet_meeting] || '#534AB7'
-            const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
-            return (
-              <tr key={r.id} style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                <td style={{ padding: '10px 8px' }}><span style={{ padding: '3px 10px', borderRadius: 20, background: color, color: '#fff', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{objetLabel}</span></td>
-                <td style={{ padding: '10px 8px', fontWeight: 600, color: TEXT_STRONG }}>{r.client || '—'}</td>
-                <td style={{ padding: '10px 8px', color: TEXT_MUTED }}>{r.entite || '—'}</td>
-                <td style={{ padding: '10px 8px', color: TEXT_STRONG }}>{[r.prenom, r.nom].filter(Boolean).join(' ') || '—'}</td>
-                <td style={{ padding: '10px 8px', color: TEXT_MUTED }}>{r.fonction || '—'}</td>
-                <td style={{ padding: '10px 8px', whiteSpace: 'nowrap', color: TEXT_MUTED }}>{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR') : '—'}</td>
-                <td style={{ padding: '10px 8px', color: TEXT_MUTED, fontStyle: 'italic', maxWidth: 280 }}>{r.compte_rendu || ''}</td>
-                <td style={{ padding: '10px 8px' }}>
-                  {onRemove && <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F87171', fontSize: 14, opacity: 0.85 }}>✕</button>}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
-// POSITIONNEMENT COLLABORATEUR ITC
-// ─────────────────────────────────────────────
-const POSITIONNEMENT_STATUTS = [
-  { value: 'en_attente',             label: 'En attente de retour',    color: '#0369A1' },
-  { value: 'presentation_a_prevoir', label: 'Présentation à prévoir',  color: '#BA7517' },
-  { value: 'presentation_realisee',  label: 'Présentation réalisée',   color: '#1E40AF' },
-  { value: 'sans_suite',             label: 'Sans suite',              color: '#9F1239' },
-  { value: 'signe',                  label: 'Signé / Démarrage',       color: '#0F6E56' },
+const AVATAR_COLORS = [
+  ['#EDE9FE','#6D28D9'],['#D1FAE5','#065F46'],['#FEF3C7','#92400E'],
+  ['#FCE7F3','#9D174D'],['#DBEAFE','#1E40AF'],['#DCFCE7','#166534'],
+  ['#F3F4F6','#374151'],['#FFE4E6','#9F1239'],['#E0F2FE','#0369A1'],
+  ['#FEF9C3','#854D0E'],
 ]
 
-const POSITIONNEMENT_TYPE_OPTIONS = [
-  { value: 'besoin', label: 'Positionnement sur besoin' },
-  { value: 'push',   label: 'Push' },
-]
-const POSITIONNEMENT_TYPE_COLORS = { besoin: '#0F6E56', push: '#4338CA' }
-
-const emptyPositionnement = () => ({ collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '', type_positionnement: '', date_push: todayISO() })
-
-const POS_COLOR = '#4338CA'
-const posLabelStyle = { display: 'block', fontSize: 12, color: lighten(POS_COLOR, 0.35), marginBottom: 5, fontWeight: 600 }
-const posInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
-
-const PositionnementCard = ({ p, onStatutChange, onRemove }) => {
-  const cfg = POSITIONNEMENT_STATUTS.find(s => s.value === p.statut) || POSITIONNEMENT_STATUTS[0]
-  const typeColor = POSITIONNEMENT_TYPE_COLORS[p.type_positionnement] || POS_COLOR
-  const typeLabel = POSITIONNEMENT_TYPE_OPTIONS.find(t => t.value === p.type_positionnement)?.label
-  return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}60`, marginBottom: 10 }}>
-      <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG }}>{p.collaborateur_itc}</div>
-            {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: typeColor, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{typeLabel}</span>}
-          </div>
-          <div style={{ fontSize: 12, color: lighten(POS_COLOR, 0.3), fontWeight: 600, marginTop: 2 }}>🏢 {p.client}</div>
-          {(p.nom || p.prenom) && (
-            <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
-              👤 {[p.prenom, p.nom].filter(Boolean).join(' ')}{p.fonction && ` · ${p.fonction}`}
-            </div>
-          )}
-          <div style={{ fontSize: 10, color: TEXT_MUTED, opacity: 0.7, marginTop: 6 }}>
-            {p.date_push ? `Poussé le ${new Date(p.date_push).toLocaleDateString('fr-FR')}` : `Poussé en S${p.semaine}`} · Dernière MAJ : S{p.derniere_maj_semaine || p.semaine}
-          </div>
-        </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F87171', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>}
-      </div>
-      <div style={{ padding: '0 14px 12px' }}>
-        <select value={p.statut} onChange={e => onStatutChange(p.id, e.target.value)}
-          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.color + '20', color: lighten(cfg.color, 0.4), fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
-          {POSITIONNEMENT_STATUTS.map(s => <option key={s.value} value={s.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{s.label}</option>)}
-        </select>
-      </div>
-    </div>
-  )
-}
-
-const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
-
-const P1_COLOR = '#BA7517'
-const P1_STEPS = [
-  { key: 'profil',       label: 'Profil recherche',   placeholder: 'Ex: Ingenieur DevOps senior', color: P1_COLOR, num: 1 },
-  { key: 'client',       label: 'Client',              placeholder: 'Nom du client',               color: P1_COLOR, num: 2 },
-  { key: 'experience',   label: 'Experience requise',  placeholder: 'Ex: 5 ans minimum',           color: P1_COLOR, num: 3 },
-  { key: 'technologies', label: 'Technologies',        placeholder: 'Ex: Ansible, Kubernetes',     color: P1_COLOR, num: 4 },
-  { key: 'salaire_max',  label: 'Salaire max',         placeholder: 'Ex: 55k',                    color: P1_COLOR, num: 5 },
-  { key: 'langues',      label: 'Langues',             placeholder: 'Ex: Anglais, Francais',       color: P1_COLOR, num: 6 },
-  { key: 'lieu',         label: 'Lieu de mission',     placeholder: 'Ex: Paris / Remote',          color: P1_COLOR, num: 7 },
-]
-
-const P1Card = ({ p, onRemove }) => {
-  if (p.description && !p.profil) {
-    return (
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${P1_COLOR}`, marginBottom: 10 }}>
-        <div style={{ background: P1_COLOR, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14 }}>🎯</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff', flex: 1 }}>{p.description}</span>
-          {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 20, lineHeight: 1, padding: 0 }}>x</button>}
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${P1_COLOR}60`, marginBottom: 10 }}>
-      <div style={{ padding: '12px 14px', background: 'transparent', borderBottom: `1px solid ${P1_COLOR}30`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG, marginBottom: 3 }}>{p.profil}</div>
-          {p.client && <div style={{ fontSize: 12, color: lighten(P1_COLOR, 0.3), fontWeight: 600 }}>🏢 {p.client}</div>}
-        </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: lighten(P1_COLOR, 0.3), fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
-      </div>
-      <div style={{ padding: '10px 12px', background: 'transparent', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        {p.experience && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.experience}</div></div>}
-        {p.salaire_max && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.salaire_max}</div></div>}
-        {p.technologies && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.technologies}</div></div>}
-        {p.langues && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.langues}</div></div>}
-        {p.lieu && <div style={{ background: P1_COLOR + '18', borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: lighten(P1_COLOR, 0.3), fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: TEXT_STRONG, marginTop: 2 }}>{p.lieu}</div></div>}
-      </div>
-    </div>
-  )
-}
-
-export default function Saisie({ iaId, iaName, managerMode = false }) {
-  const semaine = currentWeek()
-  const annee = new Date().getFullYear()
-  const allowedWeeks = managerMode
-  ? Array.from({ length: semaine }, (_, i) => ({ value: semaine - i, label: semaine - i === semaine ? 'Semaine ' + semaine + ' (en cours)' : 'Semaine ' + (semaine - i) }))
-  : semaine > 1
-    ? [{ value: semaine, label: 'Semaine ' + semaine + ' (en cours)' }, { value: semaine - 1, label: 'Semaine ' + (semaine - 1) + ' (precedente)' }]
-    : [{ value: semaine, label: 'Semaine ' + semaine + ' (en cours)' }]
-
-  const [selectedWeek, setSelectedWeek] = useState(semaine)
-  const [form, setForm] = useState(emptyForm)
+export default function Admin({ onSelectIA, selectedIaId }) {
+  const [iaList, setIaList] = useState([])
+  const [anciensList, setAnciensList] = useState([])
+  const [showAnciens, setShowAnciens] = useState(false)
+  const [nom, setNom] = useState('')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [p1List, setP1List] = useState([])
-  const [newP1, setNewP1] = useState(emptyP1)
-  const [savingP1, setSavingP1] = useState(false)
-  const [rdvList, setRdvList] = useState([])
-  const [newRdv, setNewRdv] = useState(emptyRdv)
-  const [savingRdv, setSavingRdv] = useState(false)
-  const [errorRdv, setErrorRdv] = useState('')
-  const [contactSuggestions, setContactSuggestions] = useState([])
-  const [selectedContactId, setSelectedContactId] = useState(null)
-  const [positionnements, setPositionnements] = useState([])
-  const [newPositionnement, setNewPositionnement] = useState(emptyPositionnement())
-  const [savingPositionnement, setSavingPositionnement] = useState(false)
-  const [errorPositionnement, setErrorPositionnement] = useState('')
-  const [posContactSuggestions, setPosContactSuggestions] = useState([])
-  const [selectedPosContactId, setSelectedPosContactId] = useState(null)
-  // Incrémenté après chaque ajout réussi pour forcer le remontage du champ date (voir input date_push
-  // plus bas) : un <input type="date"> entièrement piloté par React (value= + onChange) perd le fil de
-  // la saisie clavier dès qu'on tape dans le segment année (bug connu des date inputs contrôlés), d'où
-  // le passage en non-contrôlé (defaultValue) — remonté via `key` uniquement quand on veut le réinitialiser.
-  const [posFormKey, setPosFormKey] = useState(0)
-  const dateInputRef = useRef(null)
+  const [adding, setAdding] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [saisieIA, setSaisieIA] = useState(null)
+  const [saisieIndex, setSaisieIndex] = useState(0)
 
-  const rdvCounts = {
-    decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
-    prospects:     rdvList.filter(r => r.objet_meeting === 'prospect').length,
-    clients:       rdvList.filter(r => r.objet_meeting === 'client').length,
-    presentations: rdvList.filter(r => r.objet_meeting === 'presentation').length,
-  }
-  const totalRdv = rdvList.length
-  const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
-  const p1Complete = P1_STEPS.every(s => newP1[s.key] && newP1[s.key].trim())
-  // Pour un nouveau contact (pas encore rattaché), on exige au moins un email ou un téléphone
-  const needsContactInfo = !selectedContactId && !newRdv.email.trim() && !newRdv.telephone.trim()
-  const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting && newRdv.compte_rendu.trim() && !needsContactInfo
-  const positionnementComplete = newPositionnement.collaborateur_itc.trim() && newPositionnement.client.trim() && newPositionnement.nom.trim() && newPositionnement.type_positionnement && newPositionnement.date_push
+  // Liste de référence des collaborateurs en intercontrat, utilisée par le menu "Positionnement collaborateur ITC"
+  // dans Ma saisie : les commerciaux choisissent dans cette liste plutôt que de retaper un nom en texte libre,
+  // pour que le manager puisse ensuite compter fiablement le nombre de push par collaborateur.
+  const [itcList, setItcList] = useState([])
+  const [itcAnciens, setItcAnciens] = useState([])
+  const [showItcAnciens, setShowItcAnciens] = useState(false)
+  const [itcNom, setItcNom] = useState('')
+  const [itcAdding, setItcAdding] = useState(false)
+  const [itcMsg, setItcMsg] = useState('')
 
-  // Débloque la largeur du conteneur global (par défaut limité à 480px, pensé pour mobile)
-  useEffect(() => {
-    const app = document.querySelector('.app')
-    if (app) app.classList.add('wide')
-    return () => { if (app) app.classList.remove('wide') }
-  }, [])
+  useEffect(() => { loadIA(); loadItc() }, [])
 
-  useEffect(() => {
-    if (!iaId) return
-    const load = async () => {
-      setLoading(true)
-      const [{ data }, { data: p1Data }, { data: rdvData }] = await Promise.all([
-        supabase.from('saisies').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).single(),
-        supabase.from('p1').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee),
-        supabase.from('rdv_details').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).order('created_at'),
-      ])
-      if (data) {
-        setForm({
-          besoins_detectes: data.besoins_detectes || 0, rdv_candidats: data.rdv_candidats || 0,
-          cv_envoyes: data.cv_envoyes || 0, attente_retour: data.attente_retour || 0,
-          attente_retour_prez: data.attente_retour_prez || 0, besoins_sans_solution: data.besoins_sans_solution || 0,
-          signatures: data.signatures || 0, demarrages: data.demarrages || 0,
-          fins_de_mission: data.fins_de_mission || 0, presentations_a_monter: data.presentations_a_monter || 0,
-        })
-      } else { setForm(emptyForm) }
-      setP1List(p1Data || [])
-      setRdvList(rdvData || [])
-      setNewRdv(emptyRdv)
-      setSelectedContactId(null)
-      setContactSuggestions([])
-      setLoading(false)
-    }
-    load()
-  }, [iaId, selectedWeek])
-
-  // Positionnements ITC : indépendant de la semaine sélectionnée (un positionnement vit sur plusieurs
-  // semaines, seul son statut évolue) — on charge simplement tout ce qui est en cours pour cette IA.
-  useEffect(() => {
-    if (!iaId) return
-    supabase.from('positionnements').select('*').eq('ia_id', iaId).order('created_at', { ascending: false })
-      .then(({ data }) => setPositionnements(data || []))
-  }, [iaId])
-
-  // Recherche de contacts existants pendant la saisie du nom (avec un petit délai pour ne pas spammer la base)
-  useEffect(() => {
-    const term = newRdv.nom.trim()
-    if (selectedContactId || term.length < 2) { setContactSuggestions([]); return }
-    const timeout = setTimeout(async () => {
-      const { data: matches } = await supabase.from('contacts').select('*').ilike('nom', `%${term}%`).limit(5)
-      if (!matches || matches.length === 0) { setContactSuggestions([]); return }
-      const ids = matches.map(c => c.id)
-      const { data: history } = await supabase.from('rdv_details').select('contact_id, client, date_meeting').in('contact_id', ids).order('date_meeting', { ascending: false })
-      const withHistory = matches.map(c => {
-        const last = (history || []).find(h => h.contact_id === c.id)
-        return { ...c, lastClient: last?.client, lastDate: last?.date_meeting }
-      })
-      setContactSuggestions(withHistory)
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [newRdv.nom, selectedContactId])
-
-  const pickContact = (c) => {
-    setSelectedContactId(c.id)
-    setNewRdv(r => ({ ...r, nom: c.nom, prenom: c.prenom || '', email: c.email || '', telephone: c.telephone || '' }))
-    setContactSuggestions([])
+  const loadIA = async () => {
+    const { data } = await supabase.from('ia').select('*').order('nom')
+    const all = data || []
+    setIaList(all.filter(ia => ia.statut !== 'ancien'))
+    setAnciensList(all.filter(ia => ia.statut === 'ancien'))
+    setLoading(false)
   }
 
-  // Même logique de rapprochement, pour le formulaire de positionnement
-  useEffect(() => {
-    const term = newPositionnement.nom.trim()
-    if (selectedPosContactId || term.length < 2) { setPosContactSuggestions([]); return }
-    const timeout = setTimeout(async () => {
-      const { data: matches } = await supabase.from('contacts').select('*').ilike('nom', `%${term}%`).limit(5)
-      setPosContactSuggestions(matches || [])
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [newPositionnement.nom, selectedPosContactId])
-
-  const pickPosContact = (c) => {
-    setSelectedPosContactId(c.id)
-    setNewPositionnement(p => ({ ...p, nom: c.nom, prenom: c.prenom || '' }))
-    setPosContactSuggestions([])
+  const addIA = async () => {
+    if (!nom.trim() || !email.trim()) return setMsg('Prénom et email requis')
+    setAdding(true)
+    const { error } = await supabase.from('ia').insert({ nom: nom.trim(), email: email.trim(), statut: 'actif' })
+    if (error) setMsg('Erreur : ' + error.message)
+    else { setNom(''); setEmail(''); setMsg('IA ajouté !'); await loadIA() }
+    setAdding(false)
+    setTimeout(() => setMsg(''), 3000)
   }
 
-  const set = key => val => setForm(f => ({ ...f, [key]: val }))
-
-  const handleSave = async () => {
-    setSaving(true)
-    await supabase.from('saisies').upsert(
-      { ia_id: iaId, semaine: selectedWeek, annee, ...form,
-        decouvertes: rdvCounts.decouvertes, prospects: rdvCounts.prospects, clients: rdvCounts.clients, presentations: rdvCounts.presentations,
-        total_rdv: totalRdv, presentation_planifiee: totalPipe },
-      { onConflict: 'ia_id,semaine,annee' }
-    )
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  // Archiver : l'IA a quitté la société. Ses données sont conservées, il disparaît juste des menus actifs.
+  const archiveIA = async (id) => {
+    if (!window.confirm("Archiver cet IA ? Il n'apparaîtra plus dans les menus actifs, mais ses données historiques sont conservées dans \"Anciens IA\".")) return
+    await supabase.from('ia').update({ statut: 'ancien' }).eq('id', id)
+    if (selectedIaId === id) onSelectIA(null, null)
+    if (saisieIA?.id === id) setSaisieIA(null)
+    await loadIA()
   }
 
-  const addRdv = async () => {
-    if (!rdvComplete) return
-    setSavingRdv(true)
-    setErrorRdv('')
-
-    // Si on n'a pas cliqué sur un contact existant, on en crée un nouveau (identité = nom + prénom, avec un email et/ou un téléphone)
-    let contactId = selectedContactId
-    if (!contactId) {
-      const { data: newContact, error: contactErr } = await supabase.from('contacts')
-        .insert({ nom: newRdv.nom.trim(), prenom: newRdv.prenom.trim() || null, email: newRdv.email.trim() || null, telephone: newRdv.telephone.trim() || null })
-        .select().single()
-      if (contactErr) {
-        setErrorRdv(`Erreur contact : ${contactErr.message}`)
-        setSavingRdv(false)
-        return
-      }
-      contactId = newContact.id
-    }
-
-    // email/telephone ne concernent que le contact, pas la table rdv_details
-    const { email, telephone, ...rdvFields } = newRdv
-    const { data, error: err } = await supabase.from('rdv_details').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...rdvFields, contact_id: contactId }).select().single()
-    if (data) {
-      setRdvList(l => [...l, data])
-      setNewRdv(emptyRdv)
-      setSelectedContactId(null)
-    } else {
-      setErrorRdv(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
-    }
-    setSavingRdv(false)
+  const reactivateIA = async (id) => {
+    await supabase.from('ia').update({ statut: 'actif' }).eq('id', id)
+    await loadIA()
   }
 
-  const removeRdv = async (id) => {
-    await supabase.from('rdv_details').delete().eq('id', id)
-    setRdvList(l => l.filter(r => r.id !== id))
+  const removeIA = async (id) => {
+    if (!window.confirm('Supprimer définitivement cet IA ? Ses données seront effacées, cette action est irréversible.')) return
+    await supabase.from('ia').delete().eq('id', id)
+    await loadIA()
   }
 
-  const addPositionnement = async () => {
-    if (!positionnementComplete) return
-    setSavingPositionnement(true)
-    setErrorPositionnement('')
-
-    // Même logique de rapprochement que pour les RDV : contact existant relié, sinon nouveau contact créé (nom + prénom suffisent ici)
-    let contactId = selectedPosContactId
-    let createdContactId = null // trace qu'on vient de créer ce contact, pour pouvoir annuler si la suite échoue
-    if (!contactId) {
-      const { data: newContact, error: contactErr } = await supabase.from('contacts')
-        .insert({ nom: newPositionnement.nom.trim(), prenom: newPositionnement.prenom.trim() || null })
-        .select().single()
-      if (contactErr) {
-        setErrorPositionnement(`Erreur contact : ${contactErr.message}`)
-        setSavingPositionnement(false)
-        return
-      }
-      contactId = newContact.id
-      createdContactId = newContact.id
-    }
-
-    const { data, error: err } = await supabase.from('positionnements').insert({
-      ia_id: iaId, semaine: selectedWeek, annee,
-      collaborateur_itc: newPositionnement.collaborateur_itc.trim(),
-      client: newPositionnement.client.trim(),
-      contact_id: contactId,
-      nom: newPositionnement.nom.trim(),
-      prenom: newPositionnement.prenom.trim() || null,
-      fonction: newPositionnement.fonction.trim() || null,
-      type_positionnement: newPositionnement.type_positionnement,
-      date_push: newPositionnement.date_push,
-      statut: 'en_attente',
-      derniere_maj_semaine: selectedWeek,
-      derniere_maj_annee: annee,
-    }).select().single()
-
-    if (data) {
-      setPositionnements(l => [data, ...l])
-      setNewPositionnement(emptyPositionnement())
-      setSelectedPosContactId(null)
-      setPosFormKey(k => k + 1)
-    } else {
-      // Le contact avait été créé en 2 requêtes séparées (pas de vraie transaction côté Supabase) : si
-      // l'enregistrement du positionnement échoue derrière, on supprime le contact qu'on venait de créer
-      // pour ne pas polluer la base contacts avec des doublons orphelins à chaque nouvel essai.
-      if (createdContactId) await supabase.from('contacts').delete().eq('id', createdContactId)
-      setErrorPositionnement(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
-    }
-    setSavingPositionnement(false)
+  const loadItc = async () => {
+    const { data } = await supabase.from('collaborateurs_itc').select('*').order('nom')
+    const all = data || []
+    setItcList(all.filter(c => c.statut !== 'ancien'))
+    setItcAnciens(all.filter(c => c.statut === 'ancien'))
   }
 
-  const removePositionnement = async (id) => {
-    await supabase.from('positionnements').delete().eq('id', id)
-    setPositionnements(l => l.filter(p => p.id !== id))
+  const addItc = async () => {
+    if (!itcNom.trim()) return setItcMsg('Nom requis')
+    setItcAdding(true)
+    const { error } = await supabase.from('collaborateurs_itc').insert({ nom: itcNom.trim(), statut: 'actif' })
+    if (error) setItcMsg('Erreur : ' + error.message)
+    else { setItcNom(''); setItcMsg('Collaborateur ajouté !'); await loadItc() }
+    setItcAdding(false)
+    setTimeout(() => setItcMsg(''), 3000)
   }
 
-  const updatePositionnementStatut = async (id, statut) => {
-    const { data } = await supabase.from('positionnements')
-      .update({ statut, derniere_maj_semaine: selectedWeek, derniere_maj_annee: annee, updated_at: new Date().toISOString() })
-      .eq('id', id).select().single()
-    if (data) setPositionnements(l => l.map(p => p.id === id ? data : p))
+  // Archiver : le collaborateur n'est plus en intercontrat / a quitté. Il disparaît du menu de saisie,
+  // mais l'historique de ses positionnements passés est conservé (le champ est du texte, pas une clé étrangère).
+  const archiveItc = async (id) => {
+    await supabase.from('collaborateurs_itc').update({ statut: 'ancien' }).eq('id', id)
+    await loadItc()
   }
 
-  const addP1 = async () => {
-    if (!p1Complete) return
-    setSavingP1(true)
-    const { data } = await supabase.from('p1').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newP1 }).select().single()
-    if (data) setP1List(l => [...l, data])
-    setNewP1(emptyP1)
-    setSavingP1(false)
+  const reactivateItc = async (id) => {
+    await supabase.from('collaborateurs_itc').update({ statut: 'actif' }).eq('id', id)
+    await loadItc()
   }
 
-  const removeP1 = async (id) => {
-    await supabase.from('p1').delete().eq('id', id)
-    setP1List(l => l.filter(p => p.id !== id))
+  const removeItc = async (id) => {
+    if (!window.confirm('Supprimer définitivement ce collaborateur de la liste ? Cette action est irréversible.')) return
+    await supabase.from('collaborateurs_itc').delete().eq('id', id)
+    await loadItc()
   }
 
-  if (!iaId) return (
-    <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 14 }}>
-      Va dans l'onglet <strong>Admin</strong> et selectionne ton nom pour commencer.
-    </div>
-  )
+  if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
 
   return (
-    <div style={{ padding: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 500 }}>Bonjour {iaName} 👋</div>
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{annee}</div>
+    <div style={{ padding: '14px 16px' }}>
+
+      {/* Section saisie manager */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, letterSpacing: '-0.3px' }}>
+          📝 Saisie pour un Ingénieur d'Affaires
         </div>
-        <select value={selectedWeek} onChange={e => setSelectedWeek(parseInt(e.target.value))} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 8 }}>
-          {allowedWeeks.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
-        </select>
+        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+          Sélectionne un IA pour saisir ou modifier son reporting.
+        </div>
+
+        {!saisieIA ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 10 }}>
+            {iaList.map((ia, i) => {
+              const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
+              return (
+                <div key={ia.id} onClick={() => { setSaisieIA(ia); setSaisieIndex(i) }}
+                  style={{ background: bg, borderRadius: 14, padding: '14px 10px', cursor: 'pointer', textAlign: 'center', transition: 'transform 0.15s, box-shadow 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)' }}
+                >
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', background: fg, margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 13 }}>
+                    {ia.nom.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: fg }}>{ia.nom}</div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div>
+            {/* Header IA sélectionnée */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: AVATAR_COLORS[saisieIndex % AVATAR_COLORS.length][0], borderRadius: 14, marginBottom: 16 }}>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: AVATAR_COLORS[saisieIndex % AVATAR_COLORS.length][1], display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+                {saisieIA.nom.slice(0, 2).toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: AVATAR_COLORS[saisieIndex % AVATAR_COLORS.length][1] }}>{saisieIA.nom}</div>
+                <div style={{ fontSize: 11, color: AVATAR_COLORS[saisieIndex % AVATAR_COLORS.length][1], opacity: 0.7 }}>Ingénieur d'Affaires</div>
+              </div>
+              <button onClick={() => setSaisieIA(null)}
+                style={{ background: 'none', border: `1.5px solid ${AVATAR_COLORS[saisieIndex % AVATAR_COLORS.length][1]}40`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: AVATAR_COLORS[saisieIndex % AVATAR_COLORS.length][1] }}>
+                Changer
+              </button>
+            </div>
+            {/* Composant saisie avec toutes les semaines */}
+            <Saisie iaId={saisieIA.id} iaName={saisieIA.nom} managerMode={true} />
+          </div>
+        )}
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
-      ) : (
-        <div>
-          <Section title="RDV Commerciaux" color="#534AB7" bg="#211F30" icon="ti-calendar-event">
-            <RdvTable list={rdvList} onRemove={removeRdv} />
+      <div style={{ height: 1, background: 'var(--color-border-tertiary)', marginBottom: 24 }} />
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <i className="ti ti-plus" style={{ fontSize: 14, color: lighten(RDV_COLOR, 0.35) }} aria-hidden="true" />
-                <div style={{ fontSize: 12, fontWeight: 700, color: lighten(RDV_COLOR, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un RDV</div>
+      {/* Section sélection identité */}
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, letterSpacing: '-0.3px' }}>
+        👤 Mon identité
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+        Sélectionne ton nom pour activer ta saisie personnelle.
+      </div>
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        {iaList.map((ia, i) => {
+          const [bg, fg] = AVATAR_COLORS[i % AVATAR_COLORS.length]
+          const isSelected = selectedIaId === ia.id
+          return (
+            <div key={ia.id} onClick={() => onSelectIA(ia.id, ia.nom)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)', cursor: 'pointer', background: isSelected ? '#EEEDFE' : 'transparent', transition: 'background 0.15s' }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>
+                {ia.nom.slice(0, 2).toUpperCase()}
               </div>
-
-              {/* Ligne 1 : contexte du rendez-vous */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '2 1 220px' }}>
-                  <label style={rdvLabelStyle}>Client *</label>
-                  <input type="text" placeholder="Ex: BNP Paribas, RATP (raison sociale)" value={newRdv.client} onChange={e => setNewRdv(r => ({ ...r, client: e.target.value }))} style={rdvInputStyle} />
-                </div>
-                <div style={{ flex: '1 1 140px' }}>
-                  <label style={rdvLabelStyle}>Entité / BU</label>
-                  <input type="text" placeholder="Ex: ITGP, TSI..." value={newRdv.entite} onChange={e => setNewRdv(r => ({ ...r, entite: e.target.value }))} style={rdvInputStyle} />
-                </div>
-                <div style={{ flex: '1 1 160px' }}>
-                  <label style={rdvLabelStyle}>Objet du meeting *</label>
-                  <select value={newRdv.objet_meeting} onChange={e => setNewRdv(r => ({ ...r, objet_meeting: e.target.value }))} style={rdvInputStyle}>
-                    <option value="" style={{ background: '#2B2940', color: TEXT_STRONG }}>Choisir...</option>
-                    {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div style={{ flex: '1 1 150px' }}>
-                  <label style={rdvLabelStyle}>Date du meeting *</label>
-                  <input type="date" value={newRdv.date_meeting} onChange={e => setNewRdv(r => ({ ...r, date_meeting: e.target.value }))} style={rdvInputStyle} />
-                </div>
-              </div>
-
-              <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0 0 16px' }} />
-
-              {/* Ligne 2 : identité du contact */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 180px', position: 'relative' }}>
-                  <label style={rdvLabelStyle}>Nom *</label>
-                  <input type="text" placeholder="Nom" value={newRdv.nom} autoComplete="off"
-                    onChange={e => { setNewRdv(r => ({ ...r, nom: e.target.value })); setSelectedContactId(null) }}
-                    style={rdvInputStyle} />
-                  {selectedContactId && (
-                    <div style={{ fontSize: 10, color: lighten('#0F6E56', 0.3), marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, historique lié</div>
-                  )}
-                  {!selectedContactId && contactSuggestions.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#2B2940', border: '1.5px solid ' + lighten(RDV_COLOR, 0.2), borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.45)' }}>
-                      {contactSuggestions.map(c => (
-                        <div key={c.id} onClick={() => pickContact(c)}
-                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12 }}>
-                          <div style={{ fontWeight: 600, color: TEXT_STRONG }}>{[c.prenom, c.nom].filter(Boolean).join(' ')}</div>
-                          {c.lastClient && (
-                            <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
-                              déjà vu chez {c.lastClient}{c.lastDate ? ' le ' + new Date(c.lastDate).toLocaleDateString('fr-FR') : ''}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: '1 1 180px' }}>
-                  <label style={rdvLabelStyle}>Prénom</label>
-                  <input type="text" placeholder="Prénom" value={newRdv.prenom} onChange={e => setNewRdv(r => ({ ...r, prenom: e.target.value }))} style={rdvInputStyle} />
-                </div>
-                <div style={{ flex: '1 1 180px' }}>
-                  <label style={rdvLabelStyle}>Fonction</label>
-                  <input type="text" placeholder="Ex: DRH, Directeur IT..." value={newRdv.fonction} onChange={e => setNewRdv(r => ({ ...r, fonction: e.target.value }))} style={rdvInputStyle} />
-                </div>
-              </div>
-
-              {/* Ligne 3 : coordonnées, mises en avant pour un nouveau contact via un simple liseré (pas de carte) */}
-              <div style={{ borderLeft: '3px solid ' + (!selectedContactId ? lighten('#0F6E56', 0.2) : 'rgba(255,255,255,0.18)'), paddingLeft: 14, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: !selectedContactId ? lighten('#0F6E56', 0.3) : TEXT_MUTED, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {selectedContactId ? 'Coordonnées du contact' : 'Nouveau contact — coordonnées *'}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <label style={rdvLabelStyle}>Email</label>
-                    <input type="email" placeholder="prenom.nom@client.com" value={newRdv.email} onChange={e => setNewRdv(r => ({ ...r, email: e.target.value }))} style={rdvInputStyle} />
-                  </div>
-                  <div style={{ flex: '1 1 220px' }}>
-                    <label style={rdvLabelStyle}>Téléphone</label>
-                    <input type="tel" placeholder="06 12 34 56 78" value={newRdv.telephone} onChange={e => setNewRdv(r => ({ ...r, telephone: e.target.value }))} style={rdvInputStyle} />
-                  </div>
-                </div>
-                {needsContactInfo && newRdv.nom.trim() && (
-                  <div style={{ fontSize: 11, color: lighten('#BA7517', 0.3), fontWeight: 600, marginTop: 10 }}>
-                    ⚠️ Renseigne au moins un email ou un téléphone pour ce nouveau contact.
-                  </div>
-                )}
-              </div>
-
-              <label style={rdvLabelStyle}>Mini compte rendu *</label>
-              <textarea placeholder="Resume rapide du meeting..." value={newRdv.compte_rendu} onChange={e => setNewRdv(r => ({ ...r, compte_rendu: e.target.value }))} rows={2}
-                style={{ ...rdvInputStyle, resize: 'vertical' }} />
-              <button onClick={addRdv} disabled={savingRdv || !rdvComplete}
-                style={{ marginTop: 14, width: '100%', padding: '11px', background: rdvComplete ? RDV_COLOR : 'transparent', color: rdvComplete ? '#fff' : TEXT_MUTED, border: rdvComplete ? 'none' : '1.5px solid rgba(255,255,255,0.16)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: rdvComplete ? 'pointer' : 'default' }}>
-                {savingRdv ? 'Ajout...' : '+ Ajouter ce RDV'}
+              <span style={{ flex: 1, fontSize: 14, color: isSelected ? '#3C3489' : 'var(--color-text-primary)', fontWeight: isSelected ? 500 : 400 }}>{ia.nom}</span>
+              {isSelected && <span style={{ fontSize: 11, color: '#534AB7', fontWeight: 500 }}>✓ Sélectionné</span>}
+              <button onClick={e => { e.stopPropagation(); archiveIA(ia.id) }} title="Archiver (a quitté la société)"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+                <i className="ti ti-archive" aria-hidden="true"></i>
               </button>
-              {errorRdv && (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
-                  ⚠️ {errorRdv}
-                </div>
-              )}
             </div>
+          )
+        })}
+      </div>
 
-            <TotalField label="Total RDV (automatique)" value={totalRdv} color="#534AB7" />
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, color: TEXT_MUTED }}>
-              <span>Découvertes : {rdvCounts.decouvertes}</span>
-              <span>Prospects : {rdvCounts.prospects}</span>
-              <span>Clients : {rdvCounts.clients}</span>
-              <span>Présentations : {rdvCounts.presentations}</span>
-            </div>
-            {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation */}
-            <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
-          </Section>
-
-          <Section title="Positionnement collaborateur ITC" color={POS_COLOR} bg="#1E1B33" icon="ti-send">
-            {positionnements.map(p => (
-              <PositionnementCard key={p.id} p={p} onStatutChange={updatePositionnementStatut} onRemove={() => removePositionnement(p.id)} />
-            ))}
-
-            <div style={{ marginTop: positionnements.length > 0 ? 16 : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <i className="ti ti-plus" style={{ fontSize: 14, color: lighten(POS_COLOR, 0.35) }} aria-hidden="true" />
-                <div style={{ fontSize: 12, fontWeight: 700, color: lighten(POS_COLOR, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un positionnement</div>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 200px' }}>
-                  <label style={posLabelStyle}>Type de positionnement *</label>
-                  <select value={newPositionnement.type_positionnement} onChange={e => setNewPositionnement(p => ({ ...p, type_positionnement: e.target.value }))} style={posInputStyle}>
-                    <option value="" style={{ background: '#2B2940', color: TEXT_STRONG }}>Choisir...</option>
-                    {POSITIONNEMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div style={{ flex: '1 1 160px' }}>
-                  <label style={posLabelStyle}>Date du push *</label>
-                  {/* Non-contrôlé (defaultValue) : un input date piloté par value= perd le fil dès qu'on tape dans le
-                      segment année (React réécrit la valeur à chaque frappe et coupe l'accumulation du navigateur).
-                      `key` force juste une réinitialisation propre après un ajout réussi. */}
-                  <input
-                    ref={dateInputRef}
-                    key={posFormKey}
-                    type="date"
-                    defaultValue={newPositionnement.date_push}
-                    onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))}
-                    onClick={() => { try { dateInputRef.current?.showPicker?.() } catch { /* navigateur sans support showPicker : le petit icône calendrier reste cliquable normalement */ } }}
-                    style={{ ...posInputStyle, cursor: 'pointer' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 220px' }}>
-                  <label style={posLabelStyle}>Collaborateur en ITC *</label>
-                  <input type="text" placeholder="Nom du collaborateur poussé" autoComplete="off" name="pos-collaborateur-itc" value={newPositionnement.collaborateur_itc} onChange={e => setNewPositionnement(p => ({ ...p, collaborateur_itc: e.target.value }))} style={posInputStyle} />
-                </div>
-                <div style={{ flex: '1 1 220px' }}>
-                  <label style={posLabelStyle}>Client *</label>
-                  <input type="text" placeholder="Raison sociale du client" autoComplete="off" name="pos-client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} style={posInputStyle} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 180px', position: 'relative' }}>
-                  <label style={posLabelStyle}>Nom de l'opérationnel visé *</label>
-                  <input type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off" name="pos-nom-operationnel"
-                    onChange={e => { setNewPositionnement(p => ({ ...p, nom: e.target.value })); setSelectedPosContactId(null) }}
-                    style={posInputStyle} />
-                  {selectedPosContactId && (
-                    <div style={{ fontSize: 10, color: lighten('#0F6E56', 0.3), marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, relié automatiquement</div>
-                  )}
-                  {!selectedPosContactId && posContactSuggestions.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#2B2940', border: '1.5px solid ' + lighten(POS_COLOR, 0.2), borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.45)' }}>
-                      {posContactSuggestions.map(c => (
-                        <div key={c.id} onClick={() => pickPosContact(c)}
-                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12, fontWeight: 600, color: TEXT_STRONG }}>
-                          {[c.prenom, c.nom].filter(Boolean).join(' ')}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: '1 1 180px' }}>
-                  <label style={posLabelStyle}>Prénom</label>
-                  <input type="text" placeholder="Prénom" autoComplete="off" name="pos-prenom-operationnel" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} style={posInputStyle} />
-                </div>
-                <div style={{ flex: '1 1 180px' }}>
-                  <label style={posLabelStyle}>Fonction</label>
-                  <input type="text" placeholder="Ex: DRH, Directeur IT..." autoComplete="off" name="pos-fonction" value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} style={posInputStyle} />
-                </div>
-              </div>
-
-              <button onClick={addPositionnement} disabled={savingPositionnement || !positionnementComplete}
-                style={{ width: '100%', padding: '11px', background: positionnementComplete ? POS_COLOR : 'transparent', color: positionnementComplete ? '#fff' : TEXT_MUTED, border: positionnementComplete ? 'none' : '1.5px solid rgba(255,255,255,0.16)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: positionnementComplete ? 'pointer' : 'default' }}>
-                {savingPositionnement ? 'Ajout...' : '+ Ajouter ce positionnement'}
-              </button>
-              {errorPositionnement && (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
-                  ⚠️ {errorPositionnement}
-                </div>
-              )}
-            </div>
-          </Section>
-
-          <Section title="Gestion du Pipe" color="#0F6E56" bg="#122420" icon="ti-filter">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <Counter label="Besoins Detectes"      value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
-              <Counter label="RDV Candidat"           value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
-              <Counter label="Solutions Envoyees"     value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
-              <Counter label="Attente Reponse Client" value={form.attente_retour}       onChange={set('attente_retour')}       color="#0F6E56" />
-              <Counter label="Attente Retour Prez"   value={form.attente_retour_prez}  onChange={set('attente_retour_prez')}  color="#0F6E56" />
-              <Counter label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} color="#0F6E56" />
-            </div>
-            <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
-          </Section>
-
-          <Section title="Resultats" color="#993556" bg="#2A1922" icon="ti-trophy">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
-              <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
-              <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
-              <Counter label="Pres. a monter"  value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
-            </div>
-            {/* Accordions détails résultats */}
-            <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} />
-            <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} />
-            <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
-          </Section>
-
-          <Section title="Priorités P1" color={P1_COLOR} bg="#2A2116" icon="ti-target">
-            {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
-              <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
-            ))}
-            <div style={{ marginBottom: 12 }}>
-              {P1_STEPS.map(step => {
-                if (step.key === 'langues') return null
-                const langStep = P1_STEPS.find(s => s.key === 'langues')
-                const isSalaireLangues = step.key === 'salaire_max'
-                return (
-                  <div key={step.key} style={{ display: 'flex', gap: 0, marginBottom: 8, alignItems: 'stretch', borderRadius: 10, overflow: 'hidden', border: '1.5px solid ' + step.color + '60' }}>
-                    <div style={{ width: 40, background: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flexShrink: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{step.num}</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'transparent', padding: '10px 12px' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: lighten(step.color, 0.3), marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{step.label}</div>
-                      {isSalaireLangues ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '50', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                          <input type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} style={{ borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '50', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
-                        </div>
-                      ) : (
-                        <input type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} style={{ width: '100%', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600, border: '1px solid ' + step.color + '50', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <button onClick={addP1} disabled={savingP1 || !p1Complete}
-              style={{ width: '100%', padding: '11px', background: p1Complete ? P1_COLOR : 'rgba(255,255,255,0.08)', color: p1Complete ? '#ffffff' : TEXT_MUTED, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: p1Complete ? 'pointer' : 'default' }}>
-              {savingP1 ? 'Ajout...' : '+ Ajouter ce P1'}
-            </button>
-          </Section>
-
-          <button onClick={handleSave} disabled={saving}
-            style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}>
-            {saving ? 'Enregistrement...' : saved ? 'Semaine enregistree !' : 'Enregistrer la semaine ' + selectedWeek}
-          </button>
+      {/* Ajouter un IA */}
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 14, letterSpacing: '-0.3px' }}>
+        ➕ Ajouter un Ingénieur d'Affaires
+      </div>
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14 }}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Prénom</label>
+          <input type="text" value={nom} onChange={e => setNom(e.target.value)} placeholder="ex: Thomas" style={{ width: '100%' }} />
         </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="thomas@equipe.fr" style={{ width: '100%' }} />
+        </div>
+        {msg && (
+          <div style={{ fontSize: 12, marginBottom: 10, color: msg.includes('Erreur') ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: msg.includes('Erreur') ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
+            {msg}
+          </div>
+        )}
+        <button onClick={addIA} disabled={adding}
+          style={{ width: '100%', padding: 12, background: '#6D28D9', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {adding ? 'Ajout...' : '+ Ajouter'}
+        </button>
+      </div>
+
+      {/* Section Anciens IA */}
+      <div style={{ height: 1, background: 'var(--color-border-tertiary)', margin: '24px 0' }} />
+      <div onClick={() => setShowAnciens(!showAnciens)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: showAnciens ? 14 : 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+          🗄️ Anciens IA {anciensList.length > 0 && `(${anciensList.length})`}
+        </div>
+        <i className={`ti ti-chevron-${showAnciens ? 'up' : 'down'}`} aria-hidden="true" style={{ color: 'var(--color-text-secondary)' }}></i>
+      </div>
+
+      {showAnciens && (
+        anciensList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '8px 0' }}>Aucun IA archivé pour le moment.</div>
+        ) : (
+          <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
+            {anciensList.map((ia, i) => (
+              <div key={ia.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#F3F4F6', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>
+                  {ia.nom.slice(0, 2).toUpperCase()}
+                </div>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-secondary)' }}>{ia.nom}</span>
+                <button onClick={() => reactivateIA(ia.id)} title="Réactiver"
+                  style={{ background: 'none', border: '1.5px solid #6D28D9', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#6D28D9', marginRight: 4 }}>
+                  ↩️ Réactiver
+                </button>
+                <button onClick={() => removeIA(ia.id)} title="Supprimer définitivement"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+                  <i className="ti ti-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Section Collaborateurs ITC (liste de référence pour le menu "Positionnement collaborateur ITC" de Ma saisie) */}
+      <div style={{ height: 1, background: 'var(--color-border-tertiary)', margin: '24px 0' }} />
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, letterSpacing: '-0.3px' }}>
+        🧑‍💻 Collaborateurs en intercontrat
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+        Liste utilisée par les commerciaux pour déclarer un positionnement — ils choisissent dedans plutôt que de retaper un nom, pour que le comptage par collaborateur reste fiable.
+      </div>
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        {itcList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '11px 14px' }}>Aucun collaborateur ITC pour le moment.</div>
+        ) : itcList.map((c, i) => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+            <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-primary)' }}>{c.nom}</span>
+            <button onClick={() => archiveItc(c.id)} title="Archiver (n'est plus en intercontrat)"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+              <i className="ti ti-archive" aria-hidden="true"></i>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14 }}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Nom du collaborateur</label>
+          <input type="text" value={itcNom} onChange={e => setItcNom(e.target.value)} placeholder="ex: Jean Dupont" style={{ width: '100%' }} />
+        </div>
+        {itcMsg && (
+          <div style={{ fontSize: 12, marginBottom: 10, color: itcMsg.includes('Erreur') ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: itcMsg.includes('Erreur') ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
+            {itcMsg}
+          </div>
+        )}
+        <button onClick={addItc} disabled={itcAdding}
+          style={{ width: '100%', padding: 12, background: '#4338CA', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {itcAdding ? 'Ajout...' : '+ Ajouter'}
+        </button>
+      </div>
+
+      <div onClick={() => setShowItcAnciens(!showItcAnciens)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginTop: 20, marginBottom: showItcAnciens ? 14 : 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+          🗄️ Anciens collaborateurs ITC {itcAnciens.length > 0 && `(${itcAnciens.length})`}
+        </div>
+        <i className={`ti ti-chevron-${showItcAnciens ? 'up' : 'down'}`} aria-hidden="true" style={{ color: 'var(--color-text-secondary)' }}></i>
+      </div>
+
+      {showItcAnciens && (
+        itcAnciens.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '8px 0' }}>Aucun collaborateur archivé pour le moment.</div>
+        ) : (
+          <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
+            {itcAnciens.map((c, i) => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-secondary)' }}>{c.nom}</span>
+                <button onClick={() => reactivateItc(c.id)} title="Réactiver"
+                  style={{ background: 'none', border: '1.5px solid #4338CA', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#4338CA', marginRight: 4 }}>
+                  ↩️ Réactiver
+                </button>
+                <button onClick={() => removeItc(c.id)} title="Supprimer définitivement"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+                  <i className="ti ti-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   )
