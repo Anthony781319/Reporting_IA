@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
 const currentWeek = () => {
@@ -392,6 +392,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   // la saisie clavier dès qu'on tape dans le segment année (bug connu des date inputs contrôlés), d'où
   // le passage en non-contrôlé (defaultValue) — remonté via `key` uniquement quand on veut le réinitialiser.
   const [posFormKey, setPosFormKey] = useState(0)
+  const dateInputRef = useRef(null)
 
   const rdvCounts = {
     decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
@@ -777,7 +778,15 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                   {/* Non-contrôlé (defaultValue) : un input date piloté par value= perd le fil dès qu'on tape dans le
                       segment année (React réécrit la valeur à chaque frappe et coupe l'accumulation du navigateur).
                       `key` force juste une réinitialisation propre après un ajout réussi. */}
-                  <input key={posFormKey} type="date" defaultValue={newPositionnement.date_push} onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))} style={posInputStyle} />
+                  <input
+                    ref={dateInputRef}
+                    key={posFormKey}
+                    type="date"
+                    defaultValue={newPositionnement.date_push}
+                    onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))}
+                    onClick={() => { try { dateInputRef.current?.showPicker?.() } catch { /* navigateur sans support showPicker : le petit icône calendrier reste cliquable normalement */ } }}
+                    style={{ ...posInputStyle, cursor: 'pointer' }}
+                  />
                 </div>
               </div>
 
