@@ -227,7 +227,7 @@ const RDV_BORDER = '#EAECF0'
 // de classe "rdv-" pour ne rien affecter en dehors de cette section.
 const RdvPremiumStyles = () => (
   <style>{`
-    .rdv-panel { background: #fff; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.08); }
+    .rdv-panel { background: #E3E6EC; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.08); }
 
     .rdv-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .rdv-section-icon { width: 26px; height: 26px; border-radius: 8px; background: ${RDV_ACCENT_LIGHT}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -291,7 +291,7 @@ const RdvPremiumStyles = () => (
        Même recette visuelle que RDV Commerciaux, mais paramétrée par variables CSS (--accent,
        --accent-light, --accent-ring) posées sur le conteneur .ui-panel de chaque section, pour que
        seul l'accent change d'un univers à l'autre (fond blanc partout). */
-    .ui-panel { background: #fff; border: 1px solid ${RDV_BORDER}; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
+    .ui-panel { background: #E3E6EC; border: 1px solid #D5D9E0; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
     .ui-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
     .ui-section-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .ui-section-icon i { color: var(--accent); font-size: 13px; }
@@ -339,13 +339,10 @@ const RdvPremiumStyles = () => (
   `}</style>
 )
 
-// Panneau clair générique (fond blanc, bordure fine, ombre subtile) partagé par Positionnement / Pipe /
-// Résultats — seul l'accent change d'un univers à l'autre via ces variables CSS.
-// tinted = fond gris nettement visible (#E3E6EC) au lieu de blanc, pour alterner les blocs de la page
-// sans rien changer d'autre (mêmes bordure/radius/ombre/accent). Deux paliers précédents (#F8FAFC puis
-// #EDF0F4) se sont révélés trop proches du blanc à l'écran — celui-ci marque une vraie rupture visuelle.
-const PremiumPanel = ({ accent, accentLight, accentRing, tinted, children }) => (
-  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing, background: tinted ? '#E3E6EC' : '#fff', borderColor: tinted ? '#D5D9E0' : undefined }}>
+// Panneau clair générique (fond gris #E3E6EC uniforme, bordure fine, ombre subtile) partagé par toutes
+// les sections — seul l'accent change d'un univers à l'autre via ces variables CSS.
+const PremiumPanel = ({ accent, accentLight, accentRing, children }) => (
+  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing }}>
     {children}
   </div>
 )
@@ -937,7 +934,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <PremiumPanel accent={POS_COLOR} accentLight={POS_ACCENT_LIGHT} accentRing={POS_ACCENT_RING} tinted>
+            <PremiumPanel accent={POS_COLOR} accentLight={POS_ACCENT_LIGHT} accentRing={POS_ACCENT_RING}>
               <PremiumSectionHeader icon="ti-send" title="Positionnement collaborateur ITC" />
 
               {positionnements.map(p => (
@@ -1070,7 +1067,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <PremiumPanel accent={RESULTATS_COLOR} accentLight={RESULTATS_ACCENT_LIGHT} accentRing={RESULTATS_ACCENT_RING} tinted>
+            <PremiumPanel accent={RESULTATS_COLOR} accentLight={RESULTATS_ACCENT_LIGHT} accentRing={RESULTATS_ACCENT_RING}>
               <PremiumSectionHeader icon="ti-trophy" title="Résultats" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
                 <Counter label="Signatures"       value={form.signatures}             onChange={set('signatures')} />
