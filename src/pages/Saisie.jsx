@@ -41,23 +41,26 @@ const Section = ({ title, color, bg, icon, plain, children }) => (
   </div>
 )
 
-const Counter = ({ label, value, onChange, color }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_MUTED, textAlign: 'center' }}>{label}</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <button onClick={() => onChange(Math.max(0, value - 1))}
-        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + lighten(color, 0.3), background: 'transparent', color: lighten(color, 0.3), fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>-</button>
-      <span style={{ fontSize: 22, fontWeight: 700, minWidth: 30, textAlign: 'center', color: lighten(color, 0.3) }}>{value}</span>
-      <button onClick={() => onChange(value + 1)}
-        style={{ width: 38, height: 38, borderRadius: '50%', border: '1.5px solid ' + lighten(color, 0.3), background: 'transparent', color: lighten(color, 0.3), fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 300 }}>+</button>
+// Rendu "premium clair" : boutons -/+ à contour d'accent (var(--accent) héritée du .ui-panel parent),
+// valeur en anthracite, libellé gris — utilisé par Gestion du Pipe et Résultats.
+const Counter = ({ label, value, onChange }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+    <span style={{ fontSize: 12, fontWeight: 600, color: RDV_TEXT, textAlign: 'center' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <button className="ui-counter-btn" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
+      <span style={{ fontSize: 19, fontWeight: 800, minWidth: 26, textAlign: 'center', color: RDV_TITLE }}>{value}</span>
+      <button className="ui-counter-btn" onClick={() => onChange(value + 1)}>+</button>
     </div>
   </div>
 )
 
+// Footer léger (fine séparation + bandeau très clair) pour le total automatique d'une carte de compteurs
 const TotalField = ({ label, value, color }) => (
-  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + color + '35', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_MUTED }}>{label}</span>
-    <span style={{ fontSize: 20, fontWeight: 700, color: lighten(color, 0.3) }}>{value}</span>
+  <div className="ui-total-footer">
+    <div className="ui-total-strip">
+      <span className="ui-total-label">{label}</span>
+      <span className="ui-total-value" style={{ color }}>{value}</span>
+    </div>
   </div>
 )
 
@@ -283,7 +286,72 @@ const RdvPremiumStyles = () => (
     .rdv-item-delete:hover { color: #D92D20; }
 
     .rdv-empty { text-align: center; padding: 20px 12px; color: ${RDV_TEXT_SECONDARY}; }
+
+    /* ── Classes génériques réutilisées par Positionnement / Gestion du Pipe / Résultats ──
+       Même recette visuelle que RDV Commerciaux, mais paramétrée par variables CSS (--accent,
+       --accent-light, --accent-ring) posées sur le conteneur .ui-panel de chaque section, pour que
+       seul l'accent change d'un univers à l'autre (fond blanc partout). */
+    .ui-panel { background: #fff; border: 1px solid ${RDV_BORDER}; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.06); }
+    .ui-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .ui-section-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ui-section-icon i { color: var(--accent); font-size: 13px; }
+    .ui-section-title { font-size: 13px; font-weight: 700; color: ${RDV_TITLE}; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .ui-card { background: #fff; border: 1.5px solid ${RDV_BORDER}; border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); }
+    .ui-card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+    .ui-card-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ui-card-icon i { color: var(--accent); font-size: 15px; }
+    .ui-card-title { font-size: 14px; font-weight: 700; color: ${RDV_TITLE}; }
+
+    .ui-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .ui-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    @media (max-width: 860px) { .ui-grid-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .ui-grid-2, .ui-grid-3 { grid-template-columns: 1fr; } }
+
+    .ui-field { position: relative; }
+    .ui-field-label { display: block; font-size: 12px; font-weight: 600; color: ${RDV_TEXT}; margin-bottom: 5px; }
+    .ui-input { height: 44px; padding: 0 13px; border-radius: 9px; border: 1.5px solid ${RDV_BORDER}; background: #F9FAFB; color: ${RDV_TITLE}; font-size: 13.5px; width: 100%; box-sizing: border-box; font-family: inherit; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    .ui-input::placeholder { color: #98A2B3; }
+    .ui-input:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px var(--accent-ring); }
+    select.ui-input { cursor: pointer; }
+
+    .ui-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid ${RDV_BORDER}; border-radius: 10px; margin-top: 4px; overflow: hidden; box-shadow: 0 10px 30px rgba(16,24,40,0.14); max-height: 220px; overflow-y: auto; }
+    .ui-suggestion-item { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #F3F4F6; font-size: 12.5px; font-weight: 600; color: ${RDV_TITLE}; }
+    .ui-suggestion-item:last-child { border-bottom: none; }
+    .ui-suggestion-item:hover { background: #F9FAFB; }
+
+    .ui-cta-row { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    .ui-btn-primary { height: 45px; padding: 0 26px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: filter .15s ease, transform .05s ease; }
+    .ui-btn-primary:hover:not(:disabled) { filter: brightness(0.92); }
+    .ui-btn-primary:active:not(:disabled) { transform: scale(0.98); }
+    .ui-btn-primary:disabled { background: #EAECF0; color: #98A2B3; cursor: default; }
+
+    .ui-hint-ok { font-size: 10.5px; color: #12805C; margin-top: 4px; font-weight: 600; }
+    .ui-hint-warn { font-size: 10.5px; color: #B42318; margin-top: 4px; font-weight: 600; }
+
+    .ui-counter-btn { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--accent); background: #fff; color: var(--accent); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; transition: background .15s ease; }
+    .ui-counter-btn:hover { background: var(--accent-light); }
+
+    .ui-total-footer { margin-top: 14px; padding-top: 12px; border-top: 1px solid ${RDV_BORDER}; }
+    .ui-total-strip { display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; border-radius: 8px; padding: 9px 12px; }
+    .ui-total-label { font-size: 12.5px; font-weight: 600; color: ${RDV_TEXT}; }
+    .ui-total-value { font-size: 19px; font-weight: 800; }
   `}</style>
+)
+
+// Panneau clair générique (fond blanc, bordure fine, ombre subtile) partagé par Positionnement / Pipe /
+// Résultats — seul l'accent change d'un univers à l'autre via ces variables CSS.
+const PremiumPanel = ({ accent, accentLight, accentRing, children }) => (
+  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing }}>
+    {children}
+  </div>
+)
+
+const PremiumSectionHeader = ({ icon, title }) => (
+  <div className="ui-section-header">
+    <div className="ui-section-icon"><i className={`ti ${icon}`} aria-hidden="true" /></div>
+    <div className="ui-section-title">{title}</div>
+  </div>
 )
 
 // Ligne de KPI compacte (RDV total + répartition par objet), alimentée par rdvCounts/totalRdv déjà calculés
@@ -353,43 +421,53 @@ const POSITIONNEMENT_TYPE_COLORS = { besoin: '#0F6E56', push: '#4338CA' }
 
 const emptyPositionnement = () => ({ collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '', type_positionnement: '', date_push: todayISO() })
 
-const POS_COLOR = '#4338CA'
-const posLabelStyle = { display: 'block', fontSize: 12, color: lighten(POS_COLOR, 0.35), marginBottom: 5, fontWeight: 600 }
-const posInputStyle = { padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 14, width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' }
+const POS_COLOR = '#7C6EE6'
+const POS_ACCENT_LIGHT = '#F4F2FF'
+const POS_ACCENT_RING = 'rgba(124,110,230,0.18)'
 
 const PositionnementCard = ({ p, onStatutChange, onRemove }) => {
   const cfg = POSITIONNEMENT_STATUTS.find(s => s.value === p.statut) || POSITIONNEMENT_STATUTS[0]
   const typeColor = POSITIONNEMENT_TYPE_COLORS[p.type_positionnement] || POS_COLOR
   const typeLabel = POSITIONNEMENT_TYPE_OPTIONS.find(t => t.value === p.type_positionnement)?.label
   return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}60`, marginBottom: 10 }}>
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}45`, marginBottom: 10 }}>
       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TEXT_STRONG }}>{p.collaborateur_itc}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: RDV_TITLE }}>{p.collaborateur_itc}</div>
             {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: typeColor, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{typeLabel}</span>}
           </div>
-          <div style={{ fontSize: 12, color: lighten(POS_COLOR, 0.3), fontWeight: 600, marginTop: 2 }}>🏢 {p.client}</div>
+          <div style={{ fontSize: 12, color: POS_COLOR, fontWeight: 600, marginTop: 2 }}>🏢 {p.client}</div>
           {(p.nom || p.prenom) && (
-            <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: RDV_TEXT_SECONDARY, marginTop: 4 }}>
               👤 {[p.prenom, p.nom].filter(Boolean).join(' ')}{p.fonction && ` · ${p.fonction}`}
             </div>
           )}
-          <div style={{ fontSize: 10, color: TEXT_MUTED, opacity: 0.7, marginTop: 6 }}>
+          <div style={{ fontSize: 10, color: '#98A2B3', marginTop: 6 }}>
             {p.date_push ? `Poussé le ${new Date(p.date_push).toLocaleDateString('fr-FR')}` : `Poussé en S${p.semaine}`} · Dernière MAJ : S{p.derniere_maj_semaine || p.semaine}
           </div>
         </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F87171', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>}
+        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#98A2B3', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>}
       </div>
       <div style={{ padding: '0 14px 12px' }}>
         <select value={p.statut} onChange={e => onStatutChange(p.id, e.target.value)}
-          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.color + '20', color: lighten(cfg.color, 0.4), fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
-          {POSITIONNEMENT_STATUTS.map(s => <option key={s.value} value={s.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{s.label}</option>)}
+          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${cfg.color}60`, background: cfg.color + '14', color: cfg.color, fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+          {POSITIONNEMENT_STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
       </div>
     </div>
   )
 }
+
+// Accents "Gestion du Pipe" (teal) et "Résultats" (bordeaux) — même recette que POS_COLOR ci-dessus :
+// un accent + un fond très léger + une couleur de halo de focus, posés en variables CSS sur .ui-panel.
+const PIPE_COLOR = '#2F8F83'
+const PIPE_ACCENT_LIGHT = '#EFF8F6'
+const PIPE_ACCENT_RING = 'rgba(47,143,131,0.18)'
+
+const RESULTATS_COLOR = '#A4556A'
+const RESULTATS_ACCENT_LIGHT = '#FBF2F4'
+const RESULTATS_ACCENT_RING = 'rgba(164,85,106,0.18)'
 
 const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
 
@@ -853,146 +931,154 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
           </div>
 
-          <Section title="Positionnement collaborateur ITC" color={POS_COLOR} bg="#1E1B33" icon="ti-send">
-            {positionnements.map(p => (
-              <PositionnementCard key={p.id} p={p} onStatutChange={updatePositionnementStatut} onRemove={() => removePositionnement(p.id)} />
-            ))}
+          <div style={{ marginBottom: 24 }}>
+            <PremiumPanel accent={POS_COLOR} accentLight={POS_ACCENT_LIGHT} accentRing={POS_ACCENT_RING}>
+              <PremiumSectionHeader icon="ti-send" title="Positionnement collaborateur ITC" />
 
-            <div style={{ marginTop: positionnements.length > 0 ? 16 : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <i className="ti ti-plus" style={{ fontSize: 14, color: lighten(POS_COLOR, 0.35) }} aria-hidden="true" />
-                <div style={{ fontSize: 12, fontWeight: 700, color: lighten(POS_COLOR, 0.35), textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ajouter un positionnement</div>
+              {positionnements.map(p => (
+                <PositionnementCard key={p.id} p={p} onStatutChange={updatePositionnementStatut} onRemove={() => removePositionnement(p.id)} />
+              ))}
+
+              <div className="ui-card" style={{ marginTop: positionnements.length > 0 ? 14 : 0 }}>
+                <div className="ui-card-header">
+                  <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
+                  <div className="ui-card-title">Ajouter un positionnement</div>
+                </div>
+
+                <div className="ui-grid-2">
+                  <div className="ui-field">
+                    <label className="ui-field-label">Type de positionnement *</label>
+                    <select className="ui-input" value={newPositionnement.type_positionnement} onChange={e => setNewPositionnement(p => ({ ...p, type_positionnement: e.target.value }))}>
+                      <option value="">Choisir...</option>
+                      {POSITIONNEMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-field-label">Date du push *</label>
+                    {/* Non-contrôlé (defaultValue) : un input date piloté par value= perd le fil dès qu'on tape dans le
+                        segment année (React réécrit la valeur à chaque frappe et coupe l'accumulation du navigateur).
+                        `key` force juste une réinitialisation propre après un ajout réussi. */}
+                    <input
+                      className="ui-input"
+                      ref={dateInputRef}
+                      key={posFormKey}
+                      type="date"
+                      defaultValue={newPositionnement.date_push}
+                      onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))}
+                      onClick={() => { try { dateInputRef.current?.showPicker?.() } catch { /* navigateur sans support showPicker : le petit icône calendrier reste cliquable normalement */ } }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="ui-grid-2">
+                  <div className="ui-field">
+                    <label className="ui-field-label">Collaborateur en ITC *</label>
+                    <input className="ui-input" type="text" placeholder="Rechercher dans la liste..." autoComplete="off" name="pos-collaborateur-itc"
+                      value={newPositionnement.collaborateur_itc}
+                      onFocus={() => { setItcSuggestions(newPositionnement.collaborateur_itc.trim() ? itcCollaborateurs.filter(c => c.nom.toLowerCase().includes(newPositionnement.collaborateur_itc.trim().toLowerCase())) : itcCollaborateurs); setItcSuggestionsOpen(true) }}
+                      onBlur={() => setTimeout(() => setItcSuggestionsOpen(false), 150)}
+                      onChange={e => {
+                        const term = e.target.value
+                        setNewPositionnement(p => ({ ...p, collaborateur_itc: term }))
+                        setItcSuggestions(term.trim() ? itcCollaborateurs.filter(c => c.nom.toLowerCase().includes(term.trim().toLowerCase())) : itcCollaborateurs)
+                        setItcSuggestionsOpen(true)
+                      }} />
+                    {collaborateurItcValide && (
+                      <div className="ui-hint-ok">✓ Collaborateur reconnu</div>
+                    )}
+                    {!collaborateurItcValide && newPositionnement.collaborateur_itc.trim() && (
+                      <div className="ui-hint-warn">Sélectionne un nom dans la liste</div>
+                    )}
+                    {itcSuggestionsOpen && itcSuggestions.length > 0 && (
+                      <div className="ui-suggestions">
+                        {itcSuggestions.map(c => (
+                          <div key={c.id} className="ui-suggestion-item"
+                            onClick={() => { setNewPositionnement(p => ({ ...p, collaborateur_itc: c.nom })); setItcSuggestionsOpen(false); setItcSuggestions([]) }}>
+                            {c.nom}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-field-label">Client *</label>
+                    <input className="ui-input" type="text" placeholder="Raison sociale du client" autoComplete="off" name="pos-client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="ui-grid-3">
+                  <div className="ui-field">
+                    <label className="ui-field-label">Nom de l'opérationnel visé *</label>
+                    <input className="ui-input" type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off" name="pos-nom-operationnel"
+                      onChange={e => { setNewPositionnement(p => ({ ...p, nom: e.target.value })); setSelectedPosContactId(null) }} />
+                    {selectedPosContactId && (
+                      <div className="ui-hint-ok">✓ Contact déjà connu, relié automatiquement</div>
+                    )}
+                    {!selectedPosContactId && posContactSuggestions.length > 0 && (
+                      <div className="ui-suggestions">
+                        {posContactSuggestions.map(c => (
+                          <div key={c.id} className="ui-suggestion-item" onClick={() => pickPosContact(c)}>
+                            {[c.prenom, c.nom].filter(Boolean).join(' ')}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-field-label">Prénom</label>
+                    <input className="ui-input" type="text" placeholder="Prénom" autoComplete="off" name="pos-prenom-operationnel" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} />
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-field-label">Fonction</label>
+                    <input className="ui-input" type="text" placeholder="Ex: DRH, Directeur IT..." autoComplete="off" name="pos-fonction" value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="ui-cta-row">
+                  <button className="ui-btn-primary" onClick={addPositionnement} disabled={savingPositionnement || !positionnementComplete}>
+                    {savingPositionnement ? 'Enregistrement...' : 'Ajouter le positionnement'}
+                  </button>
+                </div>
+                {errorPositionnement && (
+                  <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12 }}>
+                    ⚠️ {errorPositionnement}
+                  </div>
+                )}
               </div>
+            </PremiumPanel>
+          </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 200px' }}>
-                  <label style={posLabelStyle}>Type de positionnement *</label>
-                  <select value={newPositionnement.type_positionnement} onChange={e => setNewPositionnement(p => ({ ...p, type_positionnement: e.target.value }))} style={posInputStyle}>
-                    <option value="" style={{ background: '#2B2940', color: TEXT_STRONG }}>Choisir...</option>
-                    {POSITIONNEMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#2B2940', color: TEXT_STRONG }}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div style={{ flex: '1 1 160px' }}>
-                  <label style={posLabelStyle}>Date du push *</label>
-                  {/* Non-contrôlé (defaultValue) : un input date piloté par value= perd le fil dès qu'on tape dans le
-                      segment année (React réécrit la valeur à chaque frappe et coupe l'accumulation du navigateur).
-                      `key` force juste une réinitialisation propre après un ajout réussi. */}
-                  <input
-                    ref={dateInputRef}
-                    key={posFormKey}
-                    type="date"
-                    defaultValue={newPositionnement.date_push}
-                    onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))}
-                    onClick={() => { try { dateInputRef.current?.showPicker?.() } catch { /* navigateur sans support showPicker : le petit icône calendrier reste cliquable normalement */ } }}
-                    style={{ ...posInputStyle, cursor: 'pointer' }}
-                  />
-                </div>
+          <div style={{ marginBottom: 24 }}>
+            <PremiumPanel accent={PIPE_COLOR} accentLight={PIPE_ACCENT_LIGHT} accentRing={PIPE_ACCENT_RING}>
+              <PremiumSectionHeader icon="ti-filter" title="Gestion du Pipe" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
+                <Counter label="Besoins détectés"       value={form.besoins_detectes}      onChange={set('besoins_detectes')} />
+                <Counter label="RDV candidat"           value={form.rdv_candidats}         onChange={set('rdv_candidats')} />
+                <Counter label="Solutions envoyées"     value={form.cv_envoyes}            onChange={set('cv_envoyes')} />
+                <Counter label="Attente réponse client" value={form.attente_retour}        onChange={set('attente_retour')} />
+                <Counter label="Attente retour prez"    value={form.attente_retour_prez}   onChange={set('attente_retour_prez')} />
+                <Counter label="Besoins sans solution"  value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} />
               </div>
+              <TotalField label="Total Pipe (automatique)" value={totalPipe} color={PIPE_COLOR} />
+            </PremiumPanel>
+          </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 220px', position: 'relative' }}>
-                  <label style={posLabelStyle}>Collaborateur en ITC *</label>
-                  <input type="text" placeholder="Rechercher dans la liste..." autoComplete="off" name="pos-collaborateur-itc"
-                    value={newPositionnement.collaborateur_itc}
-                    onFocus={() => { setItcSuggestions(newPositionnement.collaborateur_itc.trim() ? itcCollaborateurs.filter(c => c.nom.toLowerCase().includes(newPositionnement.collaborateur_itc.trim().toLowerCase())) : itcCollaborateurs); setItcSuggestionsOpen(true) }}
-                    onBlur={() => setTimeout(() => setItcSuggestionsOpen(false), 150)}
-                    onChange={e => {
-                      const term = e.target.value
-                      setNewPositionnement(p => ({ ...p, collaborateur_itc: term }))
-                      setItcSuggestions(term.trim() ? itcCollaborateurs.filter(c => c.nom.toLowerCase().includes(term.trim().toLowerCase())) : itcCollaborateurs)
-                      setItcSuggestionsOpen(true)
-                    }}
-                    style={posInputStyle} />
-                  {collaborateurItcValide && (
-                    <div style={{ fontSize: 10, color: lighten('#0F6E56', 0.3), marginTop: 3, fontWeight: 600 }}>✓ Collaborateur reconnu</div>
-                  )}
-                  {!collaborateurItcValide && newPositionnement.collaborateur_itc.trim() && (
-                    <div style={{ fontSize: 10, color: lighten('#9F1239', 0.3), marginTop: 3, fontWeight: 600 }}>Sélectionne un nom dans la liste</div>
-                  )}
-                  {itcSuggestionsOpen && itcSuggestions.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#2B2940', border: '1.5px solid ' + lighten(POS_COLOR, 0.2), borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.45)', maxHeight: 220, overflowY: 'auto' }}>
-                      {itcSuggestions.map(c => (
-                        <div key={c.id}
-                          onClick={() => { setNewPositionnement(p => ({ ...p, collaborateur_itc: c.nom })); setItcSuggestionsOpen(false); setItcSuggestions([]) }}
-                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12, fontWeight: 600, color: TEXT_STRONG }}>
-                          {c.nom}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: '1 1 220px' }}>
-                  <label style={posLabelStyle}>Client *</label>
-                  <input type="text" placeholder="Raison sociale du client" autoComplete="off" name="pos-client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} style={posInputStyle} />
-                </div>
+          <div style={{ marginBottom: 24 }}>
+            <PremiumPanel accent={RESULTATS_COLOR} accentLight={RESULTATS_ACCENT_LIGHT} accentRing={RESULTATS_ACCENT_RING}>
+              <PremiumSectionHeader icon="ti-trophy" title="Résultats" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
+                <Counter label="Signatures"       value={form.signatures}             onChange={set('signatures')} />
+                <Counter label="Démarrages"       value={form.demarrages}             onChange={set('demarrages')} />
+                <Counter label="Fins de mission"  value={form.fins_de_mission}        onChange={set('fins_de_mission')} />
+                <Counter label="Prés. à monter"   value={form.presentations_a_monter} onChange={set('presentations_a_monter')} />
               </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-                <div style={{ flex: '1 1 180px', position: 'relative' }}>
-                  <label style={posLabelStyle}>Nom de l'opérationnel visé *</label>
-                  <input type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off" name="pos-nom-operationnel"
-                    onChange={e => { setNewPositionnement(p => ({ ...p, nom: e.target.value })); setSelectedPosContactId(null) }}
-                    style={posInputStyle} />
-                  {selectedPosContactId && (
-                    <div style={{ fontSize: 10, color: lighten('#0F6E56', 0.3), marginTop: 3, fontWeight: 600 }}>✓ Contact déjà connu, relié automatiquement</div>
-                  )}
-                  {!selectedPosContactId && posContactSuggestions.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: '#2B2940', border: '1.5px solid ' + lighten(POS_COLOR, 0.2), borderRadius: 8, marginTop: 2, overflow: 'hidden', boxShadow: '0 4px 16px rgba(0,0,0,0.45)' }}>
-                      {posContactSuggestions.map(c => (
-                        <div key={c.id} onClick={() => pickPosContact(c)}
-                          style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 12, fontWeight: 600, color: TEXT_STRONG }}>
-                          {[c.prenom, c.nom].filter(Boolean).join(' ')}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div style={{ flex: '1 1 180px' }}>
-                  <label style={posLabelStyle}>Prénom</label>
-                  <input type="text" placeholder="Prénom" autoComplete="off" name="pos-prenom-operationnel" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} style={posInputStyle} />
-                </div>
-                <div style={{ flex: '1 1 180px' }}>
-                  <label style={posLabelStyle}>Fonction</label>
-                  <input type="text" placeholder="Ex: DRH, Directeur IT..." autoComplete="off" name="pos-fonction" value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} style={posInputStyle} />
-                </div>
-              </div>
-
-              <button onClick={addPositionnement} disabled={savingPositionnement || !positionnementComplete}
-                style={{ width: '100%', padding: '11px', background: positionnementComplete ? POS_COLOR : 'transparent', color: positionnementComplete ? '#fff' : TEXT_MUTED, border: positionnementComplete ? 'none' : '1.5px solid rgba(255,255,255,0.16)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: positionnementComplete ? 'pointer' : 'default' }}>
-                {savingPositionnement ? 'Ajout...' : '+ Ajouter ce positionnement'}
-              </button>
-              {errorPositionnement && (
-                <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
-                  ⚠️ {errorPositionnement}
-                </div>
-              )}
-            </div>
-          </Section>
-
-          <Section title="Gestion du Pipe" color="#0F6E56" bg="#122420" icon="ti-filter">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <Counter label="Besoins Detectes"      value={form.besoins_detectes}     onChange={set('besoins_detectes')}     color="#0F6E56" />
-              <Counter label="RDV Candidat"           value={form.rdv_candidats}        onChange={set('rdv_candidats')}        color="#0F6E56" />
-              <Counter label="Solutions Envoyees"     value={form.cv_envoyes}           onChange={set('cv_envoyes')}           color="#0F6E56" />
-              <Counter label="Attente Reponse Client" value={form.attente_retour}       onChange={set('attente_retour')}       color="#0F6E56" />
-              <Counter label="Attente Retour Prez"   value={form.attente_retour_prez}  onChange={set('attente_retour_prez')}  color="#0F6E56" />
-              <Counter label="Besoins sans solution" value={form.besoins_sans_solution} onChange={set('besoins_sans_solution')} color="#0F6E56" />
-            </div>
-            <TotalField label="Total Pipe (automatique)" value={totalPipe} color="#0F6E56" />
-          </Section>
-
-          <Section title="Resultats" color="#993556" bg="#2A1922" icon="ti-trophy">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-              <Counter label="Signatures"      value={form.signatures}             onChange={set('signatures')}            color="#993556" />
-              <Counter label="Demarrages"      value={form.demarrages}             onChange={set('demarrages')}            color="#993556" />
-              <Counter label="Fins de mission" value={form.fins_de_mission}        onChange={set('fins_de_mission')}       color="#993556" />
-              <Counter label="Pres. a monter"  value={form.presentations_a_monter} onChange={set('presentations_a_monter')} color="#993556" />
-            </div>
-            {/* Accordions détails résultats */}
+            </PremiumPanel>
+            {/* Accordions détails résultats — hors du panneau clair, comme pour RDV Commerciaux */}
             <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} />
             <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} />
             <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
-          </Section>
+          </div>
 
           <Section title="Priorités P1" color={P1_COLOR} bg="#2A2116" icon="ti-target">
             {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
