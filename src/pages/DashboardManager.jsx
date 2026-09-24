@@ -264,6 +264,70 @@ const PositionnementsKpiCard = ({ value, previous, positionnements, allPositionn
   )
 }
 
+// Carte "Positionnements ITC" pour la vue Focus IA (un seul IA sélectionné) : le total reste affiché
+// sur la carte comme les autres KPI, mais le détail (au clic) liste chaque push individuellement avec
+// le nom du collaborateur ITC concerné — contrairement à la carte équipe ci-dessus qui agrège par personne,
+// ici la vue est déjà scopée à un seul IA donc on veut le détail brut, pas un comptage par nom.
+const POSITIONNEMENT_STATUTS_DASH = [
+  { value: 'en_attente',             label: 'En attente de retour',   color: '#0369A1' },
+  { value: 'presentation_a_prevoir', label: 'Présentation à prévoir', color: '#BA7517' },
+  { value: 'presentation_realisee',  label: 'Présentation réalisée',  color: '#1E40AF' },
+  { value: 'sans_suite',             label: 'Sans suite',             color: '#9F1239' },
+  { value: 'signe',                  label: 'Signé / Démarrage',      color: '#0F6E56' },
+]
+const POSITIONNEMENT_TYPE_LABELS_DASH = { besoin: 'Positionnement sur besoin', push: 'Push' }
+
+const PositionnementsDetailCard = ({ value, previous, items }) => {
+  const [open, setOpen] = useState(false)
+  const color = '#4338CA', bg = '#E0E7FF'
+  const sorted = [...(items || [])].sort((a, b) => new Date(b.date_push || 0) - new Date(a.date_push || 0))
+
+  return (
+    <div>
+      <div onClick={() => value > 0 && setOpen(o => !o)}
+        style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: value > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Positionnements ITC</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+            <div style={{ paddingBottom: 2 }}><Trend current={value} previous={previous} /></div>
+          </div>
+          {previous !== undefined && <div style={{ fontSize: 10, color, opacity: 0.55, marginTop: 3 }}>Préc. : {previous}</div>}
+        </div>
+        {value > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && (
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
+          {sorted.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail renseigné</div>
+          ) : sorted.map(p => {
+            const cfg = POSITIONNEMENT_STATUTS_DASH.find(s => s.value === p.statut) || POSITIONNEMENT_STATUTS_DASH[0]
+            const typeLabel = POSITIONNEMENT_TYPE_LABELS_DASH[p.type_positionnement]
+            return (
+              <div key={p.id} style={{ background: '#fff', borderRadius: 8, padding: '8px 10px', marginBottom: 6, border: '1.5px solid #C7D2FE' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#3730A3' }}>{p.collaborateur_itc || '—'}</div>
+                  {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: '#4338CA', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>{typeLabel}</span>}
+                </div>
+                {p.client && <div style={{ fontSize: 11, color: '#4338CA', marginTop: 2 }}>🏢 {p.client}</div>}
+                {(p.nom || p.prenom) && (
+                  <div style={{ fontSize: 10, color: '#3730A3', opacity: 0.7, marginTop: 2 }}>
+                    👤 {[p.prenom, p.nom].filter(Boolean).join(' ')}{p.fonction && ` · ${p.fonction}`}
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
+                  {p.date_push && <span style={{ fontSize: 10, color: '#4338CA', opacity: 0.7 }}>📅 {new Date(p.date_push).toLocaleDateString('fr-FR')}</span>}
+                  <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.color + '14', borderRadius: 5, padding: '2px 7px' }}>{cfg.label}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const P1KpiCard = ({ value, previous, data, recurringIds }) => {
   const [open, setOpen] = useState(false)
   const color = '#6D28D9', bg = '#EDE9FE'
@@ -459,13 +523,13 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, selectedWee
           </div>
         </>
       ) : (
-        <FocusIAMini saisies={saisies} iaList={iaList} p1Data={p1Data} selectedWeek={selectedWeek} semaine={semaine} annee={annee} refreshKey={refreshKey} />
+        <FocusIAMini saisies={saisies} iaList={iaList} p1Data={p1Data} positionnements={positionnements} selectedWeek={selectedWeek} semaine={semaine} annee={annee} refreshKey={refreshKey} />
       )}
     </div>
   )
 }
 
-function FocusIAMini({ saisies, iaList, p1Data, selectedWeek, semaine, annee, refreshKey }) {
+function FocusIAMini({ saisies, iaList, p1Data, positionnements, selectedWeek, semaine, annee, refreshKey }) {
   const [selectedIa, setSelectedIa] = useState(null)
   const [iaIndex, setIaIndex] = useState(0)
   const [viewMode, setViewMode] = useState('semaine')
@@ -484,6 +548,10 @@ function FocusIAMini({ saisies, iaList, p1Data, selectedWeek, semaine, annee, re
   const iaValidP1 = selectedIa ? p1Data.filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek && isValidP1(x)) : []
   const iaPrevValidP1 = selectedIa ? p1Data.filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek - 1 && isValidP1(x)) : []
   const iaRecurringP1Ids = getRecurringP1Ids(iaValidP1, iaPrevValidP1)
+
+  const iaPositionnements     = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek) : []
+  const iaPositionnementsPrev = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek - 1) : []
+  const iaPositionnementsAnnuel = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id) : []
 
   if (!selectedIa) return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -537,6 +605,7 @@ function FocusIAMini({ saisies, iaList, p1Data, selectedWeek, semaine, annee, re
             <KpiCardDetail label="Présentations" value={sum(iaData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`fp-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
             <KpiCardDetail label="Signatures" value={sum(iaData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`fs-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
             <P1KpiCard value={iaValidP1.length} previous={selectedWeek > 1 ? iaPrevValidP1.length : undefined} data={iaValidP1} recurringIds={iaRecurringP1Ids} key={`fp1kpi-${selectedWeek}-${selectedIa.id}`} />
+            <PositionnementsDetailCard value={iaPositionnements.length} previous={selectedWeek > 1 ? iaPositionnementsPrev.length : undefined} items={iaPositionnements} key={`fpos-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
           </div>
           {iaValidP1.length > 0 && (
             <div style={{ marginBottom: 14 }}>
@@ -579,6 +648,7 @@ function FocusIAMini({ saisies, iaList, p1Data, selectedWeek, semaine, annee, re
           <KpiCardDetail label="Signatures" value={sum(iaAnnuel, 'signatures')} color="#9D174D" bg="#FCE7F3" type="signature" semaine={null} annee={annee} iaId={selectedIa.id} key={`afs-${selectedIa.id}-${refreshKey}`} allYear={true} />
           <KpiCardDetail label="Démarrages" value={sum(iaAnnuel, 'demarrages')} color="#065F46" bg="#D1FAE5" type="demarrage" semaine={null} annee={annee} iaId={selectedIa.id} key={`afd-${selectedIa.id}-${refreshKey}`} allYear={true} />
           <KpiCardDetail label="Fins mission" value={sum(iaAnnuel, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" type="fin_mission" semaine={null} annee={annee} iaId={selectedIa.id} key={`aff-${selectedIa.id}-${refreshKey}`} allYear={true} />
+          <PositionnementsDetailCard value={iaPositionnementsAnnuel.length} items={iaPositionnementsAnnuel} key={`afpos-${selectedIa.id}-${refreshKey}`} />
         </div>
       )}
     </>
