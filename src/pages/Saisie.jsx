@@ -212,65 +212,77 @@ const emptyRdv = { client: '', entite: '', nom: '', prenom: '', fonction: '', da
 
 const RDV_COLOR = '#534AB7'
 const RDV_ACCENT_LIGHT = '#EEEDFE'
-const RDV_TEXT_DARK = '#111827'
-const RDV_BORDER_LIGHT = '#E5E7EB'
+// Palette "SaaS premium" (texte foncé sur fond clair) pour toute la section RDV Commerciaux —
+// distincte de TEXT_STRONG/TEXT_MUTED qui servent au reste de la page (texte clair sur fond sombre).
+const RDV_TITLE = '#101828'
+const RDV_TEXT = '#344054'
+const RDV_TEXT_SECONDARY = '#667085'
+const RDV_BORDER = '#EAECF0'
 
-// Styles de la carte "RDV Commerciaux" version premium (fond clair) : quelques vraies règles CSS
+// Styles de la section "RDV Commerciaux" version premium (panneau clair) : quelques vraies règles CSS
 // (focus, hover, responsive) que les styles inline ne permettent pas facilement. Scoping par préfixe
 // de classe "rdv-" pour ne rien affecter en dehors de cette section.
 const RdvPremiumStyles = () => (
   <style>{`
-    .rdv-kpi-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; margin: 2px 0 20px; }
-    .rdv-kpi-item { display: flex; align-items: baseline; gap: 7px; }
-    .rdv-kpi-value { font-size: 21px; font-weight: 800; color: ${TEXT_STRONG}; letter-spacing: -0.3px; }
-    .rdv-kpi-label { font-size: 12px; font-weight: 500; color: ${TEXT_MUTED}; }
+    .rdv-panel { background: #fff; border-radius: 16px; padding: 16px 18px 18px; box-shadow: 0 1px 3px rgba(16,24,40,0.08); }
 
-    .rdv-card { background: #fff; border: 1px solid ${RDV_BORDER_LIGHT}; border-radius: 16px; padding: 20px 22px; box-shadow: 0 1px 2px rgba(16,24,40,0.05), 0 4px 16px rgba(16,24,40,0.06); }
-    .rdv-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-    .rdv-card-icon { width: 30px; height: 30px; border-radius: 9px; background: ${RDV_ACCENT_LIGHT}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .rdv-card-title { font-size: 15px; font-weight: 700; color: ${RDV_TEXT_DARK}; }
+    .rdv-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .rdv-section-icon { width: 26px; height: 26px; border-radius: 8px; background: ${RDV_ACCENT_LIGHT}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .rdv-section-title { font-size: 13px; font-weight: 700; color: ${RDV_TITLE}; text-transform: uppercase; letter-spacing: 0.04em; }
 
-    .rdv-grid-1 { display: grid; grid-template-columns: 2fr 1.1fr 1.3fr 1.2fr; gap: 14px; margin-bottom: 16px; }
-    .rdv-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
-    .rdv-grid-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .rdv-kpi-row { display: flex; flex-wrap: wrap; align-items: baseline; margin: 0 0 14px; }
+    .rdv-kpi-item { display: flex; align-items: baseline; gap: 5px; padding-right: 14px; margin-right: 14px; border-right: 1px solid ${RDV_BORDER}; }
+    .rdv-kpi-item:last-child { border-right: none; margin-right: 0; padding-right: 0; }
+    .rdv-kpi-value { font-size: 13.5px; font-weight: 700; color: ${RDV_TEXT}; }
+    .rdv-kpi-label { font-size: 12.5px; font-weight: 500; color: ${RDV_TEXT_SECONDARY}; }
+
+    .rdv-card { background: #fff; border: 1px solid ${RDV_BORDER}; border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); }
+    .rdv-card-header { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+    .rdv-card-icon { width: 26px; height: 26px; border-radius: 8px; background: ${RDV_ACCENT_LIGHT}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .rdv-card-title { font-size: 14px; font-weight: 700; color: ${RDV_TITLE}; }
+
+    .rdv-grid-1 { display: grid; grid-template-columns: 2fr 1.2fr 1.8fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .rdv-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 12px; margin-bottom: 12px; }
+    .rdv-grid-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 860px) { .rdv-grid-1, .rdv-grid-2 { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 560px) { .rdv-grid-1, .rdv-grid-2, .rdv-grid-3 { grid-template-columns: 1fr; } }
 
     .rdv-field { position: relative; }
-    .rdv-field-label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-    .rdv-input { height: 46px; padding: 0 14px; border-radius: 10px; border: 1.5px solid ${RDV_BORDER_LIGHT}; background: #F9FAFB; color: ${RDV_TEXT_DARK}; font-size: 14px; width: 100%; box-sizing: border-box; font-family: inherit; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    .rdv-field-label { display: block; font-size: 12px; font-weight: 600; color: ${RDV_TEXT}; margin-bottom: 5px; }
+    .rdv-input { height: 44px; padding: 0 13px; border-radius: 9px; border: 1.5px solid ${RDV_BORDER}; background: #F9FAFB; color: ${RDV_TITLE}; font-size: 13.5px; width: 100%; box-sizing: border-box; font-family: inherit; transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    .rdv-input::placeholder { color: #98A2B3; }
     .rdv-input:focus { outline: none; border-color: ${RDV_COLOR}; background: #fff; box-shadow: 0 0 0 3px ${RDV_COLOR}22; }
     select.rdv-input { cursor: pointer; }
-    textarea.rdv-input { height: auto; min-height: 96px; padding: 12px 14px; resize: vertical; line-height: 1.45; }
+    textarea.rdv-input { height: auto; min-height: 88px; padding: 11px 13px; resize: vertical; line-height: 1.45; }
 
-    .rdv-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid ${RDV_BORDER_LIGHT}; border-radius: 10px; margin-top: 4px; overflow: hidden; box-shadow: 0 10px 30px rgba(16,24,40,0.14); max-height: 220px; overflow-y: auto; }
+    .rdv-suggestions { position: absolute; top: 100%; left: 0; right: 0; z-index: 10; background: #fff; border: 1px solid ${RDV_BORDER}; border-radius: 10px; margin-top: 4px; overflow: hidden; box-shadow: 0 10px 30px rgba(16,24,40,0.14); max-height: 220px; overflow-y: auto; }
     .rdv-suggestion-item { padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #F3F4F6; font-size: 12.5px; }
     .rdv-suggestion-item:last-child { border-bottom: none; }
     .rdv-suggestion-item:hover { background: #F9FAFB; }
 
-    .rdv-contact-zone { background: #FAFAFA; border: 1px solid #F0F0F2; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
-    .rdv-contact-zone-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+    .rdv-contact-zone { background: #FAFAFB; border: 1px solid #F2F4F7; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+    .rdv-contact-zone-title { font-size: 11px; font-weight: 700; color: ${RDV_TEXT_SECONDARY}; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
 
-    .rdv-cta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
-    .rdv-required-note { font-size: 12px; color: #9CA3AF; }
-    .rdv-btn-primary { height: 44px; padding: 0 22px; border-radius: 10px; background: ${RDV_COLOR}; color: #fff; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: background .15s ease, transform .05s ease; }
-    .rdv-btn-primary:hover:not(:disabled) { background: #453D9E; }
+    .rdv-cta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    .rdv-required-note { font-size: 12px; color: #98A2B3; }
+    .rdv-btn-primary { height: 45px; padding: 0 28px; border-radius: 10px; background: ${RDV_COLOR}; color: #fff; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: background .15s ease, transform .05s ease; }
+    .rdv-btn-primary:hover:not(:disabled) { background: #443B92; }
     .rdv-btn-primary:active:not(:disabled) { transform: scale(0.98); }
-    .rdv-btn-primary:disabled { background: #E5E7EB; color: #9CA3AF; cursor: default; }
+    .rdv-btn-primary:disabled { background: #EAECF0; color: #98A2B3; cursor: default; }
 
-    .rdv-list-title { font-size: 12px; font-weight: 700; color: ${TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.06em; margin: 22px 0 12px; }
-    .rdv-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; background: #fff; border: 1px solid ${RDV_BORDER_LIGHT}; border-radius: 12px; padding: 13px 16px; margin-bottom: 9px; }
+    .rdv-list-title { font-size: 11.5px; font-weight: 700; color: ${RDV_TEXT_SECONDARY}; text-transform: uppercase; letter-spacing: 0.06em; margin: 16px 0 4px; }
+    .rdv-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid ${RDV_BORDER}; }
+    .rdv-item:last-child { border-bottom: none; }
     .rdv-item-main { min-width: 0; flex: 1; }
-    .rdv-item-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
-    .rdv-item-badge { padding: 2px 9px; border-radius: 20px; color: #fff; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-    .rdv-item-client { font-size: 13.5px; font-weight: 700; color: ${RDV_TEXT_DARK}; }
-    .rdv-item-date { font-size: 12px; color: #9CA3AF; white-space: nowrap; margin-left: auto; }
-    .rdv-item-contact { font-size: 12.5px; color: #6B7280; margin-bottom: 3px; }
-    .rdv-item-cr { font-size: 12.5px; color: #9CA3AF; font-style: italic; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .rdv-item-delete { flex-shrink: 0; background: none; border: none; cursor: pointer; color: #9CA3AF; font-size: 12px; font-weight: 600; padding: 4px 2px; white-space: nowrap; }
-    .rdv-item-delete:hover { color: #DC2626; }
+    .rdv-item-client { font-size: 13.5px; font-weight: 700; color: ${RDV_TITLE}; margin-bottom: 2px; }
+    .rdv-item-meta { font-size: 12px; color: ${RDV_TEXT_SECONDARY}; margin-bottom: 2px; }
+    .rdv-item-meta b { font-weight: 600; }
+    .rdv-item-contact { font-size: 12px; color: ${RDV_TEXT_SECONDARY}; margin-bottom: 2px; }
+    .rdv-item-cr { font-size: 12px; color: #98A2B3; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rdv-item-delete { flex-shrink: 0; background: none; border: none; cursor: pointer; color: #98A2B3; font-size: 12px; font-weight: 600; padding: 2px; white-space: nowrap; margin-top: 1px; }
+    .rdv-item-delete:hover { color: #D92D20; }
 
-    .rdv-empty { text-align: center; padding: 30px 16px; background: #fff; border: 1.5px dashed ${RDV_BORDER_LIGHT}; border-radius: 14px; color: #9CA3AF; }
+    .rdv-empty { text-align: center; padding: 20px 12px; color: ${RDV_TEXT_SECONDARY}; }
   `}</style>
 )
 
@@ -290,9 +302,8 @@ const RdvRecentList = ({ list, onRemove }) => {
   if (list.length === 0) {
     return (
       <div className="rdv-empty">
-        <div style={{ fontSize: 22, marginBottom: 6 }}>📅</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#6B7280' }}>Aucun rendez-vous enregistré cette semaine</div>
-        <div style={{ fontSize: 12, marginTop: 3 }}>Utilise le formulaire ci-dessus pour ajouter ton premier RDV.</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: RDV_TEXT }}>Aucun rendez-vous enregistré cette semaine</div>
+        <div style={{ fontSize: 12, marginTop: 2 }}>Ajoutez votre premier rendez-vous ci-dessus.</div>
       </div>
     )
   }
@@ -306,12 +317,11 @@ const RdvRecentList = ({ list, onRemove }) => {
         return (
           <div key={r.id} className="rdv-item">
             <div className="rdv-item-main">
-              <div className="rdv-item-top">
-                <span className="rdv-item-badge" style={{ background: color }}>{objetLabel}</span>
-                <span className="rdv-item-client">{r.client || '—'}</span>
-                <span className="rdv-item-date">{r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}</span>
+              <div className="rdv-item-client">{r.client || '—'}</div>
+              <div className="rdv-item-meta">
+                <b style={{ color }}>{objetLabel}</b> · {r.date_meeting ? new Date(r.date_meeting).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}
               </div>
-              {(contact || r.fonction || r.entite) && (
+              {(contact || r.fonction) && (
                 <div className="rdv-item-contact">{contact || '—'}{r.fonction ? ' · ' + r.fonction : ''}{r.entite ? ' · ' + r.entite : ''}</div>
               )}
               {r.compte_rendu && <div className="rdv-item-cr">{r.compte_rendu}</div>}
@@ -711,7 +721,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
   return (
     <div style={{ padding: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 500 }}>Bonjour {iaName} 👋</div>
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>{annee}</div>
@@ -725,9 +735,14 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
         <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: 24 }}>Chargement...</div>
       ) : (
         <div>
-          <Section title="RDV Commerciaux" color={RDV_COLOR} icon="ti-calendar-event" plain>
+          <div style={{ marginBottom: 24 }}>
             <RdvPremiumStyles />
-            <RdvKpiRow total={totalRdv} counts={rdvCounts} />
+            <div className="rdv-panel">
+              <div className="rdv-section-header">
+                <div className="rdv-section-icon"><i className="ti ti-calendar-event" style={{ fontSize: 13, color: RDV_COLOR }} aria-hidden="true" /></div>
+                <div className="rdv-section-title">RDV Commerciaux</div>
+              </div>
+              <RdvKpiRow total={totalRdv} counts={rdvCounts} />
 
             <div className="rdv-card">
               <div className="rdv-card-header">
@@ -771,7 +786,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
                     <div className="rdv-suggestions">
                       {contactSuggestions.map(c => (
                         <div key={c.id} className="rdv-suggestion-item" onClick={() => pickContact(c)}>
-                          <div style={{ fontWeight: 600, color: RDV_TEXT_DARK }}>{[c.prenom, c.nom].filter(Boolean).join(' ')}</div>
+                          <div style={{ fontWeight: 600, color: RDV_TITLE }}>{[c.prenom, c.nom].filter(Boolean).join(' ')}</div>
                           {c.lastClient && (
                             <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
                               déjà vu chez {c.lastClient}{c.lastDate ? ' le ' + new Date(c.lastDate).toLocaleDateString('fr-FR') : ''}
@@ -830,12 +845,13 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               )}
             </div>
 
-            <div className="rdv-list-title">Rendez-vous de la semaine{rdvList.length > 0 ? ` (${rdvList.length})` : ''}</div>
-            <RdvRecentList list={rdvList} onRemove={removeRdv} />
+              <div className="rdv-list-title">Rendez-vous de la semaine{rdvList.length > 0 ? ` (${rdvList.length})` : ''}</div>
+              <RdvRecentList list={rdvList} onRemove={removeRdv} />
+            </div>
 
-            {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation */}
+            {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation — hors du panneau clair, comme avant */}
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
-          </Section>
+          </div>
 
           <Section title="Positionnement collaborateur ITC" color={POS_COLOR} bg="#1E1B33" icon="ti-send">
             {positionnements.map(p => (
