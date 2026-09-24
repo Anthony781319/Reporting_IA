@@ -341,10 +341,11 @@ const RdvPremiumStyles = () => (
 
 // Panneau clair générique (fond blanc, bordure fine, ombre subtile) partagé par Positionnement / Pipe /
 // Résultats — seul l'accent change d'un univers à l'autre via ces variables CSS.
-// tinted = fond gris très clair (#F8FAFC) au lieu de blanc, pour alterner visuellement les blocs
-// de la page sans rien changer d'autre (mêmes bordure/radius/ombre/accent).
+// tinted = fond gris clair (#EDF0F4) au lieu de blanc, pour alterner visuellement les blocs de la
+// page sans rien changer d'autre (mêmes bordure/radius/ombre/accent). #F8FAFC était trop proche du
+// blanc pour être perceptible à l'écran — #EDF0F4 est le premier palier qui se voit vraiment.
 const PremiumPanel = ({ accent, accentLight, accentRing, tinted, children }) => (
-  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing, background: tinted ? '#F8FAFC' : '#fff' }}>
+  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing, background: tinted ? '#EDF0F4' : '#fff' }}>
     {children}
   </div>
 )
