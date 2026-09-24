@@ -202,8 +202,10 @@ const RdvKpiCard = ({ value, previous, semaine, annee, iaId, iaList }) => {
 }
 
 // Carte "Positionnements ITC" équipe : total de la semaine + tendance vs S-1, dépliable en détail par IA
-// (mêmes conventions visuelles que RdvKpiCard : 0 remontés en premier et surlignés).
-const PositionnementsKpiCard = ({ value, previous, positionnements, iaList }) => {
+// (mêmes conventions visuelles que RdvKpiCard : 0 remontés en premier et surlignés), et en détail par
+// collaborateur ITC poussé (cumul sur l'année, pas juste la semaine sélectionnée — répond à "combien de
+// fois X a-t-il été poussé", indépendant du commercial qui a fait la saisie).
+const PositionnementsKpiCard = ({ value, previous, positionnements, allPositionnements, iaList, annee }) => {
   const [open, setOpen] = useState(false)
   const color = '#4338CA', bg = '#E0E7FF'
 
@@ -211,6 +213,15 @@ const PositionnementsKpiCard = ({ value, previous, positionnements, iaList }) =>
     .filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
     .map(ia => ({ id: ia.id, nom: ia.nom, count: positionnements.filter(x => x.ia_id === ia.id).length }))
     .sort((a, b) => a.count - b.count)
+
+  const byItc = Object.values(
+    (allPositionnements || []).reduce((acc, p) => {
+      const nom = (p.collaborateur_itc || '').trim() || '(non renseigné)'
+      if (!acc[nom]) acc[nom] = { nom, count: 0 }
+      acc[nom].count += 1
+      return acc
+    }, {})
+  ).sort((a, b) => b.count - a.count)
 
   return (
     <div>
@@ -228,13 +239,25 @@ const PositionnementsKpiCard = ({ value, previous, positionnements, iaList }) =>
       </div>
       {open && (
         <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>Par membre de l'équipe</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>Par membre de l'équipe (S. sélectionnée)</div>
           {byIa.map(m => (
             <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: m.count === 0 ? '#FEF2F2' : '#fff', border: `1.5px solid ${m.count === 0 ? '#FECACA' : '#C7D2FE'}` }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: m.count === 0 ? '#B91C1C' : '#3730A3' }}>{m.nom}</span>
               <span style={{ fontSize: 12, fontWeight: 800, color: m.count === 0 ? '#B91C1C' : '#4338CA' }}>{m.count}</span>
             </div>
           ))}
+
+          {byItc.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '10px 0 6px' }}>Par collaborateur ITC poussé (cumul {annee})</div>
+              {byItc.map(m => (
+                <div key={m.nom} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: '#fff', border: '1.5px solid #C7D2FE' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#3730A3' }}>{m.nom}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#4338CA' }}>{m.count}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -380,7 +403,7 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, selectedWee
           <SectionTitle title="KPIs semaine" color="#6D28D9" icon="📊" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
             <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaList={iaList} key={`rdv-${selectedWeek}-${refreshKey}`} />
-            <PositionnementsKpiCard value={weekPositionnements.length} previous={selectedWeek > 1 ? prevPositionnements.length : undefined} positionnements={weekPositionnements} iaList={iaList} key={`pos-${selectedWeek}-${refreshKey}`} />
+            <PositionnementsKpiCard value={weekPositionnements.length} previous={selectedWeek > 1 ? prevPositionnements.length : undefined} positionnements={weekPositionnements} allPositionnements={positionnements} iaList={iaList} annee={annee} key={`pos-${selectedWeek}-${refreshKey}`} />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
             <KpiCard label="Prés. à monter" value={sum(weekData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
