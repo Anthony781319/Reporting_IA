@@ -341,8 +341,10 @@ const RdvPremiumStyles = () => (
 
 // Panneau clair générique (fond blanc, bordure fine, ombre subtile) partagé par Positionnement / Pipe /
 // Résultats — seul l'accent change d'un univers à l'autre via ces variables CSS.
-const PremiumPanel = ({ accent, accentLight, accentRing, children }) => (
-  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing }}>
+// tinted = fond gris très clair (#F8FAFC) au lieu de blanc, pour alterner visuellement les blocs
+// de la page sans rien changer d'autre (mêmes bordure/radius/ombre/accent).
+const PremiumPanel = ({ accent, accentLight, accentRing, tinted, children }) => (
+  <div className="ui-panel" style={{ '--accent': accent, '--accent-light': accentLight, '--accent-ring': accentRing, background: tinted ? '#F8FAFC' : '#fff' }}>
     {children}
   </div>
 )
@@ -934,7 +936,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <PremiumPanel accent={POS_COLOR} accentLight={POS_ACCENT_LIGHT} accentRing={POS_ACCENT_RING}>
+            <PremiumPanel accent={POS_COLOR} accentLight={POS_ACCENT_LIGHT} accentRing={POS_ACCENT_RING} tinted>
               <PremiumSectionHeader icon="ti-send" title="Positionnement collaborateur ITC" />
 
               {positionnements.map(p => (
@@ -1067,7 +1069,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <PremiumPanel accent={RESULTATS_COLOR} accentLight={RESULTATS_ACCENT_LIGHT} accentRing={RESULTATS_ACCENT_RING}>
+            <PremiumPanel accent={RESULTATS_COLOR} accentLight={RESULTATS_ACCENT_LIGHT} accentRing={RESULTATS_ACCENT_RING} tinted>
               <PremiumSectionHeader icon="ti-trophy" title="Résultats" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
                 <Counter label="Signatures"       value={form.signatures}             onChange={set('signatures')} />
