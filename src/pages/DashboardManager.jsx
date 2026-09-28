@@ -1244,7 +1244,7 @@ function ReunionCardPositionnementsItc({ value, previous, items }) {
 const PRESENTATION_STATUTS = [
   { value: 'en_attente', label: 'En attente de retour', color: '#0369A1' },
   { value: 'signe',      label: 'Signé / Démarrage',    color: '#0F6E56' },
-  { value: 'sans_suite', label: 'Sans suite',           color: '#9F1239' },
+  { value: 'perdu',      label: 'Perdu',                color: '#9F1239' },
 ]
 
 const PresentationStatutSelect = ({ value, onChange }) => {
@@ -1326,20 +1326,24 @@ function ReunionCardPresentationsDetail({ value, previous, semaine, annee }) {
 // vivante des présentations dont le statut n'a pas encore été tranché — exactement ce qu'il faut regarder
 // avant une réunion pour savoir qui relancer ou annoncer comme signature potentielle. Changer un statut ici
 // fait sortir l'entrée de la liste (elle est désormais tranchée).
-function ReunionCardPresentationsEnAttente({ annee }) {
+function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
   const color = '#92400E', bg = '#FEF3C7'
 
+  // Fenêtre volontairement resserrée à la semaine passée + la semaine en cours (pas tout l'historique
+  // depuis le début de l'année, sinon la liste devient vite trop longue pour préparer une réunion).
+  const semaines = [selectedWeek - 1, selectedWeek]
+
   useEffect(() => {
     let active = true
     setLoading(true)
-    supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').eq('statut_suivi', 'en_attente').order('date').then(({ data }) => {
+    supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').eq('statut_suivi', 'en_attente').in('semaine', semaines).order('date').then(({ data }) => {
       if (active) { setItems(data || []); setLoading(false) }
     })
     return () => { active = false }
-  }, [annee])
+  }, [annee, selectedWeek])
 
   const updateStatut = async (id, statut_suivi) => {
     setItems(is => is.filter(i => i.id !== id))
@@ -1357,7 +1361,7 @@ function ReunionCardPresentationsEnAttente({ annee }) {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{loading ? '…' : items.length}</div>
         </div>
-        <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Toutes semaines confondues — signatures potentielles à trancher</div>
+        <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>S{selectedWeek - 1} et S{selectedWeek} — signatures potentielles à trancher</div>
       </div>
 
       {open && (
@@ -1499,7 +1503,7 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
           <ReunionCard icon="📤" label="Positionnements ITC" value={weekPositionnements.length} previous={prevPositionnements.length} color="#4338CA" bg="#E0E7FF" breakdown={positionnementsByIa} />
           <ReunionCardPositionnementsItc value={weekPositionnements.length} previous={prevPositionnements.length} items={positionnementsByItc} />
-          <ReunionCardPresentationsEnAttente annee={annee} />
+          <ReunionCardPresentationsEnAttente annee={annee} selectedWeek={selectedWeek} />
         </div>
 
         {/* KPIs recrutement */}
