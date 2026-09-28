@@ -1257,9 +1257,12 @@ const PresentationStatutSelect = ({ value, onChange }) => {
   )
 }
 
-// Détail des présentations réalisées sur la semaine affichée (qui, quel client, quand), avec le statut
-// de suivi modifiable directement dans la liste.
-function ReunionCardPresentationsDetail({ value, previous, semaine, annee }) {
+// Carte unique "Présentations réalisées" : le total + tendance comme n'importe quelle carte réunion,
+// et au clic le détail nominatif (qui a été présenté, chez quel client, quand) avec le statut de suivi
+// modifiable directement dans la liste. Remplace l'ancienne carte à double affichage (total par IA
+// d'un côté, détail nominatif de l'autre) qui créait une confusion avec la carte "Retours de prez en
+// attente" ci-dessous — il n'y a plus qu'une seule carte "Présentations réalisées".
+function ReunionCardPresentationsDetail({ value, previous, sublabel, semaine, annee }) {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -1287,7 +1290,7 @@ function ReunionCardPresentationsDetail({ value, previous, semaine, annee }) {
       <div onClick={handleClick} style={{ padding: '16px 18px', cursor: value > 0 ? 'pointer' : 'default' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 18 }}>✅</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>Présentations — détail &amp; suivi</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>Présentations réalisées</span>
           {value > 0 && <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color, opacity: 0.6, fontSize: 13 }}></i>}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
@@ -1295,6 +1298,7 @@ function ReunionCardPresentationsDetail({ value, previous, semaine, annee }) {
           {previous !== undefined && <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>}
         </div>
         {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Semaine précédente : {previous}</div>}
+        {sublabel && <div style={{ fontSize: 11, color, opacity: 0.7, marginTop: 6 }}>{sublabel}</div>}
       </div>
 
       {open && (
@@ -1322,10 +1326,11 @@ function ReunionCardPresentationsDetail({ value, previous, semaine, annee }) {
   )
 }
 
-// "Retours de prez en attente" : toutes semaines confondues (pas seulement la semaine affichée), la liste
-// vivante des présentations dont le statut n'a pas encore été tranché — exactement ce qu'il faut regarder
-// avant une réunion pour savoir qui relancer ou annoncer comme signature potentielle. Changer un statut ici
-// fait sortir l'entrée de la liste (elle est désormais tranchée).
+// "Retours de prez en attente" — différence avec la carte "Présentations réalisées" ci-dessus :
+// celle-ci liste TOUTES les présentations de la semaine affichée quel que soit leur statut, alors que
+// celle-ci est un FILTRE qui ne montre que celles encore "en attente de retour", sur S-1 + S en cours
+// (donc peut inclure des présentations faites la semaine dernière, pas seulement celle-ci) — une checklist
+// de relance à trancher avant la réunion. Changer un statut ici fait sortir l'entrée de la liste.
 function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1361,7 +1366,7 @@ function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{loading ? '…' : items.length}</div>
         </div>
-        <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>S{selectedWeek - 1} et S{selectedWeek} — signatures potentielles à trancher</div>
+        <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>À relancer · uniquement le statut "en attente" · S{selectedWeek - 1} et S{selectedWeek}</div>
       </div>
 
       {open && (
@@ -1421,13 +1426,6 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
   // apparaissent (y compris à 0) pour repérer d'un coup d'œil qui n'a rien déclaré.
   const byIa = (key) => iasFiltrees.map(ia => ({ nom: ia.nom, value: sum(weekData.filter(s => s.ia_id === ia.id), key) }))
   const pipeByIa = iasFiltrees.map(ia => ({ nom: ia.nom, value: pipe(weekData.filter(s => s.ia_id === ia.id)) }))
-  // Présentations : réalisé cette semaine vs annoncé ("prez à monter") en S-1, pour repérer
-  // qui n'a pas fait la prez qu'il/elle avait annoncée (ou ne l'a fait qu'en partie).
-  const prezByIa = iasFiltrees.map(ia => ({
-    nom: ia.nom,
-    value: sum(weekData.filter(s => s.ia_id === ia.id), 'presentations'),
-    expected: sum(prevData.filter(s => s.ia_id === ia.id), 'presentations_a_monter'),
-  }))
 
   const rdv = sum(weekData, 'total_rdv')
   const rdvPrev = sum(prevData, 'total_rdv')
@@ -1494,10 +1492,9 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
         <div style={{ padding: '20px 24px 4px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14, background: '#1a1a2e' }}>
           <ReunionCard icon="📅" label="RDV réalisés" value={rdv} previous={rdvPrev} color="#6D28D9" bg="#EDE9FE" breakdown={byIa('total_rdv')} />
           <ReunionCard icon="🎉" label="Signatures" value={signatures} previous={signaturesPrev} color="#9D174D" bg="#FCE7F3" breakdown={byIa('signatures')} />
-          <ReunionCard icon="✅" label="Présentations réalisées" value={prezRealisees}
+          <ReunionCardPresentationsDetail value={prezRealisees} previous={prezRealiseesPrev}
             sublabel={`Annoncées en S${selectedWeek - 1} : ${prezAnnonceesSemPrec} · ${prezAnnonceesSemPrec > 0 ? Math.round((prezRealisees / prezAnnonceesSemPrec) * 100) + '% réalisé' : 'aucune annonce'}`}
-            color="#1E40AF" bg="#DBEAFE" breakdown={prezByIa} />
-          <ReunionCardPresentationsDetail value={prezRealisees} previous={prezRealiseesPrev} semaine={selectedWeek} annee={annee} />
+            semaine={selectedWeek} annee={annee} />
           <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" breakdown={pipeByIa} />
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
