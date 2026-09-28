@@ -80,20 +80,39 @@ const DETAIL_CONFIG = {
   fin_mission:  { label: 'Fins de mission',  color: '#F0B860', fill: '#92400E', bg: '#2A1D10', icon: '🏁' },
 }
 
-const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
-  const [open, setOpen] = useState(false)
+const DetailAccordion = ({ type, count, iaId, semaine, annee, onCompletionChange }) => {
+  const [open, setOpen] = useState(count > 0)
   const [details, setDetails] = useState([])
   const [form, setForm] = useState({})
   const [savedId, setSavedId] = useState(null)
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   const [error, setError] = useState('')
   const saveTimeout = useRef(null)
+  const prevCount = useRef(count)
   const cfg = DETAIL_CONFIG[type]
   const fields = DETAIL_FIELDS[type]
+
+  // Garde-fou n°1 : le détail ne doit pas rester caché derrière un clic. Dès que le compteur augmente
+  // (0 → 1, ou 1 → 2, etc.), on ouvre l'accordéon automatiquement pour que le formulaire soit visible
+  // tout de suite, sans obliger à cliquer sur l'en-tête pour le découvrir.
+  useEffect(() => {
+    if (count > prevCount.current) setOpen(true)
+    prevCount.current = count
+  }, [count])
 
   useEffect(() => {
     if (count > 0) fetchDetails()
   }, [count, semaine])
+
+  // Sécurité : en mode manager, on peut changer de semaine ou d'IA sans démonter ce composant. Une fiche
+  // en cours de saisie (savedId) ne doit jamais continuer à être mise à jour une fois qu'on a changé de
+  // contexte, sinon on écrirait la saisie de la semaine/IA suivante sur la fiche de la précédente.
+  useEffect(() => {
+    setForm({})
+    setSavedId(null)
+    setSaveState('idle')
+    if (saveTimeout.current) { clearTimeout(saveTimeout.current); saveTimeout.current = null }
+  }, [semaine, iaId, type])
 
   useEffect(() => () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }, [])
 
@@ -159,6 +178,12 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
   }
 
   const savedCount = details.length + (savedId ? 1 : 0)
+
+  // Garde-fou n°2 : le parent (bouton "Enregistrer la semaine") est informé en direct de la complétude
+  // de ce type de détail, pour pouvoir bloquer l'enregistrement tant qu'il manque une fiche.
+  useEffect(() => {
+    if (onCompletionChange) onCompletionChange(type, savedCount >= count)
+  }, [savedCount, count, type])
 
   if (count === 0) return null
 
@@ -587,6 +612,19 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  // Garde-fou : chaque DetailAccordion (présentations / signatures / démarrages / fins de mission)
+  // signale ici s'il est complet (autant de fiches "nom + client" que le compteur affiché) ; "Enregistrer
+  // la semaine" refuse de partir tant qu'il en manque, pour ne plus se retrouver avec un total déclaré
+  // sans aucun détail derrière.
+  const [detailComplete, setDetailComplete] = useState({})
+  const [saveBlockedMsg, setSaveBlockedMsg] = useState('')
+  const handleDetailCompletion = (detailType, complete) => {
+    setDetailComplete(d => (d[detailType] === complete ? d : { ...d, [detailType]: complete }))
+  }
+  // Le message de blocage disparaît tout seul dès que tout redevient complet (pas besoin de recliquer sur "Enregistrer").
+  useEffect(() => {
+    if (saveBlockedMsg && Object.values(detailComplete).every(Boolean)) setSaveBlockedMsg('')
+  }, [detailComplete]) // eslint-disable-line react-hooks/exhaustive-deps
   const [p1List, setP1List] = useState([])
   const [newP1, setNewP1] = useState(emptyP1)
   const [savingP1, setSavingP1] = useState(false)
@@ -723,7 +761,18 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
 
+  const DETAIL_TYPE_LABELS = { presentation: 'Présentations', signature: 'Signatures', demarrage: 'Démarrages', fin_mission: 'Fins de mission' }
+
   const handleSave = async () => {
+    // Garde-fou : on refuse d'enregistrer la semaine tant qu'un compteur (présentations, signatures,
+    // démarrages, fins de mission) n'a pas sa fiche détail (nom + client) correspondante — sinon on se
+    // retrouve avec un total sans aucun nom derrière, comme ça arrivait avant.
+    const missing = Object.entries(detailComplete).filter(([, ok]) => ok === false).map(([t]) => DETAIL_TYPE_LABELS[t] || t)
+    if (missing.length > 0) {
+      setSaveBlockedMsg(`Complète d'abord le détail (nom + client) de : ${missing.join(', ')} — ouvre la section correspondante ci-dessus.`)
+      return
+    }
+    setSaveBlockedMsg('')
     setSaving(true)
     await supabase.from('saisies').upsert(
       { ia_id: iaId, semaine: selectedWeek, annee, ...form,
@@ -987,7 +1036,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             </div>
 
             {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation — hors du panneau clair, comme avant */}
-            <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
           </div>
 
           <div style={{ marginBottom: 24 }}>
@@ -1134,9 +1183,9 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
               </div>
             </PremiumPanel>
             {/* Accordions détails résultats — hors du panneau clair, comme pour RDV Commerciaux */}
-            <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} />
-            <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} />
-            <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} />
+            <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
+            <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
+            <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
           </div>
 
           <div style={{ marginBottom: 24 }}>
@@ -1189,6 +1238,11 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             </PremiumPanel>
           </div>
 
+          {saveBlockedMsg && (
+            <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(248,113,113,0.4)', color: '#F87171', fontSize: 12.5, fontWeight: 500 }}>
+              ⚠️ {saveBlockedMsg}
+            </div>
+          )}
           <button onClick={handleSave} disabled={saving}
             style={{ width: '100%', padding: 13, background: saved ? '#0F6E56' : '#534AB7', color: saved ? '#E1F5EE' : '#EEEDFE', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.3s' }}>
             {saving ? 'Enregistrement...' : saved ? 'Semaine enregistree !' : 'Enregistrer la semaine ' + selectedWeek}
