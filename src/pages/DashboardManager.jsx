@@ -1304,6 +1304,16 @@ function ReunionCardPresentationsDetail({ value, previous, sublabel, semaine, an
       {open && (
         <div style={{ padding: '0 18px 16px' }}>
           <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
+            {/* Le total ci-dessus vient du compteur saisi par l'IA dans son formulaire hebdo ; la liste
+                ci-dessous ne montre que les présentations pour lesquelles un détail (nom/client) a été
+                rempli séparément dans l'onglet "Détail" de la saisie — les deux ne coïncident pas tant
+                que ce détail n'est pas rempli pour chaque présentation déclarée. Ce n'est pas un bug :
+                c'est ce qui manque encore en saisie. */}
+            {loaded && details.length < value && (
+              <div style={{ fontSize: 10.5, color, opacity: 0.85, background: '#fff', border: `1px solid ${color}30`, borderRadius: 7, padding: '7px 9px', marginBottom: 8, lineHeight: 1.4 }}>
+                ⚠️ {value} présentation{value > 1 ? 's' : ''} déclarée{value > 1 ? 's' : ''} cette semaine, mais seulement {details.length} avec le détail (nom du contact + client) rempli dans la saisie — {value - details.length} manquant{value - details.length > 1 ? 's' : ''} pour être suivie{value - details.length > 1 ? 's' : ''} ici et dans « Retours de prez en attente ».
+              </div>
+            )}
             {details.length === 0 ? (
               <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail renseigné</div>
             ) : details.map(d => (
@@ -1367,6 +1377,7 @@ function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
           <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{loading ? '…' : items.length}</div>
         </div>
         <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>À relancer · uniquement le statut "en attente" · S{selectedWeek - 1} et S{selectedWeek}</div>
+        <div style={{ fontSize: 10, color, opacity: 0.5, marginTop: 2 }}>Ne compte que les présentations avec détail renseigné (comme ci-dessus)</div>
       </div>
 
       {open && (
