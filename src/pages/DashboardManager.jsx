@@ -1188,6 +1188,55 @@ function ReunionCard({ icon, label, value, previous, sublabel, color, bg, breakd
   )
 }
 
+// Carte "Positionnements ITC — détail par collaborateur" : contrairement à ReunionCard (qui liste les IA
+// et leur total), ici chaque ligne est un collaborateur ITC poussé cette semaine, avec son total et,
+// juste en dessous, le détail de qui l'a poussé (nom de l'IA + nombre de fois), en petites pastilles.
+// Ex. : Mohamed Soilhi — 2, avec les pastilles "Stéphane (1)" et "Laila (1)".
+function ReunionCardPositionnementsItc({ value, previous, items }) {
+  const [open, setOpen] = useState(false)
+  const color = '#4338CA', bg = '#E0E7FF'
+  const hasItems = items && items.length > 0
+
+  return (
+    <div style={{ background: bg, borderRadius: 14, overflow: 'hidden' }}>
+      <div onClick={() => hasItems && setOpen(o => !o)} style={{ padding: '16px 18px', cursor: hasItems ? 'pointer' : 'default' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 18 }}>📤</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>Positionnements ITC — détail par collaborateur</span>
+          {hasItems && <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color, opacity: 0.6, fontSize: 13 }}></i>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+          <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+          {previous !== undefined && <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>}
+        </div>
+        {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Semaine précédente : {previous}</div>}
+      </div>
+
+      {open && hasItems && (
+        <div style={{ padding: '0 18px 16px' }}>
+          <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
+            {items.map(m => (
+              <div key={m.nom} style={{ padding: '7px 9px', marginBottom: 5, borderRadius: 7, background: 'rgba(255,255,255,0.6)', border: `1.5px solid ${color}25` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color }}>{m.nom}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color }}>{m.count}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+                  {m.byIa.map(d => (
+                    <span key={d.nom} style={{ fontSize: 10, fontWeight: 600, color, background: '#fff', border: `1px solid ${color}30`, borderRadius: 20, padding: '2px 8px' }}>
+                      {d.nom} ({d.count})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, onClose }) {
   const [crReporting, setCrReporting] = useState([])
   const [crLoading, setCrLoading] = useState(true)
@@ -1240,6 +1289,20 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
   const weekPositionnements = positionnements.filter(x => x.semaine === selectedWeek)
   const prevPositionnements = positionnements.filter(x => x.semaine === selectedWeek - 1)
   const positionnementsByIa = iasFiltrees.map(ia => ({ nom: ia.nom, value: weekPositionnements.filter(x => x.ia_id === ia.id).length }))
+  // Même semaine, mais regroupé par collaborateur ITC poussé plutôt que par IA : pour chaque nom,
+  // le total et, en détail, quel(s) IA l'ont poussé et combien de fois chacun (ex. Mohamed Soilhi (2) → Stéphane (1), Laila (1)).
+  const positionnementsByItc = Object.values(
+    weekPositionnements.reduce((acc, x) => {
+      const nom = (x.collaborateur_itc || '').trim() || '(non renseigné)'
+      if (!acc[nom]) acc[nom] = { nom, count: 0, byIaCounts: {} }
+      acc[nom].count += 1
+      const iaNom = iasFiltrees.find(ia => ia.id === x.ia_id)?.nom || '—'
+      acc[nom].byIaCounts[iaNom] = (acc[nom].byIaCounts[iaNom] || 0) + 1
+      return acc
+    }, {})
+  )
+    .map(x => ({ nom: x.nom, count: x.count, byIa: Object.entries(x.byIaCounts).map(([nom, count]) => ({ nom, count })).sort((a, b) => b.count - a.count) }))
+    .sort((a, b) => b.count - a.count)
 
   // Recrutement : mêmes calculs équipe (semaine affichée vs S-1) + détail par CR.
   const crWeekData = crReporting.filter(r => r.semaine === selectedWeek)
@@ -1282,6 +1345,7 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
           <ReunionCard icon="📤" label="Positionnements ITC" value={weekPositionnements.length} previous={prevPositionnements.length} color="#4338CA" bg="#E0E7FF" breakdown={positionnementsByIa} />
+          <ReunionCardPositionnementsItc value={weekPositionnements.length} previous={prevPositionnements.length} items={positionnementsByItc} />
         </div>
 
         {/* KPIs recrutement */}
