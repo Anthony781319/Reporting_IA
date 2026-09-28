@@ -84,8 +84,10 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [form, setForm] = useState({})
-  const [saving, setSaving] = useState(false)
+  const [savedId, setSavedId] = useState(null)
+  const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   const [error, setError] = useState('')
+  const saveTimeout = useRef(null)
   const cfg = DETAIL_CONFIG[type]
   const fields = DETAIL_FIELDS[type]
 
@@ -93,30 +95,70 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
     if (count > 0) fetchDetails()
   }, [count, semaine])
 
+  useEffect(() => () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }, [])
+
   const fetchDetails = async () => {
     const { data } = await supabase.from('details_resultats').select('*').eq('ia_id', iaId).eq('semaine', semaine).eq('annee', annee).eq('type', type).order('created_at')
     if (data) setDetails(data)
   }
 
-  const addDetail = async () => {
+  // Garde-fou : ce qui est tapé s'enregistre tout seul, plus besoin de cliquer sur un bouton. Dès que
+  // Nom/Prénom + Client sont renseignés, la fiche est créée en base ; toute modification d'un champ
+  // ensuite (y compris après avoir quitté puis rouvert la page) met à jour cette même fiche. Si le
+  // commercial ferme la page sans rien valider, ce qu'il a déjà tapé est déjà enregistré.
+  const persist = async (currentForm, id) => {
+    if (id) {
+      setSaveState('saving')
+      const { error: err } = await supabase.from('details_resultats').update(currentForm).eq('id', id)
+      setSaveState(err ? 'error' : 'saved')
+      if (err) setError(err.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
+      return
+    }
     const required = fields.filter(f => f.key === 'nom_prenom' || f.key === 'client')
-    if (required.some(f => !form[f.key]?.trim())) return
-    setSaving(true)
+    if (required.some(f => !currentForm[f.key]?.trim())) return
+    setSaveState('saving')
     setError('')
-    const { data, error: err } = await supabase.from('details_resultats').insert({ ia_id: iaId, semaine, annee, type, ...form }).select().single()
+    const { data, error: err } = await supabase.from('details_resultats').insert({ ia_id: iaId, semaine, annee, type, ...currentForm }).select().single()
     if (data) {
-      setDetails(d => [...d, data])
-      setForm({})
+      setSavedId(data.id)
+      setSaveState('saved')
     } else {
+      setSaveState('error')
       setError(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
     }
-    setSaving(false)
+  }
+
+  const handleFieldChange = (key, value) => {
+    const next = { ...form, [key]: value }
+    setForm(next)
+    setSaveState('idle')
+    if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    saveTimeout.current = setTimeout(() => persist(next, savedId), 700)
+  }
+
+  const handleFieldBlur = () => {
+    if (saveTimeout.current) { clearTimeout(saveTimeout.current); saveTimeout.current = null }
+    persist(form, savedId)
+  }
+
+  // Purement local : une fois la fiche déjà enregistrée (savedId), on la fait passer dans la liste
+  // affichée et on repart sur un formulaire vierge pour la suivante — aucune donnée n'est perdue si
+  // ce bouton n'est jamais cliqué, la fiche reste enregistrée telle quelle.
+  const finishEntry = () => {
+    if (!savedId) return
+    setDetails(d => [...d, { id: savedId, ia_id: iaId, semaine, annee, type, ...form }])
+    setForm({})
+    setSavedId(null)
+    setSaveState('idle')
   }
 
   const removeDetail = async (id) => {
     await supabase.from('details_resultats').delete().eq('id', id)
     setDetails(d => d.filter(x => x.id !== id))
+    if (id === savedId) { setSavedId(null); setForm({}); setSaveState('idle') }
   }
+
+  const savedCount = details.length + (savedId ? 1 : 0)
 
   if (count === 0) return null
 
@@ -129,7 +171,7 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
           <span style={{ fontSize: 16 }}>{cfg.icon}</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color }}>Détail {cfg.label}</span>
           <span style={{ padding: '2px 8px', borderRadius: 20, background: cfg.fill, color: '#fff', fontSize: 11, fontWeight: 700 }}>
-            {details.length}/{count}
+            {savedCount}/{count}
           </span>
         </div>
         <span style={{ fontSize: 18, color: cfg.color, fontWeight: 700 }}>{open ? '▲' : '▼'}</span>
@@ -156,11 +198,20 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
             </div>
           ))}
 
-          {/* Formulaire ajout */}
-          {details.length < count && (
+          {/* Formulaire ajout — enregistrement automatique, pas de bouton "Ajouter" à cliquer.
+              Reste affiché tant qu'une fiche est en cours de saisie (savedId), même si le total est déjà
+              atteint côté "nom + client", pour laisser remplir les champs optionnels (TJM, dates...). */}
+          {(details.length < count || savedId) && (
             <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: 12, border: `1px dashed ${cfg.color}50` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                + Ajouter un détail ({details.length + 1}/{count})
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Fiche {savedCount + 1}/{count}
+                </div>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: cfg.color, opacity: 0.85 }}>
+                  {saveState === 'saving' && '⏳ Enregistrement...'}
+                  {saveState === 'saved' && '✓ Enregistré'}
+                  {saveState === 'error' && '⚠️ Non enregistré'}
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: fields.length > 2 ? '1fr 1fr' : '1fr', gap: 8 }}>
                 {fields.map(f => (
@@ -168,16 +219,22 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
                     <label style={{ display: 'block', fontSize: 11, color: cfg.color, opacity: 0.9, marginBottom: 4, fontWeight: 500 }}>{f.label}</label>
                     <input type={f.type || 'text'} placeholder={f.placeholder || f.label}
                       value={form[f.key] || ''}
-                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      onChange={e => handleFieldChange(f.key, e.target.value)}
+                      onBlur={handleFieldBlur}
                       style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${cfg.color}40`, background: 'rgba(255,255,255,0.06)', color: TEXT_STRONG, fontSize: 13, width: '100%', boxSizing: 'border-box' }}
                     />
                   </div>
                 ))}
               </div>
-              <button onClick={addDetail} disabled={saving}
-                style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.fill, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                {saving ? 'Ajout...' : '+ Ajouter'}
-              </button>
+              {savedId && (
+                <button onClick={finishEntry}
+                  style={{ marginTop: 10, width: '100%', padding: '9px', background: cfg.fill, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  ✓ Fiche suivante
+                </button>
+              )}
+              <div style={{ marginTop: 8, fontSize: 10.5, color: cfg.color, opacity: 0.7, fontStyle: 'italic' }}>
+                Ce que tu remplis ici s'enregistre automatiquement, même si tu fermes la page avant d'avoir tout rempli.
+              </div>
               {error && (
                 <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#FCA5A5', fontSize: 12 }}>
                   ⚠️ {error}
@@ -186,7 +243,7 @@ const DetailAccordion = ({ type, count, iaId, semaine, annee }) => {
             </div>
           )}
 
-          {details.length >= count && details.length > 0 && (
+          {details.length >= count && details.length > 0 && !savedId && (
             <div style={{ textAlign: 'center', padding: '8px', fontSize: 12, color: cfg.color, fontWeight: 600 }}>
               ✅ Tous les détails sont renseignés
             </div>
