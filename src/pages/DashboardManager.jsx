@@ -1237,6 +1237,157 @@ function ReunionCardPositionnementsItc({ value, previous, items }) {
   )
 }
 
+// ── Suivi des présentations réalisées (statut modifiable en direct) ────────────────────────────
+// Une présentation réalisée reste "en attente de retour" tant qu'Antho n'a pas dit si le client a
+// répondu ou non ; ce statut se change ici même, en direct (update Supabase immédiat), pour préparer
+// la réunion suivante en sachant qui est encore en attente, qui a signé, qui est resté sans suite.
+const PRESENTATION_STATUTS = [
+  { value: 'en_attente', label: 'En attente de retour', color: '#0369A1' },
+  { value: 'signe',      label: 'Signé / Démarrage',    color: '#0F6E56' },
+  { value: 'sans_suite', label: 'Sans suite',           color: '#9F1239' },
+]
+
+const PresentationStatutSelect = ({ value, onChange }) => {
+  const cfg = PRESENTATION_STATUTS.find(s => s.value === value) || PRESENTATION_STATUTS[0]
+  return (
+    <select value={value || 'en_attente'} onChange={e => onChange(e.target.value)}
+      style={{ padding: '4px 8px', borderRadius: 7, border: `1.5px solid ${cfg.color}60`, background: cfg.color + '14', color: cfg.color, fontSize: 10.5, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
+      {PRESENTATION_STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+    </select>
+  )
+}
+
+// Détail des présentations réalisées sur la semaine affichée (qui, quel client, quand), avec le statut
+// de suivi modifiable directement dans la liste.
+function ReunionCardPresentationsDetail({ value, previous, semaine, annee }) {
+  const [open, setOpen] = useState(false)
+  const [details, setDetails] = useState([])
+  const [loaded, setLoaded] = useState(false)
+  const color = '#1E40AF', bg = '#DBEAFE'
+
+  useEffect(() => { setLoaded(false); setOpen(false); setDetails([]) }, [semaine])
+
+  const handleClick = async () => {
+    if (value === 0) return
+    if (!loaded) {
+      const { data } = await supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').eq('semaine', semaine).order('date')
+      setDetails(data || [])
+      setLoaded(true)
+    }
+    setOpen(o => !o)
+  }
+
+  const updateStatut = async (id, statut_suivi) => {
+    setDetails(ds => ds.map(d => d.id === id ? { ...d, statut_suivi } : d))
+    await supabase.from('details_resultats').update({ statut_suivi }).eq('id', id)
+  }
+
+  return (
+    <div style={{ background: bg, borderRadius: 14, overflow: 'hidden' }}>
+      <div onClick={handleClick} style={{ padding: '16px 18px', cursor: value > 0 ? 'pointer' : 'default' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 18 }}>✅</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>Présentations — détail &amp; suivi</span>
+          {value > 0 && <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color, opacity: 0.6, fontSize: 13 }}></i>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+          <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</div>
+          {previous !== undefined && <div style={{ paddingBottom: 4 }}><Trend current={value} previous={previous} /></div>}
+        </div>
+        {previous !== undefined && <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Semaine précédente : {previous}</div>}
+      </div>
+
+      {open && (
+        <div style={{ padding: '0 18px 16px' }}>
+          <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
+            {details.length === 0 ? (
+              <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail renseigné</div>
+            ) : details.map(d => (
+              <div key={d.id} style={{ padding: '8px 10px', marginBottom: 6, borderRadius: 8, background: 'rgba(255,255,255,0.7)', border: `1.5px solid ${color}25` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
+                  <PresentationStatutSelect value={d.statut_suivi} onChange={v => updateStatut(d.id, v)} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+                  {d.client && <span style={{ fontSize: 10, color, opacity: 0.75 }}>🏢 {d.client}</span>}
+                  {d.date && <span style={{ fontSize: 10, color, opacity: 0.75 }}>📅 {new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                  {d.ia?.nom && <span style={{ fontSize: 10, color, opacity: 0.75 }}>👤 {d.ia.nom}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// "Retours de prez en attente" : toutes semaines confondues (pas seulement la semaine affichée), la liste
+// vivante des présentations dont le statut n'a pas encore été tranché — exactement ce qu'il faut regarder
+// avant une réunion pour savoir qui relancer ou annoncer comme signature potentielle. Changer un statut ici
+// fait sortir l'entrée de la liste (elle est désormais tranchée).
+function ReunionCardPresentationsEnAttente({ annee }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const color = '#92400E', bg = '#FEF3C7'
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').eq('statut_suivi', 'en_attente').order('date').then(({ data }) => {
+      if (active) { setItems(data || []); setLoading(false) }
+    })
+    return () => { active = false }
+  }, [annee])
+
+  const updateStatut = async (id, statut_suivi) => {
+    setItems(is => is.filter(i => i.id !== id))
+    await supabase.from('details_resultats').update({ statut_suivi }).eq('id', id)
+  }
+
+  return (
+    <div style={{ background: bg, borderRadius: 14, overflow: 'hidden' }}>
+      <div onClick={() => setOpen(o => !o)} style={{ padding: '16px 18px', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 18 }}>🔮</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>Retours de prez en attente</span>
+          <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color, opacity: 0.6, fontSize: 13 }}></i>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+          <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{loading ? '…' : items.length}</div>
+        </div>
+        <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>Toutes semaines confondues — signatures potentielles à trancher</div>
+      </div>
+
+      {open && (
+        <div style={{ padding: '0 18px 16px' }}>
+          <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Chargement…</div>
+            ) : items.length === 0 ? (
+              <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucune présentation en attente de retour</div>
+            ) : items.map(d => (
+              <div key={d.id} style={{ padding: '8px 10px', marginBottom: 6, borderRadius: 8, background: 'rgba(255,255,255,0.7)', border: `1.5px solid ${color}25` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
+                  <PresentationStatutSelect value={d.statut_suivi} onChange={v => updateStatut(d.id, v)} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+                  {d.client && <span style={{ fontSize: 10, color, opacity: 0.75 }}>🏢 {d.client}</span>}
+                  {d.date && <span style={{ fontSize: 10, color, opacity: 0.75 }}>📅 Présenté le {new Date(d.date).toLocaleDateString('fr-FR')}</span>}
+                  {d.semaine && <span style={{ fontSize: 10, color, opacity: 0.75 }}>S{d.semaine}</span>}
+                  {d.ia?.nom && <span style={{ fontSize: 10, color, opacity: 0.75 }}>👤 {d.ia.nom}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, onClose }) {
   const [crReporting, setCrReporting] = useState([])
   const [crLoading, setCrLoading] = useState(true)
@@ -1279,6 +1430,7 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
   const signatures = sum(weekData, 'signatures')
   const signaturesPrev = sum(prevData, 'signatures')
   const prezRealisees = sum(weekData, 'presentations')
+  const prezRealiseesPrev = sum(prevData, 'presentations')
   const prezAnnonceesSemPrec = sum(prevData, 'presentations_a_monter')
   const pipeActuel = pipe(weekData)
   const pipePrec = pipe(prevData)
@@ -1341,11 +1493,13 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
           <ReunionCard icon="✅" label="Présentations réalisées" value={prezRealisees}
             sublabel={`Annoncées en S${selectedWeek - 1} : ${prezAnnonceesSemPrec} · ${prezAnnonceesSemPrec > 0 ? Math.round((prezRealisees / prezAnnonceesSemPrec) * 100) + '% réalisé' : 'aucune annonce'}`}
             color="#1E40AF" bg="#DBEAFE" breakdown={prezByIa} />
+          <ReunionCardPresentationsDetail value={prezRealisees} previous={prezRealiseesPrev} semaine={selectedWeek} annee={annee} />
           <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" breakdown={pipeByIa} />
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
           <ReunionCard icon="📤" label="Positionnements ITC" value={weekPositionnements.length} previous={prevPositionnements.length} color="#4338CA" bg="#E0E7FF" breakdown={positionnementsByIa} />
           <ReunionCardPositionnementsItc value={weekPositionnements.length} previous={prevPositionnements.length} items={positionnementsByItc} />
+          <ReunionCardPresentationsEnAttente annee={annee} />
         </div>
 
         {/* KPIs recrutement */}
