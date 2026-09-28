@@ -1259,35 +1259,20 @@ const PresentationStatutSelect = ({ value, onChange }) => {
 
 // Carte unique "Présentations réalisées" : le total + tendance comme n'importe quelle carte réunion,
 // et au clic le détail nominatif (qui a été présenté, chez quel client, quand) avec le statut de suivi
-// modifiable directement dans la liste. Remplace l'ancienne carte à double affichage (total par IA
-// d'un côté, détail nominatif de l'autre) qui créait une confusion avec la carte "Retours de prez en
-// attente" ci-dessous — il n'y a plus qu'une seule carte "Présentations réalisées".
-function ReunionCardPresentationsDetail({ value, previous, sublabel, semaine, annee }) {
+// modifiable directement dans la liste.
+//
+// Cette carte et "Retours de prez en attente" ci-dessous partagent maintenant la MÊME source de données
+// (le tableau `presentationsWindow` chargé une seule fois dans ModalReunion, et le même `onStatutChange`
+// qui écrit dans Supabase ET met à jour ce tableau partagé) : changer un statut ici se répercute donc
+// immédiatement, sans rechargement, sur l'autre carte — plus besoin de fermer/rouvrir la modale.
+function ReunionCardPresentationsDetail({ value, previous, sublabel, items, loading, onStatutChange }) {
   const [open, setOpen] = useState(false)
-  const [details, setDetails] = useState([])
-  const [loaded, setLoaded] = useState(false)
   const color = '#1E40AF', bg = '#DBEAFE'
-
-  useEffect(() => { setLoaded(false); setOpen(false); setDetails([]) }, [semaine])
-
-  const handleClick = async () => {
-    if (value === 0) return
-    if (!loaded) {
-      const { data } = await supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').eq('semaine', semaine).order('date')
-      setDetails(data || [])
-      setLoaded(true)
-    }
-    setOpen(o => !o)
-  }
-
-  const updateStatut = async (id, statut_suivi) => {
-    setDetails(ds => ds.map(d => d.id === id ? { ...d, statut_suivi } : d))
-    await supabase.from('details_resultats').update({ statut_suivi }).eq('id', id)
-  }
+  const details = items || []
 
   return (
     <div style={{ background: bg, borderRadius: 14, overflow: 'hidden' }}>
-      <div onClick={handleClick} style={{ padding: '16px 18px', cursor: value > 0 ? 'pointer' : 'default' }}>
+      <div onClick={() => value > 0 && setOpen(o => !o)} style={{ padding: '16px 18px', cursor: value > 0 ? 'pointer' : 'default' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 18 }}>✅</span>
           <span style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.3px', opacity: 0.85, flex: 1 }}>Présentations réalisées</span>
@@ -1309,18 +1294,20 @@ function ReunionCardPresentationsDetail({ value, previous, sublabel, semaine, an
                 rempli séparément dans l'onglet "Détail" de la saisie — les deux ne coïncident pas tant
                 que ce détail n'est pas rempli pour chaque présentation déclarée. Ce n'est pas un bug :
                 c'est ce qui manque encore en saisie. */}
-            {loaded && details.length < value && (
+            {!loading && details.length < value && (
               <div style={{ fontSize: 10.5, color, opacity: 0.85, background: '#fff', border: `1px solid ${color}30`, borderRadius: 7, padding: '7px 9px', marginBottom: 8, lineHeight: 1.4 }}>
                 ⚠️ {value} présentation{value > 1 ? 's' : ''} déclarée{value > 1 ? 's' : ''} cette semaine, mais seulement {details.length} avec le détail (nom du contact + client) rempli dans la saisie — {value - details.length} manquant{value - details.length > 1 ? 's' : ''} pour être suivie{value - details.length > 1 ? 's' : ''} ici et dans « Retours de prez en attente ».
               </div>
             )}
-            {details.length === 0 ? (
+            {loading ? (
+              <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Chargement…</div>
+            ) : details.length === 0 ? (
               <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun détail renseigné</div>
             ) : details.map(d => (
               <div key={d.id} style={{ padding: '8px 10px', marginBottom: 6, borderRadius: 8, background: 'rgba(255,255,255,0.7)', border: `1.5px solid ${color}25` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
-                  <PresentationStatutSelect value={d.statut_suivi} onChange={v => updateStatut(d.id, v)} />
+                  <PresentationStatutSelect value={d.statut_suivi} onChange={v => onStatutChange(d.id, v)} />
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
                   {d.client && <span style={{ fontSize: 10, color, opacity: 0.75 }}>🏢 {d.client}</span>}
@@ -1340,30 +1327,12 @@ function ReunionCardPresentationsDetail({ value, previous, sublabel, semaine, an
 // celle-ci liste TOUTES les présentations de la semaine affichée quel que soit leur statut, alors que
 // celle-ci est un FILTRE qui ne montre que celles encore "en attente de retour", sur S-1 + S en cours
 // (donc peut inclure des présentations faites la semaine dernière, pas seulement celle-ci) — une checklist
-// de relance à trancher avant la réunion. Changer un statut ici fait sortir l'entrée de la liste.
-function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
+// de relance à trancher avant la réunion. Statut changé ici ou dans l'autre carte : les deux se
+// répercutent l'une sur l'autre en direct, puisqu'elles lisent le même tableau partagé (voir ModalReunion).
+function ReunionCardPresentationsEnAttente({ selectedWeek, items, loading, onStatutChange }) {
   const [open, setOpen] = useState(false)
   const color = '#92400E', bg = '#FEF3C7'
-
-  // Fenêtre volontairement resserrée à la semaine passée + la semaine en cours (pas tout l'historique
-  // depuis le début de l'année, sinon la liste devient vite trop longue pour préparer une réunion).
-  const semaines = [selectedWeek - 1, selectedWeek]
-
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').eq('statut_suivi', 'en_attente').in('semaine', semaines).order('date').then(({ data }) => {
-      if (active) { setItems(data || []); setLoading(false) }
-    })
-    return () => { active = false }
-  }, [annee, selectedWeek])
-
-  const updateStatut = async (id, statut_suivi) => {
-    setItems(is => is.filter(i => i.id !== id))
-    await supabase.from('details_resultats').update({ statut_suivi }).eq('id', id)
-  }
+  const enAttente = items || []
 
   return (
     <div style={{ background: bg, borderRadius: 14, overflow: 'hidden' }}>
@@ -1374,7 +1343,7 @@ function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
           <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true" style={{ color, opacity: 0.6, fontSize: 13 }}></i>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10 }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{loading ? '…' : items.length}</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{loading ? '…' : enAttente.length}</div>
         </div>
         <div style={{ fontSize: 11, color, opacity: 0.6, marginTop: 4 }}>À relancer · uniquement le statut "en attente" · S{selectedWeek - 1} et S{selectedWeek}</div>
         <div style={{ fontSize: 10, color, opacity: 0.5, marginTop: 2 }}>Ne compte que les présentations avec détail renseigné (comme ci-dessus)</div>
@@ -1385,13 +1354,13 @@ function ReunionCardPresentationsEnAttente({ annee, selectedWeek }) {
           <div style={{ borderTop: `1px solid ${color}25`, paddingTop: 10 }}>
             {loading ? (
               <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Chargement…</div>
-            ) : items.length === 0 ? (
+            ) : enAttente.length === 0 ? (
               <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucune présentation en attente de retour</div>
-            ) : items.map(d => (
+            ) : enAttente.map(d => (
               <div key={d.id} style={{ padding: '8px 10px', marginBottom: 6, borderRadius: 8, background: 'rgba(255,255,255,0.7)', border: `1.5px solid ${color}25` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nom_prenom || '—'}</div>
-                  <PresentationStatutSelect value={d.statut_suivi} onChange={v => updateStatut(d.id, v)} />
+                  <PresentationStatutSelect value={d.statut_suivi} onChange={v => onStatutChange(d.id, v)} />
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
                   {d.client && <span style={{ fontSize: 10, color, opacity: 0.75 }}>🏢 {d.client}</span>}
@@ -1426,6 +1395,27 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
     })
     return () => { active = false }
   }, [annee])
+
+  // Détail des présentations (S-1 + S en cours), chargé UNE SEULE FOIS ici et partagé entre les cartes
+  // "Présentations réalisées" et "Retours de prez en attente" : elles filtrent chacune ce même tableau
+  // différemment (par semaine pour l'une, par statut pour l'autre), et un changement de statut passe par
+  // le même updater — donc une carte reflète en direct ce qui est modifié dans l'autre, sans refetch.
+  const [presentationsWindow, setPresentationsWindow] = useState([])
+  const [presentationsLoading, setPresentationsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    setPresentationsLoading(true)
+    supabase.from('details_resultats').select('*, ia(nom)').eq('annee', annee).eq('type', 'presentation').in('semaine', [selectedWeek - 1, selectedWeek]).order('date').then(({ data }) => {
+      if (active) { setPresentationsWindow(data || []); setPresentationsLoading(false) }
+    })
+    return () => { active = false }
+  }, [annee, selectedWeek])
+
+  const updatePresentationStatut = async (id, statut_suivi) => {
+    setPresentationsWindow(ps => ps.map(p => p.id === id ? { ...p, statut_suivi } : p))
+    await supabase.from('details_resultats').update({ statut_suivi }).eq('id', id)
+  }
 
   const weekData = saisies.filter(s => s.semaine === selectedWeek)
   const prevData = saisies.filter(s => s.semaine === selectedWeek - 1)
@@ -1505,13 +1495,14 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
           <ReunionCard icon="🎉" label="Signatures" value={signatures} previous={signaturesPrev} color="#9D174D" bg="#FCE7F3" breakdown={byIa('signatures')} />
           <ReunionCardPresentationsDetail value={prezRealisees} previous={prezRealiseesPrev}
             sublabel={`Annoncées en S${selectedWeek - 1} : ${prezAnnonceesSemPrec} · ${prezAnnonceesSemPrec > 0 ? Math.round((prezRealisees / prezAnnonceesSemPrec) * 100) + '% réalisé' : 'aucune annonce'}`}
-            semaine={selectedWeek} annee={annee} />
+            items={presentationsWindow.filter(p => p.semaine === selectedWeek)} loading={presentationsLoading} onStatutChange={updatePresentationStatut} />
           <ReunionCard icon="🔀" label="Pipe équipe" value={pipeActuel} previous={pipePrec} color="#854D0E" bg="#FEF9C3" breakdown={pipeByIa} />
           <ReunionCard icon="📋" label={`Prez à monter annoncées (S${selectedWeek})`} value={prezAMonterCetteSemaine} previous={prezAMonterPrec}
             sublabel="Objectif de présentations pour la suite" color="#374151" bg="#F3F4F6" breakdown={byIa('presentations_a_monter')} />
           <ReunionCard icon="📤" label="Positionnements ITC" value={weekPositionnements.length} previous={prevPositionnements.length} color="#4338CA" bg="#E0E7FF" breakdown={positionnementsByIa} />
           <ReunionCardPositionnementsItc value={weekPositionnements.length} previous={prevPositionnements.length} items={positionnementsByItc} />
-          <ReunionCardPresentationsEnAttente annee={annee} selectedWeek={selectedWeek} />
+          <ReunionCardPresentationsEnAttente selectedWeek={selectedWeek}
+            items={presentationsWindow.filter(p => p.statut_suivi === 'en_attente')} loading={presentationsLoading} onStatutChange={updatePresentationStatut} />
         </div>
 
         {/* KPIs recrutement */}
