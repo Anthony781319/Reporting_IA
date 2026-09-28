@@ -624,7 +624,7 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   // Le message de blocage disparaît tout seul dès que tout redevient complet (pas besoin de recliquer sur "Enregistrer").
   useEffect(() => {
     if (saveBlockedMsg && Object.values(detailComplete).every(Boolean)) setSaveBlockedMsg('')
-  }, [detailComplete]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [detailComplete])
   const [p1List, setP1List] = useState([])
   const [newP1, setNewP1] = useState(emptyP1)
   const [savingP1, setSavingP1] = useState(false)
