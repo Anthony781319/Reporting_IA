@@ -2,17 +2,19 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../supabase'
 
 const CURRENT_YEAR = new Date().getFullYear()
+const RANGE_1_24 = Array.from({ length: 24 }, (_, i) => i + 1)
+const NOMS_EXCLUS = ['P1 of the week'] // comptes techniques présents dans la table "ia" mais qui ne sont pas des commerciaux
 
 export default function Budget() {
   const [annee, setAnnee] = useState(CURRENT_YEAR + 1)
   const [loading, setLoading] = useState(true)
   const [iaList, setIaList] = useState([])
   const [comptesList, setComptesList] = useState([])
-  const [objectifsIa, setObjectifsIa] = useState([])       // lignes budget_objectifs_ia pour l'année
-  const [objectifsCompte, setObjectifsCompte] = useState([]) // lignes budget_objectifs_compte pour l'année (avec jointures)
+  const [objectifsIa, setObjectifsIa] = useState([])
+  const [objectifsCompte, setObjectifsCompte] = useState([])
   const [msg, setMsg] = useState('')
+  const [msgIsError, setMsgIsError] = useState(false)
 
-  // Formulaire d'ajout "objectif par compte"
   const [formCompteId, setFormCompteId] = useState('')
   const [formIaId, setFormIaId] = useState('')
   const [formNb, setFormNb] = useState('')
@@ -22,7 +24,7 @@ export default function Budget() {
   const loadAll = async () => {
     setLoading(true)
     const [{ data: ias }, { data: comptes }, { data: objIa }, { data: objCompte }] = await Promise.all([
-      supabase.from('ia').select('*').eq('statut', 'actif').order('nom'),
+      supabase.from('ia').select('*').eq('statut', 'actif').not('nom', 'in', `(${NOMS_EXCLUS.map(n => `"${n}"`).join(',')})`).order('nom'),
       supabase.from('comptes_clients').select('*').eq('statut', 'actif').order('raison_sociale'),
       supabase.from('budget_objectifs_ia').select('*').eq('annee', annee),
       supabase.from('budget_objectifs_compte').select('*, comptes_clients(raison_sociale, secteur), ia(nom)').eq('annee', annee),
@@ -34,9 +36,12 @@ export default function Budget() {
     setLoading(false)
   }
 
-  const flash = (text) => { setMsg(text); setTimeout(() => setMsg(''), 2500) }
+  const flash = (text, isError = false) => {
+    setMsg(text)
+    setMsgIsError(isError)
+    if (!isError) setTimeout(() => setMsg(''), 2500)
+  }
 
-  // --- Objectif global par commercial -----------------------------------
   const objectifIaFor = (iaId) => objectifsIa.find(o => o.ia_id === iaId)?.nb_affaires_vise ?? ''
 
   const saveObjectifIa = async (iaId, value) => {
@@ -45,20 +50,20 @@ export default function Budget() {
     const { error } = await supabase
       .from('budget_objectifs_ia')
       .upsert({ ia_id: iaId, annee, nb_affaires_vise: nb }, { onConflict: 'ia_id,annee' })
-    if (error) flash('Erreur : ' + error.message)
+    if (error) { flash('Erreur : ' + error.message, true); return }
+    flash('Enregistré !')
     await loadAll()
   }
 
-  // --- Détail par compte ---------------------------------------------------
   const addObjectifCompte = async () => {
-    if (!formCompteId || !formIaId || formNb === '') return flash('Compte, IA et nombre requis')
+    if (!formCompteId || !formIaId || formNb === '') return flash('Compte, IA et nombre requis', true)
     const { error } = await supabase
       .from('budget_objectifs_compte')
       .upsert(
         { compte_client_id: formCompteId, ia_id: formIaId, annee, nb_affaires_vise: parseInt(formNb, 10) },
         { onConflict: 'compte_client_id,ia_id,annee' }
       )
-    if (error) return flash('Erreur : ' + error.message)
+    if (error) { flash('Erreur : ' + error.message, true); return }
     setFormCompteId(''); setFormIaId(''); setFormNb('')
     flash('Enregistré !')
     await loadAll()
@@ -69,7 +74,6 @@ export default function Budget() {
     await loadAll()
   }
 
-  // --- Cohérence : objectif global vs somme des objectifs détaillés -------
   const coherence = useMemo(() => {
     return iaList.map(ia => {
       const global = objectifsIa.find(o => o.ia_id === ia.id)?.nb_affaires_vise ?? null
@@ -78,7 +82,6 @@ export default function Budget() {
     })
   }, [iaList, objectifsIa, objectifsCompte])
 
-  // Regroupement du détail par compte, pour affichage (un compte peut avoir plusieurs IA dessus)
   const detailParCompte = useMemo(() => {
     const map = new Map()
     objectifsCompte.forEach(o => {
@@ -94,7 +97,6 @@ export default function Budget() {
   return (
     <div style={{ padding: '14px 16px' }}>
 
-      {/* Sélecteur d'année */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
           🎯 Budget — vision
@@ -104,12 +106,14 @@ export default function Budget() {
       </div>
 
       {msg && (
-        <div style={{ fontSize: 12, marginBottom: 14, color: msg.includes('Erreur') ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: msg.includes('Erreur') ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
-          {msg}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 14, color: msgIsError ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: msgIsError ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
+          <span style={{ flex: 1 }}>{msg}</span>
+          {msgIsError && (
+            <button onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 13 }}>✕</button>
+          )}
         </div>
       )}
 
-      {/* Objectif global par commercial */}
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
         👤 Objectif par commercial — {annee}
       </div>
@@ -127,15 +131,16 @@ export default function Budget() {
                   détail : {c.detail} {c.ecart !== 0 && `(écart ${c.ecart > 0 ? '+' : ''}${c.ecart})`}
                 </span>
               )}
-              <input type="number" defaultValue={objectifIaFor(ia.id)} placeholder="—"
-                onBlur={e => { if (e.target.value !== '' && parseInt(e.target.value, 10) !== objectifIaFor(ia.id)) saveObjectifIa(ia.id, e.target.value) }}
-                style={{ width: 70, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border-tertiary)', textAlign: 'right' }} />
+              <select value={objectifIaFor(ia.id)} onChange={e => saveObjectifIa(ia.id, e.target.value)}
+                style={{ width: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border-tertiary)' }}>
+                <option value="">—</option>
+                {RANGE_1_24.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </div>
           )
         })}
       </div>
 
-      {/* Ajout d'un objectif détaillé par compte */}
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
         🏢 Objectif par compte — {annee}
       </div>
@@ -159,7 +164,10 @@ export default function Budget() {
         </div>
         <div>
           <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Nb affaires visé</label>
-          <input type="number" value={formNb} onChange={e => setFormNb(e.target.value)} style={{ width: 90, padding: '6px 8px', borderRadius: 8 }} />
+          <select value={formNb} onChange={e => setFormNb(e.target.value)} style={{ width: 90, padding: '6px 8px', borderRadius: 8 }}>
+            <option value="">—</option>
+            {RANGE_1_24.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
         </div>
         <button onClick={addObjectifCompte}
           style={{ padding: '8px 16px', background: '#6D28D9', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -167,7 +175,6 @@ export default function Budget() {
         </button>
       </div>
 
-      {/* Liste des objectifs par compte, groupés */}
       <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
         {detailParCompte.length === 0 ? (
           <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '14px' }}>Aucun objectif par compte pour {annee} pour l'instant.</div>
