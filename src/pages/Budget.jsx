@@ -5,6 +5,10 @@ const CURRENT_YEAR = new Date().getFullYear()
 const RANGE_1_24 = Array.from({ length: 24 }, (_, i) => i + 1)
 const NOMS_EXCLUS = ['P1 of the week'] // comptes techniques présents dans la table "ia" mais qui ne sont pas des commerciaux
 
+const startOfYear = (y) => new Date(Date.UTC(y, 0, 1))
+const endOfYear = (y) => new Date(Date.UTC(y, 11, 31))
+const daysBetween = (a, b) => Math.round((b - a) / 86400000)
+
 export default function Budget() {
   const [annee, setAnnee] = useState(CURRENT_YEAR + 1)
   const [loading, setLoading] = useState(true)
@@ -12,6 +16,7 @@ export default function Budget() {
   const [comptesList, setComptesList] = useState([])
   const [objectifsIa, setObjectifsIa] = useState([])
   const [objectifsCompte, setObjectifsCompte] = useState([])
+  const [sortiesEffectifs, setSortiesEffectifs] = useState([])
   const [msg, setMsg] = useState('')
   const [msgIsError, setMsgIsError] = useState(false)
 
@@ -19,20 +24,26 @@ export default function Budget() {
   const [formIaId, setFormIaId] = useState('')
   const [formNb, setFormNb] = useState('')
 
+  const [formSortieIaId, setFormSortieIaId] = useState('')
+  const [formSortieDate, setFormSortieDate] = useState('')
+  const [formSortieMotif, setFormSortieMotif] = useState('')
+
   useEffect(() => { loadAll() }, [annee])
 
   const loadAll = async () => {
     setLoading(true)
-    const [{ data: ias }, { data: comptes }, { data: objIa }, { data: objCompte }] = await Promise.all([
+    const [{ data: ias }, { data: comptes }, { data: objIa }, { data: objCompte }, { data: sorties }] = await Promise.all([
       supabase.from('ia').select('*').eq('statut', 'actif').not('nom', 'in', `(${NOMS_EXCLUS.map(n => `"${n}"`).join(',')})`).order('nom'),
       supabase.from('comptes_clients').select('*').eq('statut', 'actif').order('raison_sociale'),
       supabase.from('budget_objectifs_ia').select('*').eq('annee', annee),
       supabase.from('budget_objectifs_compte').select('*, comptes_clients(raison_sociale, secteur), ia(nom)').eq('annee', annee),
+      supabase.from('budget_sorties_effectifs').select('*').eq('annee', annee),
     ])
     setIaList(ias || [])
     setComptesList(comptes || [])
     setObjectifsIa(objIa || [])
     setObjectifsCompte(objCompte || [])
+    setSortiesEffectifs(sorties || [])
     setLoading(false)
   }
 
@@ -71,6 +82,36 @@ export default function Budget() {
 
   const removeObjectifCompte = async (id) => {
     await supabase.from('budget_objectifs_compte').delete().eq('id', id)
+    await loadAll()
+  }
+
+  const sortieFor = (iaId) => sortiesEffectifs.find(s => s.ia_id === iaId)
+
+  const timelinePercent = (iaId) => {
+    const s = sortieFor(iaId)
+    if (!s) return 100
+    const start = startOfYear(annee)
+    const end = endOfYear(annee)
+    const totalDays = daysBetween(start, end) + 1
+    const exit = new Date(s.date_sortie_prevue + 'T00:00:00Z')
+    const offsetDays = Math.min(Math.max(daysBetween(start, exit), 0), totalDays)
+    return (offsetDays / totalDays) * 100
+  }
+
+  const saveSortie = async () => {
+    if (!formSortieIaId || !formSortieDate) return flash('Commercial et date requis', true)
+    const { error } = await supabase.from('budget_sorties_effectifs').upsert(
+      { ia_id: formSortieIaId, annee, date_sortie_prevue: formSortieDate, motif: formSortieMotif || null },
+      { onConflict: 'ia_id,annee' }
+    )
+    if (error) { flash('Erreur : ' + error.message, true); return }
+    setFormSortieIaId(''); setFormSortieDate(''); setFormSortieMotif('')
+    flash('Enregistré !')
+    await loadAll()
+  }
+
+  const removeSortie = async (id) => {
+    await supabase.from('budget_sorties_effectifs').delete().eq('id', id)
     await loadAll()
   }
 
@@ -113,6 +154,76 @@ export default function Budget() {
           )}
         </div>
       )}
+
+      {/* Sorties d'effectifs */}
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+        📉 Sorties d'effectifs prévues — {annee}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
+        Date à laquelle un commercial doit sortir des effectifs si l'objectif n'est pas tenu. La partie grisée/hachurée de la barre montre la part de l'année sans lui.
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 10, borderRadius: 3, background: '#0F6E56', display: 'inline-block' }}></span> Présent
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 10, borderRadius: 3, display: 'inline-block', background: 'repeating-linear-gradient(135deg, #D1D5DB, #D1D5DB 3px, #F3F4F6 3px, #F3F4F6 6px)' }}></span> Sortie prévue
+        </span>
+      </div>
+
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        {iaList.map((ia, i) => {
+          const s = sortieFor(ia.id)
+          const pct = timelinePercent(ia.id)
+          return (
+            <div key={ia.id} style={{ padding: '10px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{ia.nom}</span>
+                {s && (
+                  <>
+                    <span style={{ fontSize: 11, color: '#B45309' }}>
+                      Sortie prévue : {new Date(s.date_sortie_prevue + 'T00:00:00Z').toLocaleDateString('fr-FR')}{s.motif ? ` · ${s.motif}` : ''}
+                    </span>
+                    <button onClick={() => removeSortie(s.id)} title="Annuler cette sortie prévue"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B45309', opacity: 0.7, fontSize: 13 }}>
+                      <i className="ti ti-x" aria-hidden="true"></i>
+                    </button>
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{ width: `${pct}%`, background: '#0F6E56' }}></div>
+                {pct < 100 && (
+                  <div style={{ width: `${100 - pct}%`, background: 'repeating-linear-gradient(135deg, #D1D5DB, #D1D5DB 3px, #F3F4F6 3px, #F3F4F6 6px)' }}></div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 24, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div>
+          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Commercial</label>
+          <select value={formSortieIaId} onChange={e => setFormSortieIaId(e.target.value)} style={{ minWidth: 150, padding: '6px 8px', borderRadius: 8 }}>
+            <option value="">— choisir —</option>
+            {iaList.map(ia => <option key={ia.id} value={ia.id}>{ia.nom}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Date de sortie prévue</label>
+          <input type="date" value={formSortieDate} onChange={e => setFormSortieDate(e.target.value)} style={{ padding: '6px 8px', borderRadius: 8 }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Motif (optionnel)</label>
+          <input type="text" value={formSortieMotif} onChange={e => setFormSortieMotif(e.target.value)} placeholder="ex: objectif non tenu" style={{ padding: '6px 8px', borderRadius: 8 }} />
+        </div>
+        <button onClick={saveSortie}
+          style={{ padding: '8px 16px', background: '#B45309', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          + Déclarer la sortie
+        </button>
+      </div>
 
       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
         👤 Objectif par commercial — {annee}
