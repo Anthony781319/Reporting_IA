@@ -3,11 +3,21 @@ import { supabase } from '../supabase'
 
 const CURRENT_YEAR = new Date().getFullYear()
 const RANGE_1_24 = Array.from({ length: 24 }, (_, i) => i + 1)
-const NOMS_EXCLUS = ['P1 of the week'] // comptes techniques présents dans la table "ia" mais qui ne sont pas des commerciaux
+const NOMS_EXCLUS = ['P1 of the week']
+const MOIS = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.']
 
 const startOfYear = (y) => new Date(Date.UTC(y, 0, 1))
 const endOfYear = (y) => new Date(Date.UTC(y, 11, 31))
 const daysBetween = (a, b) => Math.round((b - a) / 86400000)
+
+function StatTile({ label, value, color }) {
+  return (
+    <div style={{ background: 'var(--color-bg-secondary)', border: '0.5px solid var(--color-border)', borderRadius: 12, padding: '14px 16px' }}>
+      <div style={{ fontSize: 24, fontWeight: 800, color: color || 'var(--purple-dark)' }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{label}</div>
+    </div>
+  )
+}
 
 export default function Budget() {
   const [annee, setAnnee] = useState(CURRENT_YEAR + 1)
@@ -54,6 +64,7 @@ export default function Budget() {
   }
 
   const objectifIaFor = (iaId) => objectifsIa.find(o => o.ia_id === iaId)?.nb_affaires_vise ?? ''
+  const barWidthPct = (val) => (val === '' || val === null || val === undefined ? 0 : Math.min(100, (Number(val) / 24) * 100))
 
   const saveObjectifIa = async (iaId, value) => {
     const nb = value === '' ? null : parseInt(value, 10)
@@ -133,37 +144,45 @@ export default function Budget() {
     return [...map.values()].sort((a, b) => (a.raison_sociale || '').localeCompare(b.raison_sociale || ''))
   }, [objectifsCompte])
 
-  if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
+  const totalObjectifGlobal = coherence.reduce((s, c) => s + (c.global || 0), 0)
+  const ecartsCount = coherence.filter(c => c.global !== null && c.ecart !== 0).length
+
+  if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}>Chargement...</div>
 
   return (
-    <div style={{ padding: '14px 16px' }}>
+    <div style={{ padding: '14px 24px 32px' }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.3px' }}>
           🎯 Budget — vision
         </div>
         <input type="number" value={annee} onChange={e => setAnnee(parseInt(e.target.value, 10) || annee)}
-          style={{ width: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border-tertiary)' }} />
+          style={{ width: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border)' }} />
       </div>
 
       {msg && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 14, color: msgIsError ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: msgIsError ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginBottom: 16, color: msgIsError ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: msgIsError ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
           <span style={{ flex: 1 }}>{msg}</span>
-          {msgIsError && (
-            <button onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 13 }}>✕</button>
-          )}
+          {msgIsError && <button onClick={() => setMsg('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 13 }}>✕</button>}
         </div>
       )}
 
-      {/* Sorties d'effectifs */}
-      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
-        📉 Sorties d'effectifs prévues — {annee}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
-        Date à laquelle un commercial doit sortir des effectifs si l'objectif n'est pas tenu. La partie grisée/hachurée de la barre montre la part de l'année sans lui.
+      {/* Tuiles de synthèse */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 28 }}>
+        <StatTile label="Objectif global (affaires)" value={totalObjectifGlobal} />
+        <StatTile label="Comptes attribués" value={`${detailParCompte.length} / ${comptesList.length}`} />
+        <StatTile label="Sorties prévues" value={sortiesEffectifs.length} color={sortiesEffectifs.length > 0 ? '#B45309' : undefined} />
+        <StatTile label="Écarts à corriger" value={ecartsCount} color={ecartsCount > 0 ? '#B45309' : '#0F6E56'} />
       </div>
 
-      <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+      {/* Sorties d'effectifs */}
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
+        📉 Sorties d'effectifs prévues — {annee}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10 }}>
+        Date à laquelle un commercial doit sortir des effectifs si l'objectif n'est pas tenu.
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11, color: 'var(--color-text-muted)' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 14, height: 10, borderRadius: 3, background: '#0F6E56', display: 'inline-block' }}></span> Présent
         </span>
@@ -172,14 +191,17 @@ export default function Budget() {
         </span>
       </div>
 
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+      <div style={{ background: 'var(--color-bg-secondary)', border: '0.5px solid var(--color-border)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        <div style={{ display: 'flex', padding: '6px 14px 4px', borderBottom: '0.5px solid var(--color-border)' }}>
+          {MOIS.map(m => <div key={m} style={{ flex: 1, fontSize: 10, color: 'var(--color-text-muted)', textAlign: 'center' }}>{m}</div>)}
+        </div>
         {iaList.map((ia, i) => {
           const s = sortieFor(ia.id)
           const pct = timelinePercent(ia.id)
           return (
-            <div key={ia.id} style={{ padding: '10px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+            <div key={ia.id} style={{ padding: '10px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{ia.nom}</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{ia.nom}</span>
                 {s && (
                   <>
                     <span style={{ fontSize: 11, color: '#B45309' }}>
@@ -192,31 +214,29 @@ export default function Budget() {
                   </>
                 )}
               </div>
-              <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden' }}>
                 <div style={{ width: `${pct}%`, background: '#0F6E56' }}></div>
-                {pct < 100 && (
-                  <div style={{ width: `${100 - pct}%`, background: 'repeating-linear-gradient(135deg, #D1D5DB, #D1D5DB 3px, #F3F4F6 3px, #F3F4F6 6px)' }}></div>
-                )}
+                {pct < 100 && <div style={{ width: `${100 - pct}%`, background: 'repeating-linear-gradient(135deg, #D1D5DB, #D1D5DB 3px, #F3F4F6 3px, #F3F4F6 6px)' }}></div>}
               </div>
             </div>
           )
         })}
       </div>
 
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 24, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ background: 'var(--color-bg-secondary)', border: '0.5px solid var(--color-border)', borderRadius: 12, padding: 14, marginBottom: 32, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
-          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Commercial</label>
+          <label style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Commercial</label>
           <select value={formSortieIaId} onChange={e => setFormSortieIaId(e.target.value)} style={{ minWidth: 150, padding: '6px 8px', borderRadius: 8 }}>
             <option value="">— choisir —</option>
             {iaList.map(ia => <option key={ia.id} value={ia.id}>{ia.nom}</option>)}
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Date de sortie prévue</label>
+          <label style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Date de sortie prévue</label>
           <input type="date" value={formSortieDate} onChange={e => setFormSortieDate(e.target.value)} style={{ padding: '6px 8px', borderRadius: 8 }} />
         </div>
         <div>
-          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Motif (optionnel)</label>
+          <label style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Motif (optionnel)</label>
           <input type="text" value={formSortieMotif} onChange={e => setFormSortieMotif(e.target.value)} placeholder="ex: objectif non tenu" style={{ padding: '6px 8px', borderRadius: 8 }} />
         </div>
         <button onClick={saveSortie}
@@ -225,56 +245,63 @@ export default function Budget() {
         </button>
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+      {/* Objectif par commercial — jauges */}
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
         👤 Objectif par commercial — {annee}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10 }}>
         Nombre d'affaires (signatures) visé, tous comptes confondus.
       </div>
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 24 }}>
-        {iaList.map((ia, i) => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 10, marginBottom: 32 }}>
+        {iaList.map(ia => {
           const c = coherence.find(x => x.ia.id === ia.id)
+          const val = objectifIaFor(ia.id)
           return (
-            <div key={ia.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
-              <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-primary)' }}>{ia.nom}</span>
+            <div key={ia.id} style={{ background: 'var(--color-bg-secondary)', border: '0.5px solid var(--color-border)', borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)' }}>{ia.nom}</span>
+                <select value={val} onChange={e => saveObjectifIa(ia.id, e.target.value)} style={{ width: 70, padding: '4px 6px', borderRadius: 8 }}>
+                  <option value="">—</option>
+                  {RANGE_1_24.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div style={{ height: 10, borderRadius: 5, background: 'var(--color-border)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${barWidthPct(val)}%`, background: 'var(--purple)', borderRadius: 5 }}></div>
+              </div>
               {c && c.global !== null && (
-                <span style={{ fontSize: 11, color: c.ecart === 0 ? '#0F6E56' : '#B45309' }}>
-                  détail : {c.detail} {c.ecart !== 0 && `(écart ${c.ecart > 0 ? '+' : ''}${c.ecart})`}
-                </span>
+                <div style={{ fontSize: 11, marginTop: 6, color: c.ecart === 0 ? '#0F6E56' : '#B45309' }}>
+                  détail compte par compte : {c.detail} {c.ecart !== 0 && `(écart ${c.ecart > 0 ? '+' : ''}${c.ecart})`}
+                </div>
               )}
-              <select value={objectifIaFor(ia.id)} onChange={e => saveObjectifIa(ia.id, e.target.value)}
-                style={{ width: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--color-border-tertiary)' }}>
-                <option value="">—</option>
-                {RANGE_1_24.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
             </div>
           )
         })}
       </div>
 
-      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+      {/* Objectif par compte */}
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
         🏢 Objectif par compte — {annee}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
-        Qui couvre quel compte cette année-là, et combien d'affaires visées dessus. Un compte peut avoir plusieurs IA (comptes partagés) : ajoute simplement une ligne par IA.
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 10 }}>
+        Qui couvre quel compte cette année-là. Un compte peut avoir plusieurs IA (comptes partagés).
       </div>
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ background: 'var(--color-bg-secondary)', border: '0.5px solid var(--color-border)', borderRadius: 12, padding: 14, marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
-          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Compte</label>
+          <label style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Compte</label>
           <select value={formCompteId} onChange={e => setFormCompteId(e.target.value)} style={{ minWidth: 200, padding: '6px 8px', borderRadius: 8 }}>
             <option value="">— choisir —</option>
             {comptesList.map(c => <option key={c.id} value={c.id}>{c.raison_sociale}{c.secteur ? ` (${c.secteur})` : ''}</option>)}
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Commercial</label>
+          <label style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Commercial</label>
           <select value={formIaId} onChange={e => setFormIaId(e.target.value)} style={{ minWidth: 150, padding: '6px 8px', borderRadius: 8 }}>
             <option value="">— choisir —</option>
             {iaList.map(ia => <option key={ia.id} value={ia.id}>{ia.nom}</option>)}
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Nb affaires visé</label>
+          <label style={{ fontSize: 11, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>Nb affaires visé</label>
           <select value={formNb} onChange={e => setFormNb(e.target.value)} style={{ width: 90, padding: '6px 8px', borderRadius: 8 }}>
             <option value="">—</option>
             {RANGE_1_24.map(n => <option key={n} value={n}>{n}</option>)}
@@ -286,21 +313,20 @@ export default function Budget() {
         </button>
       </div>
 
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
         {detailParCompte.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '14px' }}>Aucun objectif par compte pour {annee} pour l'instant.</div>
-        ) : detailParCompte.map((grp, i) => (
-          <div key={grp.raison_sociale} style={{ padding: '10px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 6 }}>
-              {grp.raison_sociale}{grp.secteur ? <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)' }}> · {grp.secteur}</span> : null}
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Aucun objectif par compte pour {annee} pour l'instant.</div>
+        ) : detailParCompte.map(grp => (
+          <div key={grp.raison_sociale} style={{ background: 'var(--color-bg-secondary)', border: '0.5px solid var(--color-border)', borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{grp.raison_sociale}</div>
+            {grp.secteur && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8 }}>{grp.secteur}</div>}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: grp.secteur ? 0 : 8 }}>
               {grp.lignes.map(l => (
-                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#EEEDFE', borderRadius: 8, padding: '4px 8px 4px 10px' }}>
-                  <span style={{ fontSize: 12, color: '#3C3489', fontWeight: 600 }}>{l.ia?.nom}</span>
-                  <span style={{ fontSize: 12, color: '#3C3489' }}>— {l.nb_affaires_vise}</span>
+                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--purple-light)', borderRadius: 8, padding: '4px 8px 4px 10px' }}>
+                  <span style={{ fontSize: 12, color: 'var(--purple-dark)', fontWeight: 600 }}>{l.ia?.nom}</span>
+                  <span style={{ fontSize: 12, color: 'var(--purple-dark)' }}>— {l.nb_affaires_vise}</span>
                   <button onClick={() => removeObjectifCompte(l.id)} title="Supprimer"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3C3489', opacity: 0.6, fontSize: 13, padding: 2 }}>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--purple-dark)', opacity: 0.6, fontSize: 13, padding: 2 }}>
                     <i className="ti ti-x" aria-hidden="true"></i>
                   </button>
                 </div>
