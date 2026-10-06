@@ -10,6 +10,7 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import BilanEquipe from './pages/BilanEquipe'
 import Contacts from './pages/Contacts'
+import Budget from './pages/Budget'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
