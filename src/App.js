@@ -10,7 +10,6 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import BilanEquipe from './pages/BilanEquipe'
 import Contacts from './pages/Contacts'
-import Budget from './pages/Budget'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
@@ -76,7 +75,6 @@ export default function App() {
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
-    { id: 'budget',            icon: 'ti-target',         label: 'Budget' },
   ]
   const teamManagerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
@@ -108,7 +106,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app${tab === 'p1' || tab === 'budget' ? ' wide' : ''}`}>
+    <div className={`app${tab === 'p1' ? ' wide' : ''}`}>
       <div className="nav">
         <div className="nav-title">
           <i className="ti ti-chart-bar" aria-hidden="true"></i>
@@ -146,7 +144,6 @@ export default function App() {
         {tab === 'dashboard-rh'      && <DashboardRH />}
         {tab === 'entretiens'        && <Entretiens />}
         {tab === 'contacts'          && <Contacts />}
-        {tab === 'budget'            && <Budget />}
       </div>
     </div>
   )
