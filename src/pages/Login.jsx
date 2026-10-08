@@ -4,10 +4,11 @@ import { supabase } from '../supabase'
 const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
 
 const PORTALS = [
-  { id: 'ia',          icon: '💼', label: "Le Commerce", desc: 'Accès à ton espace reporting',   bg: '#EEEDFE', color: '#534AB7' },
-  { id: 'recrutement', icon: '👥', label: 'Recrutement',          desc: 'Accès à ton espace recrutement', bg: '#E1F5EE', color: '#0F6E56' },
-  { id: 'manager',     icon: '🎯', label: 'Manager',              desc: 'Accès dashboard & pilotage',     bg: '#FAEEDA', color: '#BA7517' },
-  { id: 'admin',       icon: '⚙️', label: 'Admin',                desc: "Gestion de l'équipe",             bg: '#F3E8FF', color: '#7C3AED' },
+  { id: 'ia',           icon: '💼', label: "Le Commerce",       desc: 'Accès à ton espace reporting',    bg: '#EEEDFE', color: '#534AB7' },
+  { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
+  { id: 'manager',      icon: '🎯', label: 'Manager',           desc: 'Accès dashboard & pilotage',      bg: '#FAEEDA', color: '#BA7517' },
+  { id: 'prospection',  icon: '🏆', label: 'Prospection du lundi', desc: 'Séance de prospection en direct', bg: '#DCFCE7', color: '#16A34A' },
+  { id: 'admin',        icon: '⚙️', label: 'Admin',             desc: "Gestion de l'équipe",              bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
 const MANAGER_OPTIONS = [
@@ -93,7 +94,7 @@ export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (portal === 'ia') {
+    if (portal === 'ia' || portal === 'prospection') {
       setLoading(true)
       supabase.from('ia').select('*').order('nom').then(({ data }) => {
         setIaList(data || [])
@@ -122,6 +123,13 @@ export default function Login({ onLogin }) {
     if (!selected) return setError('Sélectionne ton prénom')
     if (!password) return setError('Entre ton mot de passe')
     const ok = onLogin(selected, password)
+    if (!ok) setError('Mot de passe incorrect')
+  }
+
+  const handleSubmitProspection = () => {
+    if (!selected) return setError('Sélectionne ton prénom')
+    if (!password) return setError('Entre ton mot de passe')
+    const ok = onLogin(selected, password, 'prospection')
     if (!ok) setError('Mot de passe incorrect')
   }
 
@@ -220,6 +228,39 @@ export default function Login({ onLogin }) {
           <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
           {error && <ErrorMsg msg={error} />}
           <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[filteredList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
+        </div>
+      </div>
+    )
+  }
+
+  if (portal === 'prospection') {
+    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien')
+    return (
+      <div style={loginWrap}>
+        <BackButton onClick={handleBack} />
+        <Header icon="🏆" title="Prospection du lundi" />
+        <div style={{ width: '100%', maxWidth: 400 }}>
+          <div style={labelStyle}>Je suis...</div>
+          {loading ? <Loader /> : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+              {filteredList.map((ia, i) => {
+                const c = CARD_COLORS[i % CARD_COLORS.length]
+                const isSelected = selected && selected.id === ia.id
+                return (
+                  <div key={ia.id} onClick={() => { setSelected(ia); setError('') }}
+                    style={{ borderRadius: 12, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
+                      {ia.nom.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center', lineHeight: 1.2 }}>{ia.nom}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitProspection} />
+          {error && <ErrorMsg msg={error} />}
+          <SubmitBtn disabled={!selected} onClick={handleSubmitProspection} color={selected ? CARD_COLORS[filteredList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
         </div>
       </div>
     )
