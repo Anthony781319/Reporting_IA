@@ -412,7 +412,7 @@ function Podium({ ranking, accentColor, bgGradient, borderColor }) {
 // ─────────────────────────────────────────────
 // PANNEAU GAUCHE : COMMERCE
 // ─────────────────────────────────────────────
-function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
+function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, rdvDetailsAnnuel, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
   const [view, setView] = useState('equipe')
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
 
@@ -469,6 +469,7 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgramm
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
             <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaList={iaList} key={`rdv-${selectedWeek}-${refreshKey}`} />
             <RdvProgrammesKpiCard items={rdvProgrammes} iaList={iaList} key={`rdvprog-${refreshKey}`} />
+            <ContactsRepetesKpiCard rdvDetailsAnnuel={rdvDetailsAnnuel} iaList={iaList} annee={annee} key={`repeats-${refreshKey}`} />
             <PositionnementsKpiCard value={weekPositionnements.length} previous={selectedWeek > 1 ? prevPositionnements.length : undefined} positionnements={weekPositionnements} allPositionnements={positionnements} iaList={iaList} annee={annee} key={`pos-${selectedWeek}-${refreshKey}`} />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
@@ -525,13 +526,13 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgramm
           </div>
         </>
       ) : (
-        <FocusIAMini saisies={saisies} iaList={iaList} p1Data={p1Data} positionnements={positionnements} rdvProgrammes={rdvProgrammes} selectedWeek={selectedWeek} semaine={semaine} annee={annee} refreshKey={refreshKey} />
+        <FocusIAMini saisies={saisies} iaList={iaList} p1Data={p1Data} positionnements={positionnements} rdvProgrammes={rdvProgrammes} rdvDetailsAnnuel={rdvDetailsAnnuel} selectedWeek={selectedWeek} semaine={semaine} annee={annee} refreshKey={refreshKey} />
       )}
     </div>
   )
 }
 
-function FocusIAMini({ saisies, iaList, p1Data, positionnements, rdvProgrammes, selectedWeek, semaine, annee, refreshKey }) {
+function FocusIAMini({ saisies, iaList, p1Data, positionnements, rdvProgrammes, rdvDetailsAnnuel, selectedWeek, semaine, annee, refreshKey }) {
   const [selectedIa, setSelectedIa] = useState(null)
   const [iaIndex, setIaIndex] = useState(0)
   const [viewMode, setViewMode] = useState('semaine')
@@ -555,6 +556,7 @@ function FocusIAMini({ saisies, iaList, p1Data, positionnements, rdvProgrammes, 
   const iaPositionnementsPrev = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek - 1) : []
   const iaPositionnementsAnnuel = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id) : []
   const iaRdvProgrammes = selectedIa ? (rdvProgrammes || []).filter(r => r.ia_id === selectedIa.id) : []
+  const iaRdvDetailsAnnuel = selectedIa ? (rdvDetailsAnnuel || []).filter(r => r.ia_id === selectedIa.id) : []
 
   if (!selectedIa) return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -600,6 +602,7 @@ function FocusIAMini({ saisies, iaList, p1Data, positionnements, rdvProgrammes, 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
             <RdvKpiCard value={sum(iaData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`rdv-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
             <RdvProgrammesKpiCard items={iaRdvProgrammes} iaList={null} key={`rdvprog-${selectedIa.id}-${refreshKey}`} />
+            <ContactsRepetesKpiCard rdvDetailsAnnuel={iaRdvDetailsAnnuel} iaList={null} annee={annee} key={`repeats-${selectedIa.id}-${refreshKey}`} />
             <KpiCard label="Solutions" value={sum(iaData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(iaData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
             <KpiCard label="Prés. à monter" value={sum(iaData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
@@ -1101,6 +1104,89 @@ function RdvProgrammesKpiCard({ items, iaList }) {
 }
 
 // ─────────────────────────────────────────────
+// CONTACTS VUS PLUSIEURS FOIS (cumul annuel) — détecte le "sur-arrosage"
+// des mêmes interlocuteurs plutôt qu'un élargissement du portefeuille
+// ─────────────────────────────────────────────
+function buildContactRepeats(rdvDetailsAnnuel) {
+  const groups = {}
+  for (const r of rdvDetailsAnnuel) {
+    if (!r.contact_id) continue
+    const key = r.ia_id + '|' + r.contact_id
+    if (!groups[key]) groups[key] = { ia_id: r.ia_id, contact_id: r.contact_id, nom: r.nom, prenom: r.prenom, clients: new Set(), count: 0, lastDate: r.date_meeting }
+    const g = groups[key]
+    g.count += 1
+    if (r.client) g.clients.add(r.client)
+    if (r.date_meeting && (!g.lastDate || r.date_meeting > g.lastDate)) g.lastDate = r.date_meeting
+  }
+  return Object.values(groups).filter(g => g.count >= 2)
+}
+
+function ContactsRepetesKpiCard({ rdvDetailsAnnuel, iaList, annee }) {
+  const [open, setOpen] = useState(false)
+  const color = '#9F1239', bg = '#FFE4E6'
+  const equipeView = !!iaList
+  const repeats = buildContactRepeats(rdvDetailsAnnuel)
+
+  const byIa = equipeView
+    ? iaList
+        .filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+        .map(ia => ({ id: ia.id, nom: ia.nom, count: repeats.filter(g => g.ia_id === ia.id).length }))
+        .sort((a, b) => b.count - a.count)
+    : []
+
+  const sorted = [...repeats].sort((a, b) => b.count - a.count)
+
+  return (
+    <div>
+      <div onClick={() => repeats.length > 0 && setOpen(o => !o)}
+        style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: repeats.length > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Contacts vus 2x+ (cumul {annee})</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{repeats.length}</div>
+          </div>
+        </div>
+        {repeats.length > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {open && (
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
+          {equipeView && byIa.some(m => m.count > 0) && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>Par membre de l'équipe</div>
+              {byIa.filter(m => m.count > 0).map(m => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: '#fff', border: '1.5px solid #FECDD3' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#9F1239' }}>{m.nom}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#9F1239' }}>{m.count}</span>
+                </div>
+              ))}
+              <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '10px 0 6px' }}>Détail des contacts concernés</div>
+            </>
+          )}
+          {sorted.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun contact revu plusieurs fois</div>
+          ) : sorted.map(g => {
+            const ia = equipeView ? iaList.find(i => i.id === g.ia_id) : null
+            return (
+              <div key={g.ia_id + '-' + g.contact_id} style={{ background: '#fff', borderRadius: 8, padding: '8px 10px', marginBottom: 6, border: '1.5px solid #FECDD3' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#9F1239' }}>{g.prenom} {g.nom}</div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: '#9F1239', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>{g.count}x</span>
+                </div>
+                {g.clients.size > 0 && <div style={{ fontSize: 11, color, marginTop: 2 }}>🏢 {[...g.clients].join(', ')}</div>}
+                <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                  {g.lastDate && <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 Dernier RDV : {new Date(g.lastDate).toLocaleDateString('fr-FR')}</span>}
+                  {ia?.nom && <span style={{ fontSize: 10, color, opacity: 0.7 }}>👤 {ia.nom}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
 // ─────────────────────────────────────────────
 export default function DashboardManager({ restrictedScope = null }) {
@@ -1112,6 +1198,7 @@ export default function DashboardManager({ restrictedScope = null }) {
   const [p1Data, setP1Data] = useState([])
   const [positionnements, setPositionnements] = useState([])
   const [rdvProgrammes, setRdvProgrammes] = useState([])
+  const [rdvDetailsAnnuel, setRdvDetailsAnnuel] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showReunion, setShowReunion] = useState(false)
@@ -1119,18 +1206,20 @@ export default function DashboardManager({ restrictedScope = null }) {
   const load = async () => {
     const todayISO = new Date().toISOString().slice(0, 10)
     const in14ISO = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-    const [{ data: all }, { data: ia }, { data: p1 }, { data: pos }, { data: rdvProg }] = await Promise.all([
+    const [{ data: all }, { data: ia }, { data: p1 }, { data: pos }, { data: rdvProg }, { data: rdvDet }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
       supabase.from('ia').select('*').order('nom'),
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee),
       supabase.from('positionnements').select('*').eq('annee', annee),
       supabase.from('rdv_programmes').select('*, ia(nom)').gte('date_rdv', todayISO).lte('date_rdv', in14ISO),
+      supabase.from('rdv_details').select('ia_id, contact_id, nom, prenom, client, date_meeting').eq('annee', annee),
     ])
     setSaisies(all || [])
     setIaList((ia || []).filter(i => i.statut !== 'ancien'))
     setP1Data(p1 || [])
     setPositionnements(pos || [])
     setRdvProgrammes(rdvProg || [])
+    setRdvDetailsAnnuel(rdvDet || [])
     setLoading(false)
   }
 
@@ -1158,6 +1247,7 @@ export default function DashboardManager({ restrictedScope = null }) {
   const scopedP1Data = activeScope ? p1Data.filter(p => scopedIds.has(p.ia_id)) : p1Data
   const scopedPositionnements = activeScope ? positionnements.filter(p => scopedIds.has(p.ia_id)) : positionnements
   const scopedRdvProgrammes = activeScope ? rdvProgrammes.filter(r => scopedIds.has(r.ia_id)) : rdvProgrammes
+  const scopedRdvDetailsAnnuel = activeScope ? rdvDetailsAnnuel.filter(r => scopedIds.has(r.ia_id)) : rdvDetailsAnnuel
 
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
@@ -1181,6 +1271,7 @@ export default function DashboardManager({ restrictedScope = null }) {
             p1Data={scopedP1Data}
             positionnements={scopedPositionnements}
             rdvProgrammes={scopedRdvProgrammes}
+            rdvDetailsAnnuel={scopedRdvDetailsAnnuel}
             selectedWeek={selectedWeek}
             setSelectedWeek={setSelectedWeek}
             semaine={semaine}
