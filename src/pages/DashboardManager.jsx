@@ -1058,21 +1058,29 @@ function RdvProgrammesEquipe({ scopedIaList }) {
         <div style={{ padding: '0 16px 12px', maxHeight: 220, overflowY: 'auto' }}>
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--color-text-muted)', opacity: 0.7, padding: '10px 0', fontStyle: 'italic' }}>Aucun rendez-vous programmé dans les 14 prochains jours.</div>
-          ) : filtered.map(r => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#EFF6FF', borderRadius: 8, marginBottom: 6, border: '1px solid #DBEAFE' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1E40AF' }}>
-                  {r.nom_prenom}{r.fonction ? ` · ${r.fonction}` : ''}
-                  {r.ia?.nom && <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}> — {r.ia.nom}</span>}
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>🏢 {r.client}</span>
-                  <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>📅 {new Date(r.date_rdv).toLocaleDateString('fr-FR')} à {r.heure_rdv?.slice(0, 5)}</span>
-                  <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}</span>
+          ) : filtered.map(r => {
+            const objetColor = RDV_OBJET_LABELS[r.objet_meeting] ? '#4338CA' : '#2563EB'
+            return (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#EFF6FF', borderRadius: 8, marginBottom: 6, border: '1px solid #DBEAFE' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1E40AF' }}>
+                    {r.prenom} {r.nom}{r.fonction ? ` · ${r.fonction}` : ''}
+                    {r.ia?.nom && <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}> — {r.ia.nom}</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>🏢 {r.client}</span>
+                    <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>📅 {new Date(r.date_rdv).toLocaleDateString('fr-FR')} à {r.heure_rdv?.slice(0, 5)}</span>
+                    <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}</span>
+                    {r.objet_meeting && (
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: objetColor, background: objetColor + '18', borderRadius: 5, padding: '1px 6px' }}>
+                        {RDV_OBJET_LABELS[r.objet_meeting] || r.objet_meeting}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
