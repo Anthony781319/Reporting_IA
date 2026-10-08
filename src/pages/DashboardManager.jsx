@@ -105,6 +105,7 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
   )
 }
 const RDV_OBJET_LABELS = { prospect: 'Prospect', decouverte: 'Découverte', client: 'Client', presentation: 'Présentation' }
+const RDV_PROG_OBJET_COLORS = { prospect: '#534AB7', decouverte: '#0F6E56', client: '#BA7517', presentation: '#993556' }
 
 const RdvKpiCard = ({ value, previous, semaine, annee, iaId, iaList }) => {
   const [open, setOpen] = useState(false)
@@ -411,7 +412,7 @@ function Podium({ ranking, accentColor, bgGradient, borderColor }) {
 // ─────────────────────────────────────────────
 // PANNEAU GAUCHE : COMMERCE
 // ─────────────────────────────────────────────
-function PanneauCommerce({ saisies, iaList, p1Data, positionnements, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
+function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
   const [view, setView] = useState('equipe')
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
 
@@ -467,6 +468,7 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, selectedWee
           <SectionTitle title="KPIs semaine" color="#6D28D9" icon="📊" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
             <RdvKpiCard value={sum(weekData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaList={iaList} key={`rdv-${selectedWeek}-${refreshKey}`} />
+            <RdvProgrammesKpiCard items={rdvProgrammes} iaList={iaList} key={`rdvprog-${refreshKey}`} />
             <PositionnementsKpiCard value={weekPositionnements.length} previous={selectedWeek > 1 ? prevPositionnements.length : undefined} positionnements={weekPositionnements} allPositionnements={positionnements} iaList={iaList} annee={annee} key={`pos-${selectedWeek}-${refreshKey}`} />
             <KpiCard label="Solutions" value={sum(weekData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(weekData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
@@ -523,13 +525,13 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, selectedWee
           </div>
         </>
       ) : (
-        <FocusIAMini saisies={saisies} iaList={iaList} p1Data={p1Data} positionnements={positionnements} selectedWeek={selectedWeek} semaine={semaine} annee={annee} refreshKey={refreshKey} />
+        <FocusIAMini saisies={saisies} iaList={iaList} p1Data={p1Data} positionnements={positionnements} rdvProgrammes={rdvProgrammes} selectedWeek={selectedWeek} semaine={semaine} annee={annee} refreshKey={refreshKey} />
       )}
     </div>
   )
 }
 
-function FocusIAMini({ saisies, iaList, p1Data, positionnements, selectedWeek, semaine, annee, refreshKey }) {
+function FocusIAMini({ saisies, iaList, p1Data, positionnements, rdvProgrammes, selectedWeek, semaine, annee, refreshKey }) {
   const [selectedIa, setSelectedIa] = useState(null)
   const [iaIndex, setIaIndex] = useState(0)
   const [viewMode, setViewMode] = useState('semaine')
@@ -552,6 +554,7 @@ function FocusIAMini({ saisies, iaList, p1Data, positionnements, selectedWeek, s
   const iaPositionnements     = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek) : []
   const iaPositionnementsPrev = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id && x.semaine === selectedWeek - 1) : []
   const iaPositionnementsAnnuel = selectedIa ? (positionnements || []).filter(x => x.ia_id === selectedIa.id) : []
+  const iaRdvProgrammes = selectedIa ? (rdvProgrammes || []).filter(r => r.ia_id === selectedIa.id) : []
 
   if (!selectedIa) return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -596,6 +599,7 @@ function FocusIAMini({ saisies, iaList, p1Data, positionnements, selectedWeek, s
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
             <RdvKpiCard value={sum(iaData, 'total_rdv')} previous={p('total_rdv')} semaine={selectedWeek} annee={annee} iaId={selectedIa.id} key={`rdv-${selectedWeek}-${selectedIa.id}-${refreshKey}`} />
+            <RdvProgrammesKpiCard items={iaRdvProgrammes} iaList={null} key={`rdvprog-${selectedIa.id}-${refreshKey}`} />
             <KpiCard label="Solutions" value={sum(iaData, 'cv_envoyes')} color="#166534" bg="#DCFCE7" previous={p('cv_envoyes')} />
             <KpiCard label="Besoins" value={sum(iaData, 'besoins_detectes')} color="#9F1239" bg="#FFE4E6" previous={p('besoins_detectes')} />
             <KpiCard label="Prés. à monter" value={sum(iaData, 'presentations_a_monter')} color="#374151" bg="#F3F4F6" previous={p('presentations_a_monter')} />
@@ -1029,54 +1033,63 @@ function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, anne
 }
 
 // ─────────────────────────────────────────────
-// RDV PROGRAMMÉS ÉQUIPE (14 prochains jours)
+// RDV PROGRAMMÉS — carte KPI (14 prochains jours)
 // ─────────────────────────────────────────────
-function RdvProgrammesEquipe({ scopedIaList }) {
-  const [list, setList] = useState([])
+function RdvProgrammesKpiCard({ items, iaList }) {
   const [open, setOpen] = useState(false)
-  const [loaded, setLoaded] = useState(false)
+  const color = '#2563EB', bg = '#EFF6FF'
+  const equipeView = !!iaList
 
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-    supabase.from('rdv_programmes').select('*, ia(nom)').gte('date_rdv', today).lte('date_rdv', in14).order('date_rdv').order('heure_rdv')
-      .then(({ data }) => { setList(data || []); setLoaded(true) })
-  }, [])
+  const byIa = equipeView
+    ? iaList
+        .filter(ia => ia.nom !== 'Anthony' && !ia.nom.toLowerCase().includes('p1'))
+        .map(ia => ({ id: ia.id, nom: ia.nom, count: items.filter(r => r.ia_id === ia.id).length }))
+        .sort((a, b) => a.count - b.count)
+    : []
 
-  const scopedIds = new Set(scopedIaList.map(ia => ia.id))
-  const filtered = list.filter(r => scopedIds.has(r.ia_id))
+  const sorted = [...items].sort((a, b) => (a.date_rdv + a.heure_rdv).localeCompare(b.date_rdv + b.heure_rdv))
 
   return (
-    <div style={{ borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
-      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', cursor: 'pointer' }}>
-        <i className="ti ti-calendar-time" style={{ fontSize: 16, color: '#2563EB' }} aria-hidden="true"></i>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>RDV programmés (14 prochains jours)</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#2563EB', background: '#EFF6FF', borderRadius: 20, padding: '2px 10px' }}>{loaded ? filtered.length : '…'}</span>
-        <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 13, color: 'var(--color-text-muted)', marginLeft: 'auto' }} aria-hidden="true"></i>
+    <div>
+      <div onClick={() => items.length > 0 && setOpen(o => !o)}
+        style={{ background: bg, borderRadius: open ? '10px 10px 0 0' : 10, padding: '10px 12px', cursor: items.length > 0 ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color, fontWeight: 600, opacity: 0.75, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.3px' }}>RDV programmés (14j)</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{items.length}</div>
+          </div>
+        </div>
+        {items.length > 0 && <span style={{ fontSize: 12, color, fontWeight: 700, marginLeft: 6 }}>{open ? '▲' : '▼'}</span>}
       </div>
       {open && (
-        <div style={{ padding: '0 16px 12px', maxHeight: 220, overflowY: 'auto' }}>
-          {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--color-text-muted)', opacity: 0.7, padding: '10px 0', fontStyle: 'italic' }}>Aucun rendez-vous programmé dans les 14 prochains jours.</div>
-          ) : filtered.map(r => {
-            const objetColor = RDV_OBJET_LABELS[r.objet_meeting] ? '#4338CA' : '#2563EB'
+        <div style={{ background: 'rgba(255,255,255,0.9)', border: `1.5px solid ${color}20`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 10 }}>
+          {equipeView && byIa.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 6 }}>Par membre de l'équipe</div>
+              {byIa.map(m => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 9px', marginBottom: 4, borderRadius: 7, background: m.count === 0 ? '#FEF2F2' : '#fff', border: `1.5px solid ${m.count === 0 ? '#FECACA' : '#DBEAFE'}` }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: m.count === 0 ? '#B91C1C' : '#1E40AF' }}>{m.nom}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: m.count === 0 ? '#B91C1C' : '#2563EB' }}>{m.count}</span>
+                </div>
+              ))}
+              <div style={{ fontSize: 10, fontWeight: 700, color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '10px 0 6px' }}>Détail des RDV à venir</div>
+            </>
+          )}
+          {sorted.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color, opacity: 0.6, padding: '6px 0', fontStyle: 'italic' }}>Aucun RDV programmé</div>
+          ) : sorted.map(r => {
+            const objetColor = RDV_PROG_OBJET_COLORS[r.objet_meeting] || color
             return (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#EFF6FF', borderRadius: 8, marginBottom: 6, border: '1px solid #DBEAFE' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1E40AF' }}>
-                    {r.prenom} {r.nom}{r.fonction ? ` · ${r.fonction}` : ''}
-                    {r.ia?.nom && <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}> — {r.ia.nom}</span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>🏢 {r.client}</span>
-                    <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>📅 {new Date(r.date_rdv).toLocaleDateString('fr-FR')} à {r.heure_rdv?.slice(0, 5)}</span>
-                    <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}</span>
-                    {r.objet_meeting && (
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: objetColor, background: objetColor + '18', borderRadius: 5, padding: '1px 6px' }}>
-                        {RDV_OBJET_LABELS[r.objet_meeting] || r.objet_meeting}
-                      </span>
-                    )}
-                  </div>
+              <div key={r.id} style={{ background: '#fff', borderRadius: 8, padding: '8px 10px', marginBottom: 6, border: `1.5px solid ${color}30` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1E40AF' }}>{r.prenom} {r.nom}{r.fonction ? ` · ${r.fonction}` : ''}</div>
+                  {r.objet_meeting && <span style={{ fontSize: 9, fontWeight: 700, color: objetColor, background: objetColor + '18', borderRadius: 5, padding: '1px 6px', flexShrink: 0 }}>{RDV_OBJET_LABELS[r.objet_meeting] || r.objet_meeting}</span>}
+                </div>
+                <div style={{ fontSize: 11, color, marginTop: 2 }}>🏢 {r.client}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, color, opacity: 0.7 }}>📅 {new Date(r.date_rdv).toLocaleDateString('fr-FR')} à {r.heure_rdv?.slice(0, 5)}</span>
+                  <span style={{ fontSize: 10, color, opacity: 0.7 }}>{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}</span>
+                  {r.ia?.nom && <span style={{ fontSize: 10, color, opacity: 0.7 }}>👤 {r.ia.nom}</span>}
                 </div>
               </div>
             )
@@ -1098,21 +1111,26 @@ export default function DashboardManager({ restrictedScope = null }) {
   const [iaList, setIaList] = useState([])
   const [p1Data, setP1Data] = useState([])
   const [positionnements, setPositionnements] = useState([])
+  const [rdvProgrammes, setRdvProgrammes] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showReunion, setShowReunion] = useState(false)
 
   const load = async () => {
-    const [{ data: all }, { data: ia }, { data: p1 }, { data: pos }] = await Promise.all([
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const in14ISO = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+    const [{ data: all }, { data: ia }, { data: p1 }, { data: pos }, { data: rdvProg }] = await Promise.all([
       supabase.from('saisies').select('*, ia(nom)').eq('annee', annee),
       supabase.from('ia').select('*').order('nom'),
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee),
       supabase.from('positionnements').select('*').eq('annee', annee),
+      supabase.from('rdv_programmes').select('*, ia(nom)').gte('date_rdv', todayISO).lte('date_rdv', in14ISO),
     ])
     setSaisies(all || [])
     setIaList((ia || []).filter(i => i.statut !== 'ancien'))
     setP1Data(p1 || [])
     setPositionnements(pos || [])
+    setRdvProgrammes(rdvProg || [])
     setLoading(false)
   }
 
@@ -1139,6 +1157,7 @@ export default function DashboardManager({ restrictedScope = null }) {
   const scopedSaisies = activeScope ? saisies.filter(s => scopedIds.has(s.ia_id)) : saisies
   const scopedP1Data = activeScope ? p1Data.filter(p => scopedIds.has(p.ia_id)) : p1Data
   const scopedPositionnements = activeScope ? positionnements.filter(p => scopedIds.has(p.ia_id)) : positionnements
+  const scopedRdvProgrammes = activeScope ? rdvProgrammes.filter(r => scopedIds.has(r.ia_id)) : rdvProgrammes
 
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
@@ -1153,8 +1172,6 @@ export default function DashboardManager({ restrictedScope = null }) {
         </div>
       )}
 
-      <RdvProgrammesEquipe scopedIaList={scopedIaList} />
-
       {/* Split panels (le panneau Recrutement ne concerne pas un accès manager restreint à une équipe commerciale) */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div style={{ flex: 1, borderRight: restrictedScope ? 'none' : '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
@@ -1163,6 +1180,7 @@ export default function DashboardManager({ restrictedScope = null }) {
             iaList={scopedIaList}
             p1Data={scopedP1Data}
             positionnements={scopedPositionnements}
+            rdvProgrammes={scopedRdvProgrammes}
             selectedWeek={selectedWeek}
             setSelectedWeek={setSelectedWeek}
             semaine={semaine}
