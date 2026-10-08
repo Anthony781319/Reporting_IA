@@ -1029,6 +1029,57 @@ function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, anne
 }
 
 // ─────────────────────────────────────────────
+// RDV PROGRAMMÉS ÉQUIPE (14 prochains jours)
+// ─────────────────────────────────────────────
+function RdvProgrammesEquipe({ scopedIaList }) {
+  const [list, setList] = useState([])
+  const [open, setOpen] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+    supabase.from('rdv_programmes').select('*, ia(nom)').gte('date_rdv', today).lte('date_rdv', in14).order('date_rdv').order('heure_rdv')
+      .then(({ data }) => { setList(data || []); setLoaded(true) })
+  }, [])
+
+  const scopedIds = new Set(scopedIaList.map(ia => ia.id))
+  const filtered = list.filter(r => scopedIds.has(r.ia_id))
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
+      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', cursor: 'pointer' }}>
+        <i className="ti ti-calendar-time" style={{ fontSize: 16, color: '#2563EB' }} aria-hidden="true"></i>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>RDV programmés (14 prochains jours)</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#2563EB', background: '#EFF6FF', borderRadius: 20, padding: '2px 10px' }}>{loaded ? filtered.length : '…'}</span>
+        <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 13, color: 'var(--color-text-muted)', marginLeft: 'auto' }} aria-hidden="true"></i>
+      </div>
+      {open && (
+        <div style={{ padding: '0 16px 12px', maxHeight: 220, overflowY: 'auto' }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--color-text-muted)', opacity: 0.7, padding: '10px 0', fontStyle: 'italic' }}>Aucun rendez-vous programmé dans les 14 prochains jours.</div>
+          ) : filtered.map(r => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#EFF6FF', borderRadius: 8, marginBottom: 6, border: '1px solid #DBEAFE' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#1E40AF' }}>
+                  {r.nom_prenom}{r.fonction ? ` · ${r.fonction}` : ''}
+                  {r.ia?.nom && <span style={{ fontSize: 10, fontWeight: 400, opacity: 0.7 }}> — {r.ia.nom}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>🏢 {r.client}</span>
+                  <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>📅 {new Date(r.date_rdv).toLocaleDateString('fr-FR')} à {r.heure_rdv?.slice(0, 5)}</span>
+                  <span style={{ fontSize: 10, color: '#2563EB', opacity: 0.8 }}>{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
 // ─────────────────────────────────────────────
 export default function DashboardManager({ restrictedScope = null }) {
@@ -1093,6 +1144,8 @@ export default function DashboardManager({ restrictedScope = null }) {
           </button>
         </div>
       )}
+
+      <RdvProgrammesEquipe scopedIaList={scopedIaList} />
 
       {/* Split panels (le panneau Recrutement ne concerne pas un accès manager restreint à une équipe commerciale) */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
