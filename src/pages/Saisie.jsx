@@ -598,6 +598,139 @@ const P1Card = ({ p, onRemove }) => {
   )
 }
 
+const RDV_PROG_COLOR = '#2563EB'
+const RDV_PROG_ACCENT_LIGHT = '#EFF6FF'
+const RDV_PROG_ACCENT_RING = 'rgba(37,99,235,0.18)'
+const emptyRdvProgramme = { nom_prenom: '', fonction: '', client: '', date_rdv: '', heure_rdv: '', modalite: 'physique' }
+
+const RdvProgrammesPanel = ({ iaId }) => {
+  const [rdvProgrammes, setRdvProgrammes] = useState([])
+  const [newRdvProgramme, setNewRdvProgramme] = useState(emptyRdvProgramme)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!iaId) return
+    const today = new Date().toISOString().slice(0, 10)
+    supabase.from('rdv_programmes').select('*').eq('ia_id', iaId).gte('date_rdv', today).order('date_rdv').order('heure_rdv')
+      .then(({ data }) => setRdvProgrammes(data || []))
+  }, [iaId])
+
+  const complete = newRdvProgramme.nom_prenom.trim() && newRdvProgramme.client.trim() && newRdvProgramme.date_rdv && newRdvProgramme.heure_rdv && newRdvProgramme.modalite
+
+  const addRdvProgramme = async () => {
+    if (!complete) return
+    setSaving(true)
+    setError('')
+    const { data, error: err } = await supabase.from('rdv_programmes')
+      .insert({
+        ia_id: iaId,
+        nom_prenom: newRdvProgramme.nom_prenom.trim(),
+        fonction: newRdvProgramme.fonction.trim() || null,
+        client: newRdvProgramme.client.trim(),
+        date_rdv: newRdvProgramme.date_rdv,
+        heure_rdv: newRdvProgramme.heure_rdv,
+        modalite: newRdvProgramme.modalite,
+      })
+      .select().single()
+    if (data) {
+      setRdvProgrammes(l => [...l, data].sort((a, b) => (a.date_rdv + a.heure_rdv).localeCompare(b.date_rdv + b.heure_rdv)))
+      setNewRdvProgramme(emptyRdvProgramme)
+    } else {
+      setError(err?.message ? `Erreur : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
+    }
+    setSaving(false)
+  }
+
+  const removeRdvProgramme = async (id) => {
+    await supabase.from('rdv_programmes').delete().eq('id', id)
+    setRdvProgrammes(l => l.filter(r => r.id !== id))
+  }
+
+  return (
+    <PremiumPanel accent={RDV_PROG_COLOR} accentLight={RDV_PROG_ACCENT_LIGHT} accentRing={RDV_PROG_ACCENT_RING}>
+      <PremiumSectionHeader icon="ti-calendar-time" title="Rendez-vous programmés (2 prochaines semaines)" />
+
+      {rdvProgrammes.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: '#98A2B3', padding: '4px 0 10px' }}>
+          Aucun rendez-vous programmé pour l'instant.
+        </div>
+      ) : rdvProgrammes.map(r => (
+        <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 10, background: RDV_PROG_ACCENT_LIGHT, marginBottom: 8 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: RDV_TITLE }}>
+              {r.nom_prenom}{r.fonction ? ` · ${r.fonction}` : ''}
+            </div>
+            <div style={{ fontSize: 12, color: RDV_PROG_COLOR, marginTop: 2 }}>
+              🏢 {r.client} — {new Date(r.date_rdv + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })} à {r.heure_rdv.slice(0, 5)}
+              {' · '}{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}
+            </div>
+          </div>
+          <button onClick={() => removeRdvProgramme(r.id)} title="Supprimer"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: RDV_PROG_COLOR, opacity: 0.6, fontSize: 15, flexShrink: 0 }}>
+            <i className="ti ti-x" aria-hidden="true"></i>
+          </button>
+        </div>
+      ))}
+
+      <div className="ui-card" style={{ marginTop: rdvProgrammes.length > 0 ? 14 : 0 }}>
+        <div className="ui-card-header">
+          <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
+          <div className="ui-card-title">Programmer un rendez-vous</div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Nom Prénom *</label>
+            <input className="ui-input" type="text" placeholder="Ex: Jean Dupont" value={newRdvProgramme.nom_prenom} onChange={e => setNewRdvProgramme(r => ({ ...r, nom_prenom: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Fonction</label>
+            <input className="ui-input" type="text" placeholder="Ex: DRH, Directeur IT..." value={newRdvProgramme.fonction} onChange={e => setNewRdvProgramme(r => ({ ...r, fonction: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Client *</label>
+            <input className="ui-input" type="text" placeholder="Raison sociale du client" value={newRdvProgramme.client} onChange={e => setNewRdvProgramme(r => ({ ...r, client: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Modalité *</label>
+            <select className="ui-input" value={newRdvProgramme.modalite} onChange={e => setNewRdvProgramme(r => ({ ...r, modalite: e.target.value }))}>
+              <option value="physique">🤝 Physique</option>
+              <option value="teams">💻 Teams</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Date *</label>
+            <input className="ui-input" type="date" value={newRdvProgramme.date_rdv} onChange={e => setNewRdvProgramme(r => ({ ...r, date_rdv: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Heure *</label>
+            <input className="ui-input" type="time" value={newRdvProgramme.heure_rdv} onChange={e => setNewRdvProgramme(r => ({ ...r, heure_rdv: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="ui-cta-row">
+          <span style={{ fontSize: 12, color: '#98A2B3' }}>* Champs obligatoires</span>
+          <button className="ui-btn-primary" onClick={addRdvProgramme} disabled={saving || !complete}>
+            {saving ? 'Enregistrement...' : 'Programmer le RDV'}
+          </button>
+        </div>
+        {error && (
+          <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12 }}>
+            ⚠️ {error}
+          </div>
+        )}
+      </div>
+    </PremiumPanel>
+  )
+}
+
 export default function Saisie({ iaId, iaName, managerMode = false }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
@@ -1037,6 +1170,10 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
             {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation — hors du panneau clair, comme avant */}
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <RdvProgrammesPanel iaId={iaId} />
           </div>
 
           <div style={{ marginBottom: 24 }}>
