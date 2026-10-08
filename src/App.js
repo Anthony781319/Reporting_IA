@@ -10,6 +10,7 @@ import SaisieCR from './pages/SaisieCR'
 import DashboardRH from './pages/DashboardRH'
 import BilanEquipe from './pages/BilanEquipe'
 import Contacts from './pages/Contacts'
+import Classement from './pages/Classement'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
@@ -73,6 +74,7 @@ export default function App() {
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
+    { id: 'classement',        icon: 'ti-trophy',         label: 'Classement' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
   ]
@@ -80,9 +82,13 @@ export default function App() {
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
+    { id: 'classement',        icon: 'ti-trophy',         label: 'Classement' },
   ]
   const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
-  const userTabs = [{ id: 'saisie',       icon: 'ti-edit',      label: 'Ma saisie' }]
+  const userTabs = [
+    { id: 'saisie',      icon: 'ti-edit',   label: 'Ma saisie' },
+    { id: 'classement',  icon: 'ti-trophy', label: 'Classement' },
+  ]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
   const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
@@ -144,6 +150,7 @@ export default function App() {
         {tab === 'dashboard-rh'      && <DashboardRH />}
         {tab === 'entretiens'        && <Entretiens />}
         {tab === 'contacts'          && <Contacts />}
+        {tab === 'classement'        && <Classement />}
       </div>
     </div>
   )
