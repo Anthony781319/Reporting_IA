@@ -32,9 +32,10 @@ function formatDuration(ms) {
 function computeRanking(rows, iaList) {
   const byIa = {}
   for (const ia of iaList) {
-    byIa[ia.id] = { ia_id: ia.id, nom: ia.nom, points: 0, counts: { decouverte: 0, presentation: 0, prospect: 0, client: 0 } }
+    byIa[ia.id] = { ia_id: ia.id, nom: ia.nom || '—', points: 0, counts: { decouverte: 0, presentation: 0, prospect: 0, client: 0 } }
   }
-  for (const r of rows) {
+  for (const r of (rows || [])) {
+    if (!r || !r.ia_id) continue
     if (!byIa[r.ia_id]) byIa[r.ia_id] = { ia_id: r.ia_id, nom: r.ia?.nom || '—', points: 0, counts: { decouverte: 0, presentation: 0, prospect: 0, client: 0 } }
     const entry = byIa[r.ia_id]
     const w = WEIGHTS[r.objet_meeting] || 0
@@ -50,30 +51,49 @@ export default function Classement() {
   const [rows, setRows] = useState([])
   const [iaList, setIaList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [now, setNow] = useState(new Date())
   const channelRef = useRef(null)
 
   const { start, end, state } = getSessionWindow(now)
 
   const load = async () => {
-    const win = getSessionWindow(new Date())
-    const [{ data: rdv }, { data: ia }] = await Promise.all([
-      supabase.from('rdv_programmes').select('*, ia(nom)').gte('created_at', win.start.toISOString()).lte('created_at', win.end.toISOString()),
-      supabase.from('ia').select('*').order('nom'),
-    ])
-    setRows(rdv || [])
-    setIaList((ia || []).filter(i => i.statut !== 'ancien' && i.nom !== 'Anthony' && !i.nom.toLowerCase().includes('p1')))
-    setLoading(false)
+    try {
+      const win = getSessionWindow(new Date())
+      const [rdvRes, iaRes] = await Promise.all([
+        supabase.from('rdv_programmes').select('*, ia(nom)').gte('created_at', win.start.toISOString()).lte('created_at', win.end.toISOString()),
+        supabase.from('ia').select('*').order('nom'),
+      ])
+      if (rdvRes.error || iaRes.error) {
+        setError((rdvRes.error || iaRes.error)?.message || "Erreur de chargement.")
+      } else {
+        setError('')
+      }
+      setRows(rdvRes.data || [])
+      setIaList((iaRes.data || []).filter(i =>
+        i && i.statut !== 'ancien' && i.type !== 'cr' && i.nom !== 'Anthony' && i.nom !== 'RH' &&
+        !String(i.nom || '').toLowerCase().includes('p1')
+      ))
+    } catch (e) {
+      setError(e?.message || "Erreur inattendue au chargement du classement.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     load()
-    const channel = supabase
-      .channel('classement-prospection')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rdv_programmes' }, () => { load() })
-      .subscribe()
-    channelRef.current = channel
-    return () => { supabase.removeChannel(channel) }
+    let channel = null
+    try {
+      channel = supabase
+        .channel('classement-prospection')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rdv_programmes' }, () => { load() })
+        .subscribe()
+      channelRef.current = channel
+    } catch (e) {
+      // Le temps réel est un plus ; une app qui ne le supporte pas doit quand même afficher le classement.
+    }
+    return () => { if (channel) supabase.removeChannel(channel) }
   }, [])
 
   useEffect(() => {
@@ -92,7 +112,7 @@ export default function Classement() {
   const maxPoints = Math.max(1, ranking[0]?.points || 0)
 
   const banner = (() => {
-    if (state === 'none') return { bg: '#F3F4F6', border: '#E5E7EB', color: '#4B5563', icon: '📅', text: 'Pas de séance de prospection aujourd\'hui — rendez-vous chaque lundi entre 16h et 18h.' }
+    if (state === 'none') return { bg: '#F3F4F6', border: '#E5E7EB', color: '#4B5563', icon: '📅', text: "Pas de séance de prospection aujourd'hui — rendez-vous chaque lundi entre 16h et 18h." }
     if (state === 'before') return { bg: '#FEF3C7', border: '#FDE68A', color: '#92400E', icon: '⏳', text: `La séance démarre dans ${formatDuration(start - now)} (16h00).` }
     if (state === 'live') return { bg: '#DCFCE7', border: '#BBF7D0', color: '#065F46', icon: '🔴', text: `EN DIRECT — fin de la séance dans ${formatDuration(end - now)}.`, live: true }
     return { bg: '#E0E7FF', border: '#C7D2FE', color: '#3730A3', icon: '✅', text: 'Séance terminée — résultat final du jour.' }
@@ -105,6 +125,12 @@ export default function Classement() {
         <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--color-text)' }}>Classement Prospection</div>
         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>Séance du lundi, 16h – 18h</div>
       </div>
+
+      {error && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12, marginBottom: 14 }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10,
