@@ -601,7 +601,7 @@ const P1Card = ({ p, onRemove }) => {
 const RDV_PROG_COLOR = '#2563EB'
 const RDV_PROG_ACCENT_LIGHT = '#EFF6FF'
 const RDV_PROG_ACCENT_RING = 'rgba(37,99,235,0.18)'
-const emptyRdvProgramme = { nom_prenom: '', fonction: '', client: '', date_rdv: '', heure_rdv: '', modalite: 'physique' }
+const emptyRdvProgramme = { nom: '', prenom: '', fonction: '', client: '', objet_meeting: '', date_rdv: '', heure_rdv: '', modalite: 'physique' }
 
 const RdvProgrammesPanel = ({ iaId }) => {
   const [rdvProgrammes, setRdvProgrammes] = useState([])
@@ -616,7 +616,7 @@ const RdvProgrammesPanel = ({ iaId }) => {
       .then(({ data }) => setRdvProgrammes(data || []))
   }, [iaId])
 
-  const complete = newRdvProgramme.nom_prenom.trim() && newRdvProgramme.client.trim() && newRdvProgramme.date_rdv && newRdvProgramme.heure_rdv && newRdvProgramme.modalite
+  const complete = newRdvProgramme.nom.trim() && newRdvProgramme.prenom.trim() && newRdvProgramme.client.trim() && newRdvProgramme.objet_meeting && newRdvProgramme.date_rdv && newRdvProgramme.heure_rdv && newRdvProgramme.modalite
 
   const addRdvProgramme = async () => {
     if (!complete) return
@@ -625,9 +625,11 @@ const RdvProgrammesPanel = ({ iaId }) => {
     const { data, error: err } = await supabase.from('rdv_programmes')
       .insert({
         ia_id: iaId,
-        nom_prenom: newRdvProgramme.nom_prenom.trim(),
+        nom: newRdvProgramme.nom.trim(),
+        prenom: newRdvProgramme.prenom.trim(),
         fonction: newRdvProgramme.fonction.trim() || null,
         client: newRdvProgramme.client.trim(),
+        objet_meeting: newRdvProgramme.objet_meeting,
         date_rdv: newRdvProgramme.date_rdv,
         heure_rdv: newRdvProgramme.heure_rdv,
         modalite: newRdvProgramme.modalite,
@@ -655,23 +657,32 @@ const RdvProgrammesPanel = ({ iaId }) => {
         <div style={{ fontSize: 12.5, color: '#98A2B3', padding: '4px 0 10px' }}>
           Aucun rendez-vous programmé pour l'instant.
         </div>
-      ) : rdvProgrammes.map(r => (
-        <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 10, background: RDV_PROG_ACCENT_LIGHT, marginBottom: 8 }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: RDV_TITLE }}>
-              {r.nom_prenom}{r.fonction ? ` · ${r.fonction}` : ''}
+      ) : rdvProgrammes.map(r => {
+        const objetColor = OBJET_COLORS[r.objet_meeting] || RDV_PROG_COLOR
+        const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
+        return (
+          <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', borderRadius: 10, background: RDV_PROG_ACCENT_LIGHT, marginBottom: 8 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: RDV_TITLE }}>
+                {r.prenom} {r.nom}{r.fonction ? ` · ${r.fonction}` : ''}
+              </div>
+              <div style={{ fontSize: 12, color: RDV_PROG_COLOR, marginTop: 2 }}>
+                🏢 {r.client} — {new Date(r.date_rdv + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })} à {r.heure_rdv.slice(0, 5)}
+                {' · '}{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}
+              </div>
+              {objetLabel && (
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: objetColor, background: objetColor + '18', borderRadius: 5, padding: '2px 7px' }}>{objetLabel}</span>
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: 12, color: RDV_PROG_COLOR, marginTop: 2 }}>
-              🏢 {r.client} — {new Date(r.date_rdv + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })} à {r.heure_rdv.slice(0, 5)}
-              {' · '}{r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}
-            </div>
+            <button onClick={() => removeRdvProgramme(r.id)} title="Supprimer"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: RDV_PROG_COLOR, opacity: 0.6, fontSize: 15, flexShrink: 0 }}>
+              <i className="ti ti-x" aria-hidden="true"></i>
+            </button>
           </div>
-          <button onClick={() => removeRdvProgramme(r.id)} title="Supprimer"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: RDV_PROG_COLOR, opacity: 0.6, fontSize: 15, flexShrink: 0 }}>
-            <i className="ti ti-x" aria-hidden="true"></i>
-          </button>
-        </div>
-      ))}
+        )
+      })}
 
       <div className="ui-card" style={{ marginTop: rdvProgrammes.length > 0 ? 14 : 0 }}>
         <div className="ui-card-header">
@@ -681,19 +692,33 @@ const RdvProgrammesPanel = ({ iaId }) => {
 
         <div className="ui-grid-2">
           <div className="ui-field">
-            <label className="ui-field-label">Nom Prénom *</label>
-            <input className="ui-input" type="text" placeholder="Ex: Jean Dupont" value={newRdvProgramme.nom_prenom} onChange={e => setNewRdvProgramme(r => ({ ...r, nom_prenom: e.target.value }))} />
+            <label className="ui-field-label">Nom *</label>
+            <input className="ui-input" type="text" placeholder="Ex: Dupont" value={newRdvProgramme.nom} onChange={e => setNewRdvProgramme(r => ({ ...r, nom: e.target.value }))} />
           </div>
           <div className="ui-field">
-            <label className="ui-field-label">Fonction</label>
-            <input className="ui-input" type="text" placeholder="Ex: DRH, Directeur IT..." value={newRdvProgramme.fonction} onChange={e => setNewRdvProgramme(r => ({ ...r, fonction: e.target.value }))} />
+            <label className="ui-field-label">Prénom *</label>
+            <input className="ui-input" type="text" placeholder="Ex: Jean" value={newRdvProgramme.prenom} onChange={e => setNewRdvProgramme(r => ({ ...r, prenom: e.target.value }))} />
           </div>
         </div>
 
         <div className="ui-grid-2">
           <div className="ui-field">
+            <label className="ui-field-label">Fonction</label>
+            <input className="ui-input" type="text" placeholder="Ex: DRH, Directeur IT..." value={newRdvProgramme.fonction} onChange={e => setNewRdvProgramme(r => ({ ...r, fonction: e.target.value }))} />
+          </div>
+          <div className="ui-field">
             <label className="ui-field-label">Client *</label>
             <input className="ui-input" type="text" placeholder="Raison sociale du client" value={newRdvProgramme.client} onChange={e => setNewRdvProgramme(r => ({ ...r, client: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Typologie *</label>
+            <select className="ui-input" value={newRdvProgramme.objet_meeting} onChange={e => setNewRdvProgramme(r => ({ ...r, objet_meeting: e.target.value }))}>
+              <option value="">Sélectionner...</option>
+              {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
           <div className="ui-field">
             <label className="ui-field-label">Modalité *</label>
