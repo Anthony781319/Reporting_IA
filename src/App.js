@@ -11,6 +11,7 @@ import DashboardRH from './pages/DashboardRH'
 import BilanEquipe from './pages/BilanEquipe'
 import Contacts from './pages/Contacts'
 import Classement from './pages/Classement'
+import ProspectionSaisie from './pages/ProspectionSaisie'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
@@ -31,10 +32,11 @@ export default function App() {
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
   const [isContacts, setIsContacts] = useState(false)
+  const [isProspection, setIsProspection] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
@@ -60,6 +62,9 @@ export default function App() {
     if (ia.nom === 'Contacts' && password === CONTACTS_PASSWORD) {
       resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
     }
+    if (initialTab === 'prospection' && password.toLowerCase() === ia.nom.toLowerCase()) {
+      resetRoles(); setUser(ia); setIsProspection(true); setTab('prospection-saisie'); return true
+    }
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setTab('saisie'); return true
     }
@@ -74,7 +79,6 @@ export default function App() {
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
-    { id: 'classement',        icon: 'ti-trophy',         label: 'Classement' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
   ]
@@ -82,19 +86,19 @@ export default function App() {
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
-    { id: 'classement',        icon: 'ti-trophy',         label: 'Classement' },
   ]
   const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
-  const userTabs = [
-    { id: 'saisie',      icon: 'ti-edit',   label: 'Ma saisie' },
-    { id: 'classement',  icon: 'ti-trophy', label: 'Classement' },
-  ]
+  const userTabs = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
   const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
   const contactsTabs = [{ id: 'contacts', icon: 'ti-address-book', label: 'Contacts' }]
+  const prospectionTabs = [
+    { id: 'prospection-saisie',     icon: 'ti-edit',   label: 'Saisie RDV' },
+    { id: 'prospection-classement', icon: 'ti-trophy', label: 'Classement' },
+  ]
 
-  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : userTabs
+  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : userTabs
 
   const getAvatar = () => {
     if (user.nom === 'P1 of the week') return 'P1'
@@ -108,6 +112,7 @@ export default function App() {
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
     if (isContacts) return 'Base Contacts'
+    if (isProspection) return 'Prospection du lundi'
     return 'Reporting'
   }
 
@@ -150,7 +155,8 @@ export default function App() {
         {tab === 'dashboard-rh'      && <DashboardRH />}
         {tab === 'entretiens'        && <Entretiens />}
         {tab === 'contacts'          && <Contacts />}
-        {tab === 'classement'        && <Classement />}
+        {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
+        {tab === 'prospection-classement' && <Classement />}
       </div>
     </div>
   )
