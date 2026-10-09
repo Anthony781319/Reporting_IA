@@ -485,6 +485,170 @@ const RdvRecentList = ({ list, onRemove }) => {
 }
 
 // ─────────────────────────────────────────────
+// RDV PROGRAMMÉS (rendez-vous à venir, 2 prochaines semaines)
+// Reporting hebdo de chaque IA : distinct de "RDV Commerciaux" (rétrospectif, rdv_details)
+// et de la saisie "Prospection du lundi" (séance live 16h-18h, rdv_programmes aussi mais
+// filtrée par created_at) — ici chaque IA déclare au fil de l'eau les RDV déjà pris pour les
+// 2 prochaines semaines, visibles ensuite côté manager (carte "RDV programmés 14j").
+// ─────────────────────────────────────────────
+const RDVPROG_COLOR = '#2563EB'
+const RDVPROG_ACCENT_LIGHT = '#EAF1FD'
+const RDVPROG_ACCENT_RING = 'rgba(37,99,235,0.18)'
+
+const emptyRdvProgramme = { nom: '', prenom: '', fonction: '', client: '', objet_meeting: '', date_rdv: '', heure_rdv: '', modalite: 'physique' }
+
+function RdvProgrammesPanel({ iaId }) {
+  const [list, setList] = useState([])
+  const [form, setForm] = useState(emptyRdvProgramme)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  const load = async () => {
+    const today = todayISO()
+    const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+    const { data } = await supabase.from('rdv_programmes').select('*').eq('ia_id', iaId)
+      .gte('date_rdv', today).lte('date_rdv', in14).order('date_rdv').order('heure_rdv')
+    setList(data || [])
+    setLoaded(true)
+  }
+
+  useEffect(() => { if (iaId) load() }, [iaId])
+
+  const complete = form.nom.trim() && form.prenom.trim() && form.client.trim() && form.objet_meeting && form.date_rdv && form.heure_rdv && form.modalite
+
+  const submit = async () => {
+    if (!complete) return
+    setSaving(true)
+    setError('')
+    const { data, error: err } = await supabase.from('rdv_programmes').insert({
+      ia_id: iaId,
+      nom: form.nom.trim(),
+      prenom: form.prenom.trim(),
+      fonction: form.fonction.trim() || null,
+      client: form.client.trim(),
+      objet_meeting: form.objet_meeting,
+      date_rdv: form.date_rdv,
+      heure_rdv: form.heure_rdv,
+      modalite: form.modalite,
+    }).select().single()
+    if (data) {
+      setList(l => [...l, data].sort((a, b) => (a.date_rdv + a.heure_rdv).localeCompare(b.date_rdv + b.heure_rdv)))
+      setForm(emptyRdvProgramme)
+    } else {
+      setError(err?.message || "Erreur d'enregistrement, réessaie.")
+    }
+    setSaving(false)
+  }
+
+  const remove = async (id) => {
+    await supabase.from('rdv_programmes').delete().eq('id', id)
+    setList(l => l.filter(r => r.id !== id))
+  }
+
+  return (
+    <PremiumPanel accent={RDVPROG_COLOR} accentLight={RDVPROG_ACCENT_LIGHT} accentRing={RDVPROG_ACCENT_RING}>
+      <PremiumSectionHeader icon="ti-calendar-time" title="RDV programmés — 2 prochaines semaines" />
+
+      <div className="ui-card">
+        <div className="ui-card-header">
+          <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
+          <div className="ui-card-title">Ajouter un RDV à venir</div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Nom *</label>
+            <input className="ui-input" type="text" placeholder="Dupont" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Prénom *</label>
+            <input className="ui-input" type="text" placeholder="Jean" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Fonction</label>
+            <input className="ui-input" type="text" placeholder="DRH, Directeur IT..." value={form.fonction} onChange={e => setForm(f => ({ ...f, fonction: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Client *</label>
+            <input className="ui-input" type="text" placeholder="Raison sociale" value={form.client} onChange={e => setForm(f => ({ ...f, client: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="ui-grid-3">
+          <div className="ui-field">
+            <label className="ui-field-label">Typologie *</label>
+            <select className="ui-input" value={form.objet_meeting} onChange={e => setForm(f => ({ ...f, objet_meeting: e.target.value }))}>
+              <option value="">Choisir...</option>
+              {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Date *</label>
+            <input className="ui-input" type="date" value={form.date_rdv} onChange={e => setForm(f => ({ ...f, date_rdv: e.target.value }))} />
+          </div>
+          <div className="ui-field">
+            <label className="ui-field-label">Heure *</label>
+            <input className="ui-input" type="time" value={form.heure_rdv} onChange={e => setForm(f => ({ ...f, heure_rdv: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="ui-grid-2">
+          <div className="ui-field">
+            <label className="ui-field-label">Modalité *</label>
+            <select className="ui-input" value={form.modalite} onChange={e => setForm(f => ({ ...f, modalite: e.target.value }))}>
+              <option value="physique">🤝 Physique</option>
+              <option value="teams">💻 Teams</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="ui-cta-row">
+          <span className="rdv-required-note">* Champs obligatoires</span>
+          <button className="ui-btn-primary" onClick={submit} disabled={saving || !complete}>
+            {saving ? 'Enregistrement...' : 'Enregistrer le RDV'}
+          </button>
+        </div>
+        {error && (
+          <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12 }}>
+            ⚠️ {error}
+          </div>
+        )}
+      </div>
+
+      <div className="rdv-list-title">RDV programmés{loaded ? ` (${list.length})` : ''}</div>
+      {loaded && list.length === 0 && (
+        <div className="rdv-empty">
+          <div style={{ fontSize: 13, fontWeight: 600, color: RDV_TEXT }}>Aucun RDV programmé sur les 2 prochaines semaines</div>
+          <div style={{ fontSize: 12, marginTop: 2 }}>Ajoutez votre premier RDV ci-dessus.</div>
+        </div>
+      )}
+      {list.map(r => {
+        const color = OBJET_COLORS[r.objet_meeting] || RDVPROG_COLOR
+        const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
+        return (
+          <div key={r.id} className="rdv-item">
+            <div className="rdv-item-main">
+              <div className="rdv-item-client">{r.client || '—'}</div>
+              <div className="rdv-item-meta">
+                <b style={{ color }}>{objetLabel}</b> · {r.date_rdv ? new Date(r.date_rdv + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'} à {r.heure_rdv?.slice(0, 5)} · {r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}
+              </div>
+              {(r.prenom || r.nom || r.fonction) && (
+                <div className="rdv-item-contact">{[r.prenom, r.nom].filter(Boolean).join(' ')}{r.fonction ? ' · ' + r.fonction : ''}</div>
+              )}
+            </div>
+            <button className="rdv-item-delete" onClick={() => remove(r.id)}>Supprimer</button>
+          </div>
+        )
+      })}
+    </PremiumPanel>
+  )
+}
+
+// ─────────────────────────────────────────────
 // POSITIONNEMENT COLLABORATEUR ITC
 // ─────────────────────────────────────────────
 const POSITIONNEMENT_STATUTS = [
@@ -1037,6 +1201,10 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
 
             {/* Accordion détail présentations (candidat présenté), toujours liée aux RDV de type Présentation — hors du panneau clair, comme avant */}
             <DetailAccordion type="presentation" count={rdvCounts.presentations} iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <RdvProgrammesPanel iaId={iaId} />
           </div>
 
           <div style={{ marginBottom: 24 }}>
