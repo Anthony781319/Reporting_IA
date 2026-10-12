@@ -12,7 +12,6 @@ const currentWeek = () => {
   return Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
 }
 
-const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
 
 const AVATAR_COLORS = [
   ['#EDE9FE','#6D28D9'],['#D1FAE5','#065F46'],['#FEF3C7','#92400E'],
@@ -729,7 +728,18 @@ function PanneauRecrutement({ semaine, setSemaine }) {
   const [allSigs, setAllSigs] = useState([])
   const [allRdv, setAllRdv] = useState([])
   const [allCv, setAllCv] = useState([])
+  const [crList, setCrList] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Liste des CR : dynamique (table ia, type='cr'), gérée depuis Admin — plus besoin de retoucher au code
+  // à chaque arrivée/départ d'une CR.
+  useEffect(() => {
+    let active = true
+    supabase.from('ia').select('nom').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
+      if (active) setCrList((data || []).map(r => r.nom))
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -753,7 +763,7 @@ function PanneauRecrutement({ semaine, setSemaine }) {
 
   useEffect(() => {
     const repMap = {}
-    CR_LIST.forEach(cr => {
+    crList.forEach(cr => {
       const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === semaine)
       repMap[cr] = {
         nb_entretiens:        rows.reduce((a,r)=>a+(r.nb_entretiens||0),0),
@@ -764,16 +774,16 @@ function PanneauRecrutement({ semaine, setSemaine }) {
       }
     })
     setReportings(repMap)
-  }, [semaine, allReportings])
+  }, [semaine, allReportings, crList])
 
-  const total = key => CR_LIST.reduce((acc, cr) => acc + (reportings[cr]?.[key] || 0), 0)
+  const total = key => crList.reduce((acc, cr) => acc + (reportings[cr]?.[key] || 0), 0)
   const prev  = key => {
     const prevMap = {}
-    CR_LIST.forEach(cr => {
+    crList.forEach(cr => {
       const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === semaine - 1)
       prevMap[cr] = rows.reduce((a,r)=>a+(r[key]||0),0)
     })
-    return CR_LIST.reduce((acc,cr) => acc + (prevMap[cr]||0), 0)
+    return crList.reduce((acc,cr) => acc + (prevMap[cr]||0), 0)
   }
 
   // Tendance 6 semaines
@@ -789,7 +799,7 @@ function PanneauRecrutement({ semaine, setSemaine }) {
   })
 
   // Classement semaine : RDV=1pt, Prez=3pts, Sign=6pts
-  const ranking = CR_LIST.map(cr => {
+  const ranking = crList.map(cr => {
     const rows = allReportings.filter(r => r.cr_nom === cr && r.semaine === semaine)
     const rdv  = rows.reduce((a,r)=>a+(r.nb_entretiens||0),0)
     const prez = rows.reduce((a,r)=>a+(r.nb_presentations||0),0)
@@ -879,13 +889,13 @@ function PanneauRecrutement({ semaine, setSemaine }) {
           <Podium ranking={ranking} accentColor="#0F6E56" bgGradient="linear-gradient(180deg,#F0FDF9,#E1F5EE)" borderColor="#A7F3D0" />
         </>
       ) : (
-        <FocusCR allReportings={allReportings} allPres={allPres} allSigs={allSigs} allRdv={allRdv} allCv={allCv} semaine={semaine} annee={annee} key={semaine} />
+        <FocusCR allReportings={allReportings} allPres={allPres} allSigs={allSigs} allRdv={allRdv} allCv={allCv} crList={crList} semaine={semaine} annee={annee} key={semaine} />
       )}
     </div>
   )
 }
 
-function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, annee }) {
+function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, crList, semaine, annee }) {
   const [selectedCR, setSelectedCR] = useState(null)
   const [crIndex, setCrIndex] = useState(0)
   const [viewMode, setViewMode] = useState('semaine')
@@ -920,7 +930,7 @@ function FocusCR({ allReportings, allPres, allSigs, allRdv, allCv, semaine, anne
 
   if (!selectedCR) return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-      {CR_LIST.map((cr, i) => {
+      {crList.map((cr, i) => {
         const [bg, fg] = CR_COLORS[i % CR_COLORS.length]
         return (
           <div key={cr} onClick={() => { setSelectedCR(cr); setCrIndex(i); setViewMode('semaine') }}
@@ -1215,7 +1225,7 @@ export default function DashboardManager({ restrictedScope = null }) {
       supabase.from('rdv_details').select('ia_id, contact_id, nom, prenom, client, date_meeting').eq('annee', annee),
     ])
     setSaisies(all || [])
-    setIaList((ia || []).filter(i => i.statut !== 'ancien'))
+    setIaList((ia || []).filter(i => i.statut !== 'ancien' && i.type !== 'cr'))
     setP1Data(p1 || [])
     setPositionnements(pos || [])
     setRdvProgrammes(rdvProg || [])
@@ -1550,6 +1560,7 @@ function ReunionCardPresentationsEnAttente({ selectedWeek, items, loading, onSta
 function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, onClose }) {
   const [crReporting, setCrReporting] = useState([])
   const [crLoading, setCrLoading] = useState(true)
+  const [crList, setCrList] = useState([])
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -1565,6 +1576,15 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
     })
     return () => { active = false }
   }, [annee])
+
+  // Liste des CR, dynamique (table ia, type='cr') — mêmes conventions que PanneauRecrutement.
+  useEffect(() => {
+    let active = true
+    supabase.from('ia').select('nom').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
+      if (active) setCrList((data || []).map(r => r.nom))
+    })
+    return () => { active = false }
+  }, [])
 
   // Détail des présentations (S-1 + S en cours), chargé UNE SEULE FOIS ici et partagé entre les cartes
   // "Présentations réalisées" et "Retours de prez en attente" : elles filtrent chacune ce même tableau
@@ -1633,7 +1653,7 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
   const crWeekData = crReporting.filter(r => r.semaine === selectedWeek)
   const crPrevData = crReporting.filter(r => r.semaine === selectedWeek - 1)
   const sumCr = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
-  const byCr = (key) => CR_LIST.map(cr => ({ nom: cr, value: sumCr(crWeekData.filter(r => r.cr_nom === cr), key) }))
+  const byCr = (key) => crList.map(cr => ({ nom: cr, value: sumCr(crWeekData.filter(r => r.cr_nom === cr), key) }))
 
   const entretiens = sumCr(crWeekData, 'nb_entretiens')
   const entretiensPrev = sumCr(crPrevData, 'nb_entretiens')
