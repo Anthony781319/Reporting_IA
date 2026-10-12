@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
-
 const PORTALS = [
   { id: 'ia',           icon: '💼', label: "Le Commerce",       desc: 'Accès à ton espace reporting',    bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
@@ -94,7 +92,7 @@ export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (portal === 'ia' || portal === 'prospection') {
+    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement') {
       setLoading(true)
       supabase.from('ia').select('*').order('nom').then(({ data }) => {
         setIaList(data || [])
@@ -201,7 +199,7 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'ia') {
-    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien')
+    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr')
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
@@ -234,7 +232,7 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'prospection') {
-    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien')
+    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr')
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
@@ -267,32 +265,35 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'recrutement') {
+    const crList = iaList.filter(ia => ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
         <Header icon="👥" title="Recrutement" />
         <div style={{ width: '100%', maxWidth: 360 }}>
           <div style={labelStyle}>Je suis...</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
-            {CR_LIST.map((cr, i) => {
-              const c = CARD_COLORS[i % CARD_COLORS.length]
-              const isSelected = selected === cr
-              return (
-                <div key={cr} onClick={() => { setSelected(cr); setError('') }}
-                  style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
-                    {cr.slice(0, 2).toUpperCase()}
+          {loading ? <Loader /> : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
+              {crList.map((cr, i) => {
+                const c = CARD_COLORS[i % CARD_COLORS.length]
+                const isSelected = selected === cr
+                return (
+                  <div key={cr} onClick={() => { setSelected(cr); setError('') }}
+                    style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
+                      {cr.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
-                </div>
-              )
-            })}
-            <div onClick={() => { setSelected('P1 of the week'); setError('') }}
-              style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: '#F1EFE8', border: '1.5px solid ' + (selected === 'P1 of the week' ? '#5F5E5A' : '#F1EFE8'), outline: selected === 'P1 of the week' ? '2.5px solid #5F5E5A' : 'none', transition: 'all 0.15s' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#5F5E5A', color: '#F1EFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>P1</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#444441', textAlign: 'center' }}>P1 of the week</div>
+                )
+              })}
+              <div onClick={() => { setSelected('P1 of the week'); setError('') }}
+                style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: '#F1EFE8', border: '1.5px solid ' + (selected === 'P1 of the week' ? '#5F5E5A' : '#F1EFE8'), outline: selected === 'P1 of the week' ? '2.5px solid #5F5E5A' : 'none', transition: 'all 0.15s' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#5F5E5A', color: '#F1EFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>P1</div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#444441', textAlign: 'center' }}>P1 of the week</div>
+              </div>
             </div>
-          </div>
+          )}
           <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitCR} />
           {error && <ErrorMsg msg={error} />}
           <SubmitBtn disabled={!selected} onClick={handleSubmitCR} />
