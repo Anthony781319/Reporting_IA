@@ -64,7 +64,7 @@ export default function Entretiens() {
 
   const fetchIas = async () => {
     const { data } = await supabase.from('ia').select('id, nom, email, statut').order('nom')
-    if (data) setIas(data.filter(ia => ia.statut !== 'ancien'))
+    if (data) setIas(data.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr'))
   }
 
   const fetchData = async (iaId) => {
