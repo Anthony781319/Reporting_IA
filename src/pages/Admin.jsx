@@ -21,6 +21,16 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   const [saisieIA, setSaisieIA] = useState(null)
   const [saisieIndex, setSaisieIndex] = useState(0)
 
+  // CR (chargé·es de recrutement) : mêmes conventions que les IA, mais stockées dans la même table
+  // (ia.type = 'cr') pour que le login "Recrutement" et les dashboards les retrouvent dynamiquement —
+  // plus besoin de retoucher le code à chaque arrivée/départ d'une CR.
+  const [crList, setCrList] = useState([])
+  const [crAnciensList, setCrAnciensList] = useState([])
+  const [showCrAnciens, setShowCrAnciens] = useState(false)
+  const [crNom, setCrNom] = useState('')
+  const [crAdding, setCrAdding] = useState(false)
+  const [crMsg, setCrMsg] = useState('')
+
   // Liste de référence des collaborateurs en intercontrat, utilisée par le menu "Positionnement collaborateur ITC"
   // dans Ma saisie : les commerciaux choisissent dans cette liste plutôt que de retaper un nom en texte libre,
   // pour que le manager puisse ensuite compter fiablement le nombre de push par collaborateur.
@@ -36,8 +46,10 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   const loadIA = async () => {
     const { data } = await supabase.from('ia').select('*').order('nom')
     const all = data || []
-    setIaList(all.filter(ia => ia.statut !== 'ancien'))
-    setAnciensList(all.filter(ia => ia.statut === 'ancien'))
+    setIaList(all.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr'))
+    setAnciensList(all.filter(ia => ia.statut === 'ancien' && ia.type !== 'cr'))
+    setCrList(all.filter(ia => ia.type === 'cr' && ia.statut !== 'ancien'))
+    setCrAnciensList(all.filter(ia => ia.type === 'cr' && ia.statut === 'ancien'))
     setLoading(false)
   }
 
@@ -67,6 +79,35 @@ export default function Admin({ onSelectIA, selectedIaId }) {
 
   const removeIA = async (id) => {
     if (!window.confirm('Supprimer définitivement cet IA ? Ses données seront effacées, cette action est irréversible.')) return
+    await supabase.from('ia').delete().eq('id', id)
+    await loadIA()
+  }
+
+  const addCR = async () => {
+    if (!crNom.trim()) return setCrMsg('Prénom requis')
+    setCrAdding(true)
+    const { error } = await supabase.from('ia').insert({ nom: crNom.trim(), type: 'cr', statut: 'actif' })
+    if (error) setCrMsg('Erreur : ' + error.message)
+    else { setCrNom(''); setCrMsg('CR ajoutée !'); await loadIA() }
+    setCrAdding(false)
+    setTimeout(() => setCrMsg(''), 3000)
+  }
+
+  // Archiver : la CR a quitté la société. Son historique de reporting reste consultable, elle disparaît
+  // juste de l'écran de connexion et des dashboards actifs.
+  const archiveCR = async (id) => {
+    if (!window.confirm("Archiver cette CR ? Elle n'apparaîtra plus dans l'écran de connexion, mais ses données historiques sont conservées.")) return
+    await supabase.from('ia').update({ statut: 'ancien' }).eq('id', id)
+    await loadIA()
+  }
+
+  const reactivateCR = async (id) => {
+    await supabase.from('ia').update({ statut: 'actif' }).eq('id', id)
+    await loadIA()
+  }
+
+  const removeCR = async (id) => {
+    if (!window.confirm('Supprimer définitivement cette CR ? Cette action est irréversible.')) return
     await supabase.from('ia').delete().eq('id', id)
     await loadIA()
   }
@@ -240,6 +281,80 @@ export default function Admin({ onSelectIA, selectedIaId }) {
                   ↩️ Réactiver
                 </button>
                 <button onClick={() => removeIA(ia.id)} title="Supprimer définitivement"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+                  <i className="ti ti-trash" aria-hidden="true"></i>
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Section Recrutement (CR) — même logique que les IA, stockées dans la même table (type='cr') */}
+      <div style={{ height: 1, background: 'var(--color-border-tertiary)', margin: '24px 0' }} />
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, letterSpacing: '-0.3px' }}>
+        👥 Chargé(e)s de recrutement (CR)
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+        Liste utilisée par le portail de connexion "Recrutement" et les dashboards recrutement.
+      </div>
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+        {crList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '11px 14px' }}>Aucune CR pour le moment.</div>
+        ) : crList.map((cr, i) => (
+          <div key={cr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+            <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#E1F5EE', color: '#0F6E56', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>
+              {cr.nom.slice(0, 2).toUpperCase()}
+            </div>
+            <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-primary)' }}>{cr.nom}</span>
+            <button onClick={() => archiveCR(cr.id)} title="Archiver (a quitté la société)"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
+              <i className="ti ti-archive" aria-hidden="true"></i>
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14 }}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Prénom</label>
+          <input type="text" value={crNom} onChange={e => setCrNom(e.target.value)} placeholder="ex: Salma" style={{ width: '100%' }} />
+        </div>
+        {crMsg && (
+          <div style={{ fontSize: 12, marginBottom: 10, color: crMsg.includes('Erreur') ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: crMsg.includes('Erreur') ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
+            {crMsg}
+          </div>
+        )}
+        <button onClick={addCR} disabled={crAdding}
+          style={{ width: '100%', padding: 12, background: '#0F6E56', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          {crAdding ? 'Ajout...' : '+ Ajouter'}
+        </button>
+      </div>
+
+      <div onClick={() => setShowCrAnciens(!showCrAnciens)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginTop: 20, marginBottom: showCrAnciens ? 14 : 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
+          🗄️ Anciennes CR {crAnciensList.length > 0 && `(${crAnciensList.length})`}
+        </div>
+        <i className={`ti ti-chevron-${showCrAnciens ? 'up' : 'down'}`} aria-hidden="true" style={{ color: 'var(--color-text-secondary)' }}></i>
+      </div>
+
+      {showCrAnciens && (
+        crAnciensList.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '8px 0' }}>Aucune CR archivée pour le moment.</div>
+        ) : (
+          <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
+            {crAnciensList.map((cr, i) => (
+              <div key={cr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#F3F4F6', color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>
+                  {cr.nom.slice(0, 2).toUpperCase()}
+                </div>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-secondary)' }}>{cr.nom}</span>
+                <button onClick={() => reactivateCR(cr.id)} title="Réactiver"
+                  style={{ background: 'none', border: '1.5px solid #0F6E56', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#0F6E56', marginRight: 4 }}>
+                  ↩️ Réactiver
+                </button>
+                <button onClick={() => removeCR(cr.id)} title="Supprimer définitivement"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
                   <i className="ti ti-trash" aria-hidden="true"></i>
                 </button>
