@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-const CR_LIST = ['Younes', 'Soundous', 'Soukaina', 'Abir']
-
 const currentWeek = () => {
   const now = new Date()
   const start = new Date(now.getFullYear(), 0, 1)
@@ -39,6 +37,17 @@ export default function DashboardRH() {
   const [sigs, setSigs] = useState({})
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
+  const [crList, setCrList] = useState([])
+
+  // Liste des CR, dynamique (table ia, type='cr', gérée depuis Admin) — plus besoin de retoucher
+  // au code à chaque arrivée/départ d'une CR.
+  useEffect(() => {
+    let active = true
+    supabase.from('ia').select('nom').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
+      if (active) setCrList((data || []).map(r => r.nom))
+    })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -62,7 +71,7 @@ export default function DashboardRH() {
       ])
 
       const repMap = {}
-      CR_LIST.forEach(cr => {
+      crList.forEach(cr => {
         const rows = (rep || []).filter(r => r.cr_nom === cr)
         repMap[cr] = {
           nb_entretiens: rows.reduce((a, r) => a + (r.nb_entretiens || 0), 0),
@@ -77,7 +86,7 @@ export default function DashboardRH() {
       const rdvMap = {}
       const presMap = {}
       const sigMap = {}
-      CR_LIST.forEach(cr => {
+      crList.forEach(cr => {
         rdvMap[cr] = (rdv || []).filter(r => r.cr_nom === cr)
         presMap[cr] = (pr || []).filter(p => p.cr_nom === cr)
         sigMap[cr] = (sig || []).filter(s => s.cr_nom === cr)
@@ -88,9 +97,9 @@ export default function DashboardRH() {
       setLoading(false)
     }
     load()
-  }, [semaine, annee, mode])
+  }, [semaine, annee, mode, crList])
 
-  const total = (key) => CR_LIST.reduce((acc, cr) => acc + (reportings[cr]?.[key] || 0), 0)
+  const total = (key) => crList.reduce((acc, cr) => acc + (reportings[cr]?.[key] || 0), 0)
 
   const kpis = [
     { label: 'Entretiens', key: 'nb_entretiens', color: '#534AB7', bg: '#EEEDFE' },
@@ -146,7 +155,7 @@ export default function DashboardRH() {
 
           <div style={sectionTitle2}>👤 Par chargé(e) de recrutement</div>
 
-          {CR_LIST.map(cr => {
+          {crList.map(cr => {
             const rep = reportings[cr] || {}
             const isOpen = expanded === cr
             return (
