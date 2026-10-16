@@ -1,151 +1,81 @@
 import Entretiens from './pages/Entretiens'
-
 import { useState } from 'react'
-
 import Dashboard from './pages/Dashboard'
-
 import DashboardManager from './pages/DashboardManager'
-
 import Saisie from './pages/Saisie'
-
 import Admin from './pages/Admin'
-
 import Login from './pages/Login'
-
 import P1Page from './pages/P1Page'
-
 import SaisieCR from './pages/SaisieCR'
-
 import DashboardRH from './pages/DashboardRH'
-
 import BilanEquipe from './pages/BilanEquipe'
-
 import Contacts from './pages/Contacts'
-
 import Classement from './pages/Classement'
-
 import ProspectionSaisie from './pages/ProspectionSaisie'
-
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
-
 const P1_PASSWORD = 'P1'
-
 const RH_PASSWORD = 'rh'
-
 // Accès manager restreint : Romain gère Luxhana, Virginie, Andrea et Laila en plus de sa propre saisie.
-
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
-
 const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Laila', 'Romain']
-
 // Dashboard Stéphane : accès manager complet (comme Anthony) mais scopé à son équipe.
-
 const STEPHANE_MANAGER_PASSWORD = 'Stéphane'
-
 const STEPHANE_TEAM = ['Antoine', 'Nassim', 'Karim', 'Sarah', 'Stéphane']
-
 // Accès à la base de contacts (répertoire clients/prospects issu des saisies des IA).
-
 const CONTACTS_PASSWORD = 'crm'
 
 export default function App() {
-
   const [user, setUser] = useState(null)
-
   const [isManager, setIsManager] = useState(false)
-
   const [isTeamManager, setIsTeamManager] = useState(false)
-
   const [isStephaneManager, setIsStephaneManager] = useState(false)
-
   const [isAdminOnly, setIsAdminOnly] = useState(false)
-
   const [isP1, setIsP1] = useState(false)
-
   const [isCR, setIsCR] = useState(false)
-
   const [isRH, setIsRH] = useState(false)
-
   const [isContacts, setIsContacts] = useState(false)
-
   const [isProspection, setIsProspection] = useState(false)
-
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-
     setIsManager(false); setIsTeamManager(false); setIsStephaneManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false)
-
   }
 
   const handleLogin = (ia, password, initialTab) => {
-
     if (ia.nom === 'RH' && password === RH_PASSWORD) {
-
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
-
     }
-
     if (ia.type === 'cr' && password.toLowerCase() === ia.nom.toLowerCase()) {
-
       resetRoles(); setUser(ia); setIsCR(true); setTab('saisie-cr'); return true
-
     }
-
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
-
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
-
     }
-
     if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
-
       resetRoles()
-
       setUser(ia)
-
       if (initialTab === 'admin') { setIsAdminOnly(true); setTab('admin') }
-
       else { setIsManager(true); setTab('dashboard-manager') }
-
       return true
-
     }
-
     if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
-
       resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
-
     }
-
-    if (ia.nom === 'Stéphane' && password === STEPHANE_MANAGER_PASSWORD) {
-
+    if (ia.nom === 'Stéphane' && password.toLowerCase() === STEPHANE_MANAGER_PASSWORD.toLowerCase()) {
       resetRoles(); setUser(ia); setIsManager(true); setIsStephaneManager(true); setTab('dashboard-manager'); return true
-
     }
-
     if (ia.nom === 'Contacts' && password === CONTACTS_PASSWORD) {
-
       resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
-
     }
-
     if (initialTab === 'prospection' && password.toLowerCase() === ia.nom.toLowerCase()) {
-
       resetRoles(); setUser(ia); setIsProspection(true); setTab('prospection-saisie'); return true
-
     }
-
     if (password.toLowerCase() === ia.nom.toLowerCase()) {
-
       resetRoles(); setUser(ia); setTab('saisie'); return true
-
     }
-
     return false
-
   }
 
   const handleLogout = () => { setUser(null); resetRoles(); setTab('saisie') }
@@ -153,143 +83,91 @@ export default function App() {
   if (!user) return <Login onLogin={handleLogin} />
 
   const managerTabs = [
-
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
-
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
-
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
-
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
-
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
-
   ]
-
   const teamManagerTabs = [
-
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
-
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
-
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
-
   ]
-
   const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
-
   const userTabs = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
-
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
-
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
-
   const rhTabs   = [{ id: 'dashboard-rh', icon: 'ti-chart-bar', label: 'Dashboard RH' }]
-
   const contactsTabs = [{ id: 'contacts', icon: 'ti-address-book', label: 'Contacts' }]
-
   const prospectionTabs = [
-
     { id: 'prospection-saisie',     icon: 'ti-edit',   label: 'Saisie RDV' },
-
     { id: 'prospection-classement', icon: 'ti-trophy', label: 'Classement' },
-
   ]
 
   const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : userTabs
 
   // Périmètre de données pour les managers scopés (nav complète ou restreinte) : Romain (restreint) et Stéphane (complet).
-
   const managerScope = isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null
 
   const getAvatar = () => {
-
     if (user.nom === 'P1 of the week') return 'P1'
-
     if (user.nom === 'RH') return 'RH'
-
     return user.nom.slice(0, 2).toUpperCase()
-
   }
 
   const getTitle = () => {
-
     if (isManager) return 'Reporting IA'
-
     if (isAdminOnly) return 'Admin'
-
     if (isP1) return 'P1 of the week'
-
     if (isCR || isRH) return 'Espace Recrutement'
-
     if (isContacts) return 'Base Contacts'
-
     if (isProspection) return 'Prospection du lundi'
-
     return 'Reporting'
-
   }
 
   return (
-<div className={`app${tab === 'p1' ? ' wide' : ''}`}>
-<div className="nav">
-<div className="nav-title">
-<i className="ti ti-chart-bar" aria-hidden="true"></i>
-
+    <div className={`app${tab === 'p1' ? ' wide' : ''}`}>
+      <div className="nav">
+        <div className="nav-title">
+          <i className="ti ti-chart-bar" aria-hidden="true"></i>
           {getTitle()}
-</div>
-<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-<div className="nav-avatar">{getAvatar()}</div>
-<button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 13 }}>
-<i className="ti ti-logout" aria-hidden="true"></i>
-</button>
-</div>
-</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="nav-avatar">{getAvatar()}</div>
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 13 }}>
+            <i className="ti ti-logout" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
 
       {tabs.length > 1 && (
-<div className="tabs-wrapper">
-<div className="tabs-pill">
-
+        <div className="tabs-wrapper">
+          <div className="tabs-pill">
             {tabs.map(t => (
-<button key={t.id} onClick={() => setTab(t.id)} className={`tab-pill ${tab === t.id ? 'active' : ''}`}>
-<i className={`ti ${t.icon}`} aria-hidden="true"></i>
-<span>{t.label}</span>
-</button>
-
+              <button key={t.id} onClick={() => setTab(t.id)} className={`tab-pill ${tab === t.id ? 'active' : ''}`}>
+                <i className={`ti ${t.icon}`} aria-hidden="true"></i>
+                <span>{t.label}</span>
+              </button>
             ))}
-</div>
-</div>
-
+          </div>
+        </div>
       )}
-<div className="content">
 
+      <div className="content">
         {tab === 'dashboard-manager' && <DashboardManager restrictedScope={managerScope ? { label: user.nom, members: managerScope } : null} />}
-
         {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={managerScope} />}
-
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
-
         {tab === 'ytd'               && <Dashboard ytdOnly={true} scopeMembers={managerScope} />}
-
         {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
-
         {tab === 'p1'                && <P1Page />}
-
         {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} />}
-
         {tab === 'dashboard-rh'      && <DashboardRH />}
-
         {tab === 'entretiens'        && <Entretiens scopeMembers={managerScope} />}
-
         {tab === 'contacts'          && <Contacts />}
-
         {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
-
         {tab === 'prospection-classement' && <Classement />}
-</div>
-</div>
-
+      </div>
+    </div>
   )
-
 }
- 
