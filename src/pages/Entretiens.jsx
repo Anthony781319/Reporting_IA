@@ -37,7 +37,7 @@ const SelectNotation = ({ value, options, onChange }) => {
   )
 }
 
-export default function Entretiens() {
+export default function Entretiens({ scopeMembers = null }) {
   const [ias, setIas] = useState([])
   const [iaSelectionnee, setIaSelectionnee] = useState(null)
   const [iaIndex, setIaIndex] = useState(0)
@@ -64,7 +64,7 @@ export default function Entretiens() {
 
   const fetchIas = async () => {
     const { data } = await supabase.from('ia').select('id, nom, email, statut').order('nom')
-    if (data) setIas(data.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr'))
+    if (data) setIas(data.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr' && (!scopeMembers || scopeMembers.includes(ia.nom))))
   }
 
   const fetchData = async (iaId) => {
