@@ -44,6 +44,27 @@ export default function App() {
   }
 
   const handleLogin = (ia, password, initialTab) => {
+    // Logins du portail "Manager" (tuiles dédiées) : un mauvais mot de passe doit échouer
+    // franchement ici, jamais retomber plus bas sur la connexion générique "prénom = mot de passe"
+    // — sinon un mot de passe manager mal tapé loguait silencieusement la personne comme simple IA.
+    if (initialTab === 'manager-commerce') {
+      if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
+        resetRoles(); setUser(ia); setIsManager(true); setTab('dashboard-manager'); return true
+      }
+      return false
+    }
+    if (initialTab === 'manager-romain') {
+      if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
+        resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
+      }
+      return false
+    }
+    if (initialTab === 'manager-stephane') {
+      if (ia.nom === 'Stéphane' && password.toLowerCase() === STEPHANE_MANAGER_PASSWORD.toLowerCase()) {
+        resetRoles(); setUser(ia); setIsManager(true); setIsStephaneManager(true); setTab('dashboard-manager'); return true
+      }
+      return false
+    }
     if (ia.nom === 'RH' && password === RH_PASSWORD) {
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
     }
@@ -59,12 +80,6 @@ export default function App() {
       if (initialTab === 'admin') { setIsAdminOnly(true); setTab('admin') }
       else { setIsManager(true); setTab('dashboard-manager') }
       return true
-    }
-    if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
-      resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
-    }
-    if (ia.nom === 'Stéphane' && password.toLowerCase() === STEPHANE_MANAGER_PASSWORD.toLowerCase()) {
-      resetRoles(); setUser(ia); setIsManager(true); setIsStephaneManager(true); setTab('dashboard-manager'); return true
     }
     if (ia.nom === 'Contacts' && password === CONTACTS_PASSWORD) {
       resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
