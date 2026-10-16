@@ -613,7 +613,7 @@ function VueYTD({ saisies, iaList, refreshKey, annee }) {
   )
 }
 
-export default function Dashboard({ ytdOnly = false }) {
+export default function Dashboard({ ytdOnly = false, scopeMembers = null }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
   const [view, setView] = useState('equipe')
@@ -631,9 +631,10 @@ export default function Dashboard({ ytdOnly = false }) {
       supabase.from('ia').select('*').order('nom'),
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
     ])
-    setSaisies(all || [])
-    setIaList((ia || []).filter(i => i.statut !== 'ancien' && i.type !== 'cr'))
-    setP1Data(p1 || [])
+    const inScope = nom => !scopeMembers || scopeMembers.includes(nom)
+    setSaisies((all || []).filter(s => inScope(s.ia?.nom)))
+    setIaList((ia || []).filter(i => i.statut !== 'ancien' && i.type !== 'cr' && inScope(i.nom)))
+    setP1Data((p1 || []).filter(p => inScope(p.ia?.nom)))
     if (showLoading) setLoading(false)
   }
 
