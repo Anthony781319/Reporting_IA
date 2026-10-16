@@ -160,14 +160,14 @@ export default function Login({ onLogin }) {
     if (!romainPassword) return setRomainError('Entre le mot de passe')
     // On va chercher sa vraie fiche IA (id, email…) pour que son onglet "Ma saisie" fonctionne comme pour tout le monde.
     const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Romain').maybeSingle()
-    const ok = onLogin(iaRecord || { nom: 'Romain' }, romainPassword)
+    const ok = onLogin(iaRecord || { nom: 'Romain' }, romainPassword, 'manager-romain')
     if (!ok) setRomainError('Mot de passe incorrect')
   }
 
   const handleStephaneLogin = async () => {
     if (!stephanePassword) return setStephaneError('Entre le mot de passe')
     const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Stéphane').maybeSingle()
-    const ok = onLogin(iaRecord || { nom: 'Stéphane' }, stephanePassword)
+    const ok = onLogin(iaRecord || { nom: 'Stéphane' }, stephanePassword, 'manager-stephane')
     if (!ok) setStephaneError('Mot de passe incorrect')
   }
 
@@ -180,7 +180,7 @@ export default function Login({ onLogin }) {
   const handleManagerLogin = async () => {
     if (!password) return setError('Entre ton mot de passe')
     const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Anthony').maybeSingle()
-    const ok = onLogin(iaRecord || { nom: 'Anthony' }, password)
+    const ok = onLogin(iaRecord || { nom: 'Anthony' }, password, 'manager-commerce')
     if (!ok) setError('Mot de passe incorrect')
   }
 
