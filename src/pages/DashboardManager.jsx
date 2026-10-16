@@ -47,7 +47,7 @@ const KpiCard = ({ label, value, color, bg, previous }) => (
   </div>
 )
 
-const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false, expected, expectedLabel }) => {
+const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false, expected, expectedLabel, scopedIds = null }) => {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -61,7 +61,10 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
       if (iaId) query = query.eq('ia_id', iaId)
       if (!allYear && semaine) query = query.eq('semaine', semaine)
       const { data } = await query
-      setDetails(data || [])
+      // Vue équipe d'un manager scopé (Romain, Stéphane…) : on ne garde que les lignes de ses membres,
+      // sinon le détail remonte l'activité de toute l'entreprise malgré le périmètre restreint.
+      const filtered = scopedIds ? (data || []).filter(d => scopedIds.has(d.ia_id)) : (data || [])
+      setDetails(filtered)
       setLoaded(true)
     }
     setOpen(o => !o)
@@ -411,7 +414,7 @@ function Podium({ ranking, accentColor, bgGradient, borderColor }) {
 // ─────────────────────────────────────────────
 // PANNEAU GAUCHE : COMMERCE
 // ─────────────────────────────────────────────
-function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, rdvDetailsAnnuel, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
+function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, rdvDetailsAnnuel, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh, scopedIds = null }) {
   const [view, setView] = useState('equipe')
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
 
@@ -476,10 +479,10 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgramm
             <KpiCard label="Pipe total" color="#854D0E" bg="#FEF9C3"
               value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')}
               previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
-            <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`p-${selectedWeek}-${refreshKey}`} expected={selectedWeek > 1 ? sum(prevData, 'presentations_a_monter') : undefined} expectedLabel={`Attendu (décl. S${selectedWeek - 1})`} />
-            <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`s-${selectedWeek}-${refreshKey}`} />
-            <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`d-${selectedWeek}-${refreshKey}`} />
-            <KpiCardDetail label="Fins mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} key={`f-${selectedWeek}-${refreshKey}`} />
+            <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`p-${selectedWeek}-${refreshKey}`} expected={selectedWeek > 1 ? sum(prevData, 'presentations_a_monter') : undefined} expectedLabel={`Attendu (décl. S${selectedWeek - 1})`} scopedIds={scopedIds} />
+            <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`s-${selectedWeek}-${refreshKey}`} scopedIds={scopedIds} />
+            <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`d-${selectedWeek}-${refreshKey}`} scopedIds={scopedIds} />
+            <KpiCardDetail label="Fins mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} key={`f-${selectedWeek}-${refreshKey}`} scopedIds={scopedIds} />
             <P1KpiCard value={validP1.length} previous={selectedWeek > 1 ? prevValidP1.length : undefined} data={validP1} recurringIds={recurringP1Ids} key={`p1kpi-${selectedWeek}`} />
           </div>
 
@@ -1288,6 +1291,7 @@ export default function DashboardManager({ restrictedScope = null }) {
             annee={annee}
             refreshKey={refreshKey}
             onRefresh={() => { load(); setRefreshKey(k => k + 1) }}
+            scopedIds={activeScope ? scopedIds : null}
           />
         </div>
         {!restrictedScope && (
