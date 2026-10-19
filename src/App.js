@@ -12,59 +12,43 @@ import BilanEquipe from './pages/BilanEquipe'
 import Contacts from './pages/Contacts'
 import Classement from './pages/Classement'
 import ProspectionSaisie from './pages/ProspectionSaisie'
+import AdminEntite from './pages/AdminEntite'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
-// Accès manager restreint : Romain gère Luxhana, Virginie, Andrea et Laila en plus de sa propre saisie.
+// Accès manager restreint : Romain gère Luxhana, Virginie et Andrea en plus de sa propre saisie.
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
-const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Laila', 'Romain']
-// Dashboard Stéphane : accès manager complet (comme Anthony) mais scopé à son équipe.
-const STEPHANE_MANAGER_PASSWORD = 'Stéphane'
-const STEPHANE_TEAM = ['Antoine', 'Nassim', 'Karim', 'Sarah', 'Stéphane']
+const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Romain']
 // Accès à la base de contacts (répertoire clients/prospects issu des saisies des IA).
 const CONTACTS_PASSWORD = 'crm'
+// Accès manager dédié à l'entité de Sandra ("SOL (AS)") : équipe totalement étanche de celle d'Anthony
+// (IA + CR propres, avec entite='sandra' sur leurs lignes de la table ia), accès via un mot de passe
+// dédié comme Romain, mais avec le panneau Recrutement visible (contrairement à Romain) puisque Sandra
+// gère aussi ses propres CR.
+const SANDRA_PASSWORD = 'attoun'
+const SANDRA_ENTITE = 'sandra'
+const SANDRA_LABEL = 'SOL (AS)'
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [isManager, setIsManager] = useState(false)
   const [isTeamManager, setIsTeamManager] = useState(false)
-  const [isStephaneManager, setIsStephaneManager] = useState(false)
   const [isAdminOnly, setIsAdminOnly] = useState(false)
   const [isP1, setIsP1] = useState(false)
   const [isCR, setIsCR] = useState(false)
   const [isRH, setIsRH] = useState(false)
   const [isContacts, setIsContacts] = useState(false)
   const [isProspection, setIsProspection] = useState(false)
+  const [isSandraManager, setIsSandraManager] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsStephaneManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
-    // Logins du portail "Manager" (tuiles dédiées) : un mauvais mot de passe doit échouer
-    // franchement ici, jamais retomber plus bas sur la connexion générique "prénom = mot de passe"
-    // — sinon un mot de passe manager mal tapé loguait silencieusement la personne comme simple IA.
-    if (initialTab === 'manager-commerce') {
-      if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
-        resetRoles(); setUser(ia); setIsManager(true); setTab('dashboard-manager'); return true
-      }
-      return false
-    }
-    if (initialTab === 'manager-romain') {
-      if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
-        resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
-      }
-      return false
-    }
-    if (initialTab === 'manager-stephane') {
-      if (ia.nom === 'Stéphane' && password.toLowerCase() === STEPHANE_MANAGER_PASSWORD.toLowerCase()) {
-        resetRoles(); setUser(ia); setIsManager(true); setIsStephaneManager(true); setTab('dashboard-manager'); return true
-      }
-      return false
-    }
     if (ia.nom === 'RH' && password === RH_PASSWORD) {
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
     }
@@ -81,8 +65,14 @@ export default function App() {
       else { setIsManager(true); setTab('dashboard-manager') }
       return true
     }
+    if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
+      resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
+    }
     if (ia.nom === 'Contacts' && password === CONTACTS_PASSWORD) {
       resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
+    }
+    if (ia.nom === 'Sandra' && password === SANDRA_PASSWORD) {
+      resetRoles(); setUser(ia); setIsSandraManager(true); setTab('dashboard-manager'); return true
     }
     if (initialTab === 'prospection' && password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setIsProspection(true); setTab('prospection-saisie'); return true
@@ -119,11 +109,13 @@ export default function App() {
     { id: 'prospection-saisie',     icon: 'ti-edit',   label: 'Saisie RDV' },
     { id: 'prospection-classement', icon: 'ti-trophy', label: 'Classement' },
   ]
+  const sandraManagerTabs = [
+    { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
+    { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
+    { id: 'admin-sol',         icon: 'ti-settings',       label: 'Équipe' },
+  ]
 
-  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : userTabs
-
-  // Périmètre de données pour les managers scopés (nav complète ou restreinte) : Romain (restreint) et Stéphane (complet).
-  const managerScope = isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null
+  const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : userTabs
 
   const getAvatar = () => {
     if (user.nom === 'P1 of the week') return 'P1'
@@ -132,6 +124,7 @@ export default function App() {
   }
 
   const getTitle = () => {
+    if (isSandraManager) return 'Dashboard SOL (AS)'
     if (isManager) return 'Reporting IA'
     if (isAdminOnly) return 'Admin'
     if (isP1) return 'P1 of the week'
@@ -170,15 +163,16 @@ export default function App() {
       )}
 
       <div className="content">
-        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={managerScope ? { label: user.nom, members: managerScope } : null} />}
-        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={managerScope} />}
+        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : isSandraManager ? { label: SANDRA_LABEL, entite: SANDRA_ENTITE, showRecrutement: true } : null} />}
+        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : null} scopeEntite={isSandraManager ? SANDRA_ENTITE : null} />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
-        {tab === 'ytd'               && <Dashboard ytdOnly={true} scopeMembers={managerScope} />}
+        {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
         {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
+        {tab === 'admin-sol'         && <AdminEntite entite={SANDRA_ENTITE} entiteLabel={SANDRA_LABEL} />}
         {tab === 'p1'                && <P1Page />}
-        {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} />}
+        {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} entite={user.entite} />}
         {tab === 'dashboard-rh'      && <DashboardRH />}
-        {tab === 'entretiens'        && <Entretiens scopeMembers={managerScope} />}
+        {tab === 'entretiens'        && <Entretiens />}
         {tab === 'contacts'          && <Contacts />}
         {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
         {tab === 'prospection-classement' && <Classement />}
