@@ -715,53 +715,6 @@ const RESULTATS_COLOR = '#A4556A'
 const RESULTATS_ACCENT_LIGHT = '#FBF2F4'
 const RESULTATS_ACCENT_RING = 'rgba(164,85,106,0.18)'
 
-const emptyP1 = { client: '', profil: '', experience: '', technologies: '', salaire_max: '', langues: '', lieu: '' }
-
-const P1_COLOR = '#C88A2B'
-const P1_ACCENT_LIGHT = '#FFF7ED'
-const P1_ACCENT_RING = 'rgba(200,138,43,0.18)'
-const P1_STEPS = [
-  { key: 'profil',       label: 'Profil recherche',   placeholder: 'Ex: Ingenieur DevOps senior', color: P1_COLOR, num: 1 },
-  { key: 'client',       label: 'Client',              placeholder: 'Nom du client',               color: P1_COLOR, num: 2 },
-  { key: 'experience',   label: 'Experience requise',  placeholder: 'Ex: 5 ans minimum',           color: P1_COLOR, num: 3 },
-  { key: 'technologies', label: 'Technologies',        placeholder: 'Ex: Ansible, Kubernetes',     color: P1_COLOR, num: 4 },
-  { key: 'salaire_max',  label: 'Salaire max',         placeholder: 'Ex: 55k',                    color: P1_COLOR, num: 5 },
-  { key: 'langues',      label: 'Langues',             placeholder: 'Ex: Anglais, Francais',       color: P1_COLOR, num: 6 },
-  { key: 'lieu',         label: 'Lieu de mission',     placeholder: 'Ex: Paris / Remote',          color: P1_COLOR, num: 7 },
-]
-
-const P1Card = ({ p, onRemove }) => {
-  if (p.description && !p.profil) {
-    return (
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${RDV_BORDER}`, marginBottom: 10, background: '#fff' }}>
-        <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderLeft: `3px solid ${P1_COLOR}` }}>
-          <span style={{ fontSize: 14 }}>🎯</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: RDV_TITLE, flex: 1 }}>{p.description}</span>
-          {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#98A2B3', fontSize: 20, lineHeight: 1, padding: 0 }}>x</button>}
-        </div>
-      </div>
-    )
-  }
-  return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${RDV_BORDER}`, marginBottom: 10, background: '#fff' }}>
-      <div style={{ padding: '12px 14px', borderBottom: `1px solid ${RDV_BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: RDV_TITLE, marginBottom: 3 }}>{p.profil}</div>
-          {p.client && <div style={{ fontSize: 12, color: P1_COLOR, fontWeight: 600 }}>🏢 {p.client}</div>}
-        </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#98A2B3', fontSize: 20, lineHeight: 1, padding: 0, flexShrink: 0 }}>x</button>}
-      </div>
-      <div style={{ padding: '10px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        {p.experience && <div style={{ background: P1_ACCENT_LIGHT, borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📅 Experience</div><div style={{ fontSize: 12, fontWeight: 700, color: RDV_TITLE, marginTop: 2 }}>{p.experience}</div></div>}
-        {p.salaire_max && <div style={{ background: P1_ACCENT_LIGHT, borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💰 Salaire max</div><div style={{ fontSize: 12, fontWeight: 700, color: RDV_TITLE, marginTop: 2 }}>{p.salaire_max}</div></div>}
-        {p.technologies && <div style={{ background: P1_ACCENT_LIGHT, borderRadius: 8, padding: '7px 10px', gridColumn: 'span 2' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💻 Technologies</div><div style={{ fontSize: 12, fontWeight: 700, color: RDV_TITLE, marginTop: 2 }}>{p.technologies}</div></div>}
-        {p.langues && <div style={{ background: P1_ACCENT_LIGHT, borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🌍 Langues</div><div style={{ fontSize: 12, fontWeight: 700, color: RDV_TITLE, marginTop: 2 }}>{p.langues}</div></div>}
-        {p.lieu && <div style={{ background: P1_ACCENT_LIGHT, borderRadius: 8, padding: '7px 10px' }}><div style={{ fontSize: 10, color: P1_COLOR, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>📍 Lieu</div><div style={{ fontSize: 12, fontWeight: 700, color: RDV_TITLE, marginTop: 2 }}>{p.lieu}</div></div>}
-      </div>
-    </div>
-  )
-}
-
 export default function Saisie({ iaId, iaName, managerMode = false }) {
   const semaine = currentWeek()
   const annee = new Date().getFullYear()
@@ -789,9 +742,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   useEffect(() => {
     if (saveBlockedMsg && Object.values(detailComplete).every(Boolean)) setSaveBlockedMsg('')
   }, [detailComplete])
-  const [p1List, setP1List] = useState([])
-  const [newP1, setNewP1] = useState(emptyP1)
-  const [savingP1, setSavingP1] = useState(false)
   const [rdvList, setRdvList] = useState([])
   const [newRdv, setNewRdv] = useState(emptyRdv)
   const [savingRdv, setSavingRdv] = useState(false)
@@ -824,7 +774,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   }
   const totalRdv = rdvList.length
   const totalPipe = form.besoins_sans_solution + form.attente_retour_prez + form.attente_retour
-  const p1Complete = P1_STEPS.every(s => newP1[s.key] && newP1[s.key].trim())
   // Pour un nouveau contact (pas encore rattaché), on exige au moins un email ou un téléphone
   const needsContactInfo = !selectedContactId && !newRdv.email.trim() && !newRdv.telephone.trim()
   const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting && newRdv.compte_rendu.trim() && !needsContactInfo
@@ -844,9 +793,8 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     if (!iaId) return
     const load = async () => {
       setLoading(true)
-      const [{ data }, { data: p1Data }, { data: rdvData }] = await Promise.all([
+      const [{ data }, { data: rdvData }] = await Promise.all([
         supabase.from('saisies').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).single(),
-        supabase.from('p1').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee),
         supabase.from('rdv_details').select('*').eq('ia_id', iaId).eq('semaine', selectedWeek).eq('annee', annee).order('created_at'),
       ])
       if (data) {
@@ -858,7 +806,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
           fins_de_mission: data.fins_de_mission || 0, presentations_a_monter: data.presentations_a_monter || 0,
         })
       } else { setForm(emptyForm) }
-      setP1List(p1Data || [])
       setRdvList(rdvData || [])
       setNewRdv(emptyRdv)
       setSelectedContactId(null)
@@ -1047,20 +994,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
       .update({ statut, derniere_maj_semaine: selectedWeek, derniere_maj_annee: annee, updated_at: new Date().toISOString() })
       .eq('id', id).select().single()
     if (data) setPositionnements(l => l.map(p => p.id === id ? data : p))
-  }
-
-  const addP1 = async () => {
-    if (!p1Complete) return
-    setSavingP1(true)
-    const { data } = await supabase.from('p1').insert({ ia_id: iaId, semaine: selectedWeek, annee, ...newP1 }).select().single()
-    if (data) setP1List(l => [...l, data])
-    setNewP1(emptyP1)
-    setSavingP1(false)
-  }
-
-  const removeP1 = async (id) => {
-    await supabase.from('p1').delete().eq('id', id)
-    setP1List(l => l.filter(p => p.id !== id))
   }
 
   if (!iaId) return (
@@ -1354,56 +1287,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <DetailAccordion type="signature"   count={form.signatures}      iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
             <DetailAccordion type="demarrage"   count={form.demarrages}      iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
             <DetailAccordion type="fin_mission" count={form.fins_de_mission} iaId={iaId} semaine={selectedWeek} annee={annee} onCompletionChange={handleDetailCompletion} />
-          </div>
-
-          <div style={{ marginBottom: 24 }}>
-            <PremiumPanel accent={P1_COLOR} accentLight={P1_ACCENT_LIGHT} accentRing={P1_ACCENT_RING}>
-              <PremiumSectionHeader icon="ti-target" title="Priorités P1" />
-
-              {p1List.filter(p => (p.profil && p.profil.trim()) || (p.description && p.description.trim())).map(p => (
-                <P1Card key={p.id} p={p} onRemove={() => removeP1(p.id)} />
-              ))}
-
-              <div className="ui-card">
-                <div className="ui-card-header">
-                  <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
-                  <div className="ui-card-title">Ajouter un P1</div>
-                </div>
-
-                {/* Numérotation recalculée séquentiellement (1 à 6) sur les lignes réellement affichées :
-                    "langues" n'a pas sa propre ligne (fusionnée avec "salaire_max"), donc son num d'origine
-                    (6) sautait visuellement avant "lieu" (7). Purement visuel — les clés/champs enregistrés
-                    ne changent pas. */}
-                {P1_STEPS.filter(s => s.key !== 'langues').map((step, idx) => {
-                  const langStep = P1_STEPS.find(s => s.key === 'langues')
-                  const isSalaireLangues = step.key === 'salaire_max'
-                  return (
-                    <div key={step.key} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: `1px solid ${RDV_BORDER}`, borderRadius: 10, background: '#fff', padding: '10px 12px', marginBottom: 8 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: '50%', background: P1_ACCENT_LIGHT, color: P1_COLOR, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 800, flexShrink: 0, marginTop: 1 }}>
-                        {idx + 1}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <label className="ui-field-label">{step.label}</label>
-                        {isSalaireLangues ? (
-                          <div className="ui-grid-2" style={{ marginBottom: 0 }}>
-                            <input className="ui-input" type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} />
-                            <input className="ui-input" type="text" value={newP1['langues']} onChange={e => setNewP1(p => ({ ...p, langues: e.target.value }))} placeholder={langStep.placeholder} />
-                          </div>
-                        ) : (
-                          <input className="ui-input" type="text" value={newP1[step.key]} onChange={e => setNewP1(p => ({ ...p, [step.key]: e.target.value }))} placeholder={step.placeholder} />
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-
-                <div className="ui-cta-row">
-                  <button className="ui-btn-primary" onClick={addP1} disabled={savingP1 || !p1Complete}>
-                    {savingP1 ? 'Enregistrement...' : 'Ajouter le P1'}
-                  </button>
-                </div>
-              </div>
-            </PremiumPanel>
           </div>
 
           {saveBlockedMsg && (
