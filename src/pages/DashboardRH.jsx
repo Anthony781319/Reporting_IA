@@ -40,11 +40,12 @@ export default function DashboardRH() {
   const [crList, setCrList] = useState([])
 
   // Liste des CR, dynamique (table ia, type='cr', gérée depuis Admin) — plus besoin de retoucher
-  // au code à chaque arrivée/départ d'une CR.
+  // au code à chaque arrivée/départ d'une CR. On exclut l'entité de Sandra : ce dashboard RH reste
+  // celui d'Anthony, Sandra ayant son propre suivi recrutement dans son Dashboard SOL (AS).
   useEffect(() => {
     let active = true
-    supabase.from('ia').select('nom').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
-      if (active) setCrList((data || []).map(r => r.nom))
+    supabase.from('ia').select('nom, entite').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
+      if (active) setCrList((data || []).filter(r => r.entite !== 'sandra').map(r => r.nom))
     })
     return () => { active = false }
   }, [])
