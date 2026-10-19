@@ -3,8 +3,8 @@ import { supabase } from '../supabase'
 
 // Les deux grands espaces de l'écran d'accueil : INFRA (l'équipe d'Anthony) et SOL (l'équipe de Sandra).
 const SPACES = [
-  { id: 'infra', icon: '🏠', label: 'INFRA',    desc: 'Mon espace à moi',     bg: '#EEEDFE', color: '#534AB7' },
-  { id: 'sol',   icon: '🏢', label: 'SOL (AS)', desc: 'Espace équipe Sandra', bg: '#CFFAFE', color: '#0E7490' },
+  { id: 'infra', icon: '🏠', label: 'INFRA',    desc: '', bg: '#EEEDFE', color: '#534AB7' },
+  { id: 'sol',   icon: '🏢', label: 'SOL (AS)', desc: '', bg: '#CFFAFE', color: '#0E7490' },
 ]
 
 // Portails disponibles une fois dans l'espace INFRA.
@@ -27,7 +27,7 @@ const MANAGER_OPTIONS = [
 const SOL_OPTIONS = [
   { id: 'ia',        icon: '💼', label: 'Je suis IA',                       desc: 'Accès à mon espace reporting' },
   { id: 'cr',        icon: '👥', label: 'Je suis chargé(e) de recrutement', desc: 'Accès à mon espace recrutement' },
-  { id: 'dashboard', icon: '📊', label: 'Dashboard de Sandra',              desc: 'Commerce + Recrutement réunis' },
+  { id: 'dashboard', icon: '📊', label: 'Dashboard Manager',                desc: 'Commerce + Recrutement réunis' },
 ]
 
 const CARD_COLORS = [
@@ -590,7 +590,7 @@ export default function Login({ onLogin }) {
     return (
       <div style={loginWrap}>
         <BackButton onClick={backToRoleChoice} />
-        <Header icon="📊" title="Dashboard de Sandra" />
+        <Header icon="📊" title="Dashboard Manager" />
         <div style={{ width: '100%', maxWidth: 360 }}>
           <div style={labelStyle}>Mot de passe</div>
           <input type="password" value={sandraPassword} onChange={e => { setSandraPassword(e.target.value); setSandraError('') }} onKeyDown={e => e.key === 'Enter' && handleSandraLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
