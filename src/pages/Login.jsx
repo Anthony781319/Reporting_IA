@@ -6,15 +6,16 @@ const PORTALS = [
   { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
   { id: 'manager',      icon: '🎯', label: 'Manager',           desc: 'Accès dashboard & pilotage',      bg: '#FAEEDA', color: '#BA7517' },
   { id: 'prospection',  icon: '🏆', label: 'Prospection du lundi', desc: 'Séance de prospection en direct', bg: '#DCFCE7', color: '#16A34A' },
+  { id: 'sol',          icon: '🏢', label: 'SOL (AS)',          desc: 'Espace équipe Sandra',            bg: '#CFFAFE', color: '#0E7490' },
   { id: 'admin',        icon: '⚙️', label: 'Admin',             desc: "Gestion de l'équipe",              bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
 const MANAGER_OPTIONS = [
-  { id: 'commerce', icon: '📊', label: 'Dashboard Anthony',  desc: 'Commerce + Recrutement réunis',        bg: '#DBEAFE', color: '#2563EB', darkColor: '#1E3A8A' },
-  { id: 'romain',   icon: '🎯', label: 'Dashboard Romain',   desc: 'Équipe Luxhana, Virginie, Andrea, Laila', bg: '#FEF3C7', color: '#B45309', darkColor: '#78350F' },
-  { id: 'stephane', icon: '🧭', label: 'Dashboard Stéphane', desc: 'Équipe Antoine, Nassim, Karim, Sarah', bg: '#E0E7FF', color: '#4338CA', darkColor: '#312E81' },
-  { id: 'contacts', icon: '📇', label: 'Base Contacts',      desc: 'Répertoire clients & prospects',       bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
-  { id: 'rh',       icon: '👥', label: 'Dashboard RH',       desc: 'Suivi recrutement & candidats',        bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
+  { id: 'commerce', icon: '📊', label: 'Dashboard Anthony', desc: 'Commerce + Recrutement réunis',   bg: '#DBEAFE', color: '#2563EB', darkColor: '#1E3A8A' },
+  { id: 'romain',   icon: '🎯', label: 'Dashboard Romain',  desc: 'Équipe Luxhana, Virginie, Andrea', bg: '#FEF3C7', color: '#B45309', darkColor: '#78350F' },
+  { id: 'contacts', icon: '📇', label: 'Base Contacts',     desc: 'Répertoire clients & prospects',   bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
+  { id: 'rh',       icon: '👥', label: 'Dashboard RH',      desc: 'Suivi recrutement & candidats',    bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
+  { id: 'sandra',   icon: '🏢', label: 'Dashboard SOL (AS)', desc: 'Équipe Sandra (Commerce + Recrutement)', bg: '#CFFAFE', color: '#0E7490', darkColor: '#164E63' },
 ]
 
 const CARD_COLORS = [
@@ -82,21 +83,22 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('')
   const [rhPassword, setRhPassword] = useState('')
   const [romainPassword, setRomainPassword] = useState('')
-  const [stephanePassword, setStephanePassword] = useState('')
   const [contactsPassword, setContactsPassword] = useState('')
+  const [sandraPassword, setSandraPassword] = useState('')
   const [showRH, setShowRH] = useState(false)
   const [showRomain, setShowRomain] = useState(false)
-  const [showStephane, setShowStephane] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
+  const [showSandra, setShowSandra] = useState(false)
+  const [solRole, setSolRole] = useState(null)
   const [error, setError] = useState('')
   const [rhError, setRhError] = useState('')
   const [romainError, setRomainError] = useState('')
-  const [stephaneError, setStephaneError] = useState('')
   const [contactsError, setContactsError] = useState('')
+  const [sandraError, setSandraError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement') {
+    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement' || portal === 'sol') {
       setLoading(true)
       supabase.from('ia').select('*').order('nom').then(({ data }) => {
         setIaList(data || [])
@@ -111,17 +113,18 @@ export default function Login({ onLogin }) {
     setPassword('')
     setRhPassword('')
     setRomainPassword('')
-    setStephanePassword('')
     setContactsPassword('')
+    setSandraPassword('')
     setError('')
     setRhError('')
     setRomainError('')
-    setStephaneError('')
     setContactsError('')
+    setSandraError('')
     setShowRH(false)
     setShowRomain(false)
-    setShowStephane(false)
     setShowContacts(false)
+    setShowSandra(false)
+    setSolRole(null)
   }
 
   const handleSubmitIA = () => {
@@ -150,25 +153,25 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
+  // Connexion CR pour l'entité Sandra (SOL (AS)) : même principe que handleSubmitCR, mais avec le
+  // tag entite:'sandra' porté sur l'objet, pour que App.js puisse scoper son reporting à son équipe.
+  const handleSubmitSolCR = () => {
+    if (!selected) return setError('Sélectionne ton prénom')
+    if (!password) return setError('Entre ton mot de passe')
+    const ok = onLogin({ nom: selected, type: 'cr', entite: 'sandra' }, password)
+    if (!ok) setError('Mot de passe incorrect')
+  }
+
   const handleRHLogin = () => {
     if (!rhPassword) return setRhError('Entre le mot de passe RH')
     const ok = onLogin({ nom: 'RH' }, rhPassword)
     if (!ok) setRhError('Mot de passe incorrect')
   }
 
-  const handleRomainLogin = async () => {
+  const handleRomainLogin = () => {
     if (!romainPassword) return setRomainError('Entre le mot de passe')
-    // On va chercher sa vraie fiche IA (id, email…) pour que son onglet "Ma saisie" fonctionne comme pour tout le monde.
-    const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Romain').maybeSingle()
-    const ok = onLogin(iaRecord || { nom: 'Romain' }, romainPassword, 'manager-romain')
+    const ok = onLogin({ nom: 'Romain' }, romainPassword)
     if (!ok) setRomainError('Mot de passe incorrect')
-  }
-
-  const handleStephaneLogin = async () => {
-    if (!stephanePassword) return setStephaneError('Entre le mot de passe')
-    const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Stéphane').maybeSingle()
-    const ok = onLogin(iaRecord || { nom: 'Stéphane' }, stephanePassword, 'manager-stephane')
-    if (!ok) setStephaneError('Mot de passe incorrect')
   }
 
   const handleContactsLogin = () => {
@@ -177,10 +180,15 @@ export default function Login({ onLogin }) {
     if (!ok) setContactsError('Mot de passe incorrect')
   }
 
-  const handleManagerLogin = async () => {
+  const handleSandraLogin = () => {
+    if (!sandraPassword) return setSandraError('Entre le mot de passe')
+    const ok = onLogin({ nom: 'Sandra' }, sandraPassword)
+    if (!ok) setSandraError('Mot de passe incorrect')
+  }
+
+  const handleManagerLogin = () => {
     if (!password) return setError('Entre ton mot de passe')
-    const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Anthony').maybeSingle()
-    const ok = onLogin(iaRecord || { nom: 'Anthony' }, password, 'manager-commerce')
+    const ok = onLogin({ nom: 'Anthony' }, password)
     if (!ok) setError('Mot de passe incorrect')
   }
 
@@ -216,7 +224,7 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'ia') {
-    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr')
+    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr' && ia.entite !== 'sandra')
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
@@ -249,7 +257,7 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'prospection') {
-    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr')
+    const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr' && ia.entite !== 'sandra')
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
@@ -282,7 +290,7 @@ export default function Login({ onLogin }) {
   }
 
   if (portal === 'recrutement') {
-    const crList = iaList.filter(ia => ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
+    const crList = iaList.filter(ia => ia.type === 'cr' && ia.statut !== 'ancien' && ia.entite !== 'sandra').map(ia => ia.nom)
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
@@ -319,6 +327,110 @@ export default function Login({ onLogin }) {
     )
   }
 
+  if (portal === 'sol') {
+    const solIaList = iaList.filter(ia => ia.entite === 'sandra' && ia.type !== 'cr' && ia.statut !== 'ancien')
+    const solCrList = iaList.filter(ia => ia.entite === 'sandra' && ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
+
+    const backToRoleChoice = () => { setSolRole(null); setSelected(null); setPassword(''); setError('') }
+
+    if (!solRole) {
+      return (
+        <div style={loginWrap}>
+          <BackButton onClick={handleBack} />
+          <Header icon="🏢" title="SOL (AS)" />
+          <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div onClick={() => setSolRole('ia')}
+              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid #0E749040', background: '#CFFAFE', transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 22, width: 48, height: 48, borderRadius: 12, background: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>💼</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#0E7490' }}>Je suis IA</div>
+                <div style={{ fontSize: 12, color: '#0E7490AA', marginTop: 2 }}>Accès à mon espace reporting</div>
+              </div>
+              <div style={{ marginLeft: 'auto', color: '#0E7490', fontSize: 18 }}>›</div>
+            </div>
+            <div onClick={() => setSolRole('cr')}
+              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid #0E749040', background: '#CFFAFE', transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 22, width: 48, height: 48, borderRadius: 12, background: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>👥</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#0E7490' }}>Je suis chargé(e) de recrutement</div>
+                <div style={{ fontSize: 12, color: '#0E7490AA', marginTop: 2 }}>Accès à mon espace recrutement</div>
+              </div>
+              <div style={{ marginLeft: 'auto', color: '#0E7490', fontSize: 18 }}>›</div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (solRole === 'ia') {
+      return (
+        <div style={loginWrap}>
+          <BackButton onClick={backToRoleChoice} />
+          <Header icon="💼" title="SOL (AS) — Commerce" />
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <div style={labelStyle}>Je suis...</div>
+            {loading ? <Loader /> : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+                {solIaList.map((ia, i) => {
+                  const c = CARD_COLORS[i % CARD_COLORS.length]
+                  const isSelected = selected && selected.id === ia.id
+                  return (
+                    <div key={ia.id} onClick={() => { setSelected(ia); setError('') }}
+                      style={{ borderRadius: 12, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
+                        {ia.nom.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center', lineHeight: 1.2 }}>{ia.nom}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {!loading && solIaList.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune IA enregistrée pour le moment.</div>
+            )}
+            <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
+            {error && <ErrorMsg msg={error} />}
+            <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[solIaList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div style={loginWrap}>
+        <BackButton onClick={backToRoleChoice} />
+        <Header icon="👥" title="SOL (AS) — Recrutement" />
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div style={labelStyle}>Je suis...</div>
+          {loading ? <Loader /> : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
+              {solCrList.map((cr, i) => {
+                const c = CARD_COLORS[i % CARD_COLORS.length]
+                const isSelected = selected === cr
+                return (
+                  <div key={cr} onClick={() => { setSelected(cr); setError('') }}
+                    style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
+                      {cr.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {!loading && solCrList.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune CR enregistrée pour le moment.</div>
+          )}
+          <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitSolCR} />
+          {error && <ErrorMsg msg={error} />}
+          <SubmitBtn disabled={!selected} onClick={handleSubmitSolCR} />
+        </div>
+      </div>
+    )
+  }
+
   if (portal === 'manager') {
     return (
       <div style={loginWrap}>
@@ -326,16 +438,16 @@ export default function Login({ onLogin }) {
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {MANAGER_OPTIONS.map(opt => {
-            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'stephane' ? showStephane : opt.id === 'contacts' ? showContacts : showRH
+            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'contacts' ? showContacts : opt.id === 'sandra' ? showSandra : showRH
             return (
               <div key={opt.id}>
                 <div
                   onClick={() => {
-                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowStephane(false); setShowContacts(false); setError('') }
-                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowStephane(false); setShowContacts(false); setSelected(null); setRomainError('') }
-                    else if (opt.id === 'stephane') { setShowStephane(true); setShowRH(false); setShowRomain(false); setShowContacts(false); setSelected(null); setStephaneError('') }
-                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setShowStephane(false); setSelected(null); setContactsError('') }
-                    else { setShowRH(true); setShowRomain(false); setShowStephane(false); setShowContacts(false); setSelected(null); setRhError('') }
+                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowContacts(false); setShowSandra(false); setError('') }
+                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowContacts(false); setShowSandra(false); setSelected(null); setRomainError('') }
+                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setShowSandra(false); setSelected(null); setContactsError('') }
+                    else if (opt.id === 'sandra') { setShowSandra(true); setShowRH(false); setShowRomain(false); setShowContacts(false); setSelected(null); setSandraError('') }
+                    else { setShowRH(true); setShowRomain(false); setShowContacts(false); setShowSandra(false); setSelected(null); setRhError('') }
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', background: opt.bg, border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'), transition: 'all 0.15s' }}>
                   <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
@@ -370,23 +482,23 @@ export default function Login({ onLogin }) {
                   </div>
                 )}
 
-                {opt.id === 'stephane' && isSelected && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={labelStyle}>Mot de passe</div>
-                    <input type="password" value={stephanePassword} onChange={e => { setStephanePassword(e.target.value); setStephaneError('') }} onKeyDown={e => e.key === 'Enter' && handleStephaneLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
-                    {stephaneError && <ErrorMsg msg={stephaneError} />}
-                    <button onClick={handleStephaneLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                      Se connecter
-                    </button>
-                  </div>
-                )}
-
                 {opt.id === 'contacts' && isSelected && (
                   <div style={{ marginTop: 10 }}>
                     <div style={labelStyle}>Mot de passe</div>
                     <input type="password" value={contactsPassword} onChange={e => { setContactsPassword(e.target.value); setContactsError('') }} onKeyDown={e => e.key === 'Enter' && handleContactsLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
                     {contactsError && <ErrorMsg msg={contactsError} />}
                     <button onClick={handleContactsLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                      Se connecter
+                    </button>
+                  </div>
+                )}
+
+                {opt.id === 'sandra' && isSelected && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={labelStyle}>Mot de passe</div>
+                    <input type="password" value={sandraPassword} onChange={e => { setSandraPassword(e.target.value); setSandraError('') }} onKeyDown={e => e.key === 'Enter' && handleSandraLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                    {sandraError && <ErrorMsg msg={sandraError} />}
+                    <button onClick={handleSandraLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
                       Se connecter
                     </button>
                   </div>
