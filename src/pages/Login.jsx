@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
+// Les deux grands espaces de l'écran d'accueil : INFRA (l'équipe d'Anthony) et SOL (l'équipe de Sandra).
+const SPACES = [
+  { id: 'infra', icon: '🏠', label: 'INFRA',    desc: 'Mon espace à moi',     bg: '#EEEDFE', color: '#534AB7' },
+  { id: 'sol',   icon: '🏢', label: 'SOL (AS)', desc: 'Espace équipe Sandra', bg: '#CFFAFE', color: '#0E7490' },
+]
+
+// Portails disponibles une fois dans l'espace INFRA.
 const PORTALS = [
   { id: 'ia',           icon: '💼', label: "Le Commerce",       desc: 'Accès à ton espace reporting',    bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
   { id: 'manager',      icon: '🎯', label: 'Manager',           desc: 'Accès dashboard & pilotage',      bg: '#FAEEDA', color: '#BA7517' },
   { id: 'prospection',  icon: '🏆', label: 'Prospection du lundi', desc: 'Séance de prospection en direct', bg: '#DCFCE7', color: '#16A34A' },
-  { id: 'sol',          icon: '🏢', label: 'SOL (AS)',          desc: 'Espace équipe Sandra',            bg: '#CFFAFE', color: '#0E7490' },
   { id: 'admin',        icon: '⚙️', label: 'Admin',             desc: "Gestion de l'équipe",              bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
@@ -15,7 +21,13 @@ const MANAGER_OPTIONS = [
   { id: 'romain',   icon: '🎯', label: 'Dashboard Romain',  desc: 'Équipe Luxhana, Virginie, Andrea', bg: '#FEF3C7', color: '#B45309', darkColor: '#78350F' },
   { id: 'contacts', icon: '📇', label: 'Base Contacts',     desc: 'Répertoire clients & prospects',   bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
   { id: 'rh',       icon: '👥', label: 'Dashboard RH',      desc: 'Suivi recrutement & candidats',    bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
-  { id: 'sandra',   icon: '🏢', label: 'Dashboard SOL (AS)', desc: 'Équipe Sandra (Commerce + Recrutement)', bg: '#CFFAFE', color: '#0E7490', darkColor: '#164E63' },
+]
+
+// Rôles disponibles une fois dans l'espace SOL (AS).
+const SOL_OPTIONS = [
+  { id: 'ia',        icon: '💼', label: 'Je suis IA',                       desc: 'Accès à mon espace reporting' },
+  { id: 'cr',        icon: '👥', label: 'Je suis chargé(e) de recrutement', desc: 'Accès à mon espace recrutement' },
+  { id: 'dashboard', icon: '📊', label: 'Dashboard de Sandra',              desc: 'Commerce + Recrutement réunis' },
 ]
 
 const CARD_COLORS = [
@@ -77,6 +89,7 @@ function Loader() {
 }
 
 export default function Login({ onLogin }) {
+  const [space, setSpace] = useState(null)
   const [portal, setPortal] = useState(null)
   const [iaList, setIaList] = useState([])
   const [selected, setSelected] = useState(null)
@@ -88,7 +101,6 @@ export default function Login({ onLogin }) {
   const [showRH, setShowRH] = useState(false)
   const [showRomain, setShowRomain] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
-  const [showSandra, setShowSandra] = useState(false)
   const [solRole, setSolRole] = useState(null)
   const [error, setError] = useState('')
   const [rhError, setRhError] = useState('')
@@ -98,17 +110,37 @@ export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement' || portal === 'sol') {
+    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement' || space === 'sol') {
       setLoading(true)
       supabase.from('ia').select('*').order('nom').then(({ data }) => {
         setIaList(data || [])
         setLoading(false)
       })
     }
-  }, [portal])
+  }, [portal, space])
 
+  // Retour depuis un portail INFRA (Commerce, Recrutement, Manager, Prospection, Admin) vers la liste INFRA.
   const handleBack = () => {
     setPortal(null)
+    setSelected(null)
+    setPassword('')
+    setRhPassword('')
+    setRomainPassword('')
+    setContactsPassword('')
+    setError('')
+    setRhError('')
+    setRomainError('')
+    setContactsError('')
+    setShowRH(false)
+    setShowRomain(false)
+    setShowContacts(false)
+  }
+
+  // Retour depuis la liste INFRA ou depuis le choix de rôle SOL vers l'écran des 2 espaces.
+  const handleBackToSpaces = () => {
+    setSpace(null)
+    setPortal(null)
+    setSolRole(null)
     setSelected(null)
     setPassword('')
     setRhPassword('')
@@ -123,8 +155,6 @@ export default function Login({ onLogin }) {
     setShowRH(false)
     setShowRomain(false)
     setShowContacts(false)
-    setShowSandra(false)
-    setSolRole(null)
   }
 
   const handleSubmitIA = () => {
@@ -198,12 +228,44 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
-  if (!portal) {
+  // ───────────────────────────────────────────
+  // Écran d'accueil : choix de l'espace (INFRA / SOL)
+  // ───────────────────────────────────────────
+  if (!space) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ marginBottom: 40, textAlign: 'center' }}>
           <i className="ti ti-chart-bar" aria-hidden="true" style={{ fontSize: 40, color: '#534AB7' }}></i>
           <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>Reporting</div>
+          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 6 }}>Quel est ton espace ?</div>
+        </div>
+        <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {SPACES.map(p => (
+            <div key={p.id} onClick={() => setSpace(p.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid ' + p.color + '40', background: p.bg, transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{p.icon}</div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: p.color }}>{p.label}</div>
+                <div style={{ fontSize: 12, color: p.color + 'AA', marginTop: 2 }}>{p.desc}</div>
+              </div>
+              <div style={{ marginLeft: 'auto', color: p.color, fontSize: 18 }}>›</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // ───────────────────────────────────────────
+  // Espace INFRA : liste des portails (Commerce, Recrutement, Manager, Prospection, Admin)
+  // ───────────────────────────────────────────
+  if (space === 'infra' && !portal) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+        <BackButton onClick={handleBackToSpaces} />
+        <div style={{ marginBottom: 40, textAlign: 'center' }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🏠</div>
+          <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>INFRA</div>
           <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 6 }}>Quel est ton espace ?</div>
         </div>
         <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -327,110 +389,6 @@ export default function Login({ onLogin }) {
     )
   }
 
-  if (portal === 'sol') {
-    const solIaList = iaList.filter(ia => ia.entite === 'sandra' && ia.type !== 'cr' && ia.statut !== 'ancien')
-    const solCrList = iaList.filter(ia => ia.entite === 'sandra' && ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
-
-    const backToRoleChoice = () => { setSolRole(null); setSelected(null); setPassword(''); setError('') }
-
-    if (!solRole) {
-      return (
-        <div style={loginWrap}>
-          <BackButton onClick={handleBack} />
-          <Header icon="🏢" title="SOL (AS)" />
-          <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div onClick={() => setSolRole('ia')}
-              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid #0E749040', background: '#CFFAFE', transition: 'all 0.15s' }}>
-              <div style={{ fontSize: 22, width: 48, height: 48, borderRadius: 12, background: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>💼</div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#0E7490' }}>Je suis IA</div>
-                <div style={{ fontSize: 12, color: '#0E7490AA', marginTop: 2 }}>Accès à mon espace reporting</div>
-              </div>
-              <div style={{ marginLeft: 'auto', color: '#0E7490', fontSize: 18 }}>›</div>
-            </div>
-            <div onClick={() => setSolRole('cr')}
-              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid #0E749040', background: '#CFFAFE', transition: 'all 0.15s' }}>
-              <div style={{ fontSize: 22, width: 48, height: 48, borderRadius: 12, background: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>👥</div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#0E7490' }}>Je suis chargé(e) de recrutement</div>
-                <div style={{ fontSize: 12, color: '#0E7490AA', marginTop: 2 }}>Accès à mon espace recrutement</div>
-              </div>
-              <div style={{ marginLeft: 'auto', color: '#0E7490', fontSize: 18 }}>›</div>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    if (solRole === 'ia') {
-      return (
-        <div style={loginWrap}>
-          <BackButton onClick={backToRoleChoice} />
-          <Header icon="💼" title="SOL (AS) — Commerce" />
-          <div style={{ width: '100%', maxWidth: 400 }}>
-            <div style={labelStyle}>Je suis...</div>
-            {loading ? <Loader /> : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-                {solIaList.map((ia, i) => {
-                  const c = CARD_COLORS[i % CARD_COLORS.length]
-                  const isSelected = selected && selected.id === ia.id
-                  return (
-                    <div key={ia.id} onClick={() => { setSelected(ia); setError('') }}
-                      style={{ borderRadius: 12, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
-                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
-                        {ia.nom.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center', lineHeight: 1.2 }}>{ia.nom}</div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {!loading && solIaList.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune IA enregistrée pour le moment.</div>
-            )}
-            <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
-            {error && <ErrorMsg msg={error} />}
-            <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[solIaList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div style={loginWrap}>
-        <BackButton onClick={backToRoleChoice} />
-        <Header icon="👥" title="SOL (AS) — Recrutement" />
-        <div style={{ width: '100%', maxWidth: 360 }}>
-          <div style={labelStyle}>Je suis...</div>
-          {loading ? <Loader /> : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
-              {solCrList.map((cr, i) => {
-                const c = CARD_COLORS[i % CARD_COLORS.length]
-                const isSelected = selected === cr
-                return (
-                  <div key={cr} onClick={() => { setSelected(cr); setError('') }}
-                    style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
-                      {cr.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          {!loading && solCrList.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune CR enregistrée pour le moment.</div>
-          )}
-          <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitSolCR} />
-          {error && <ErrorMsg msg={error} />}
-          <SubmitBtn disabled={!selected} onClick={handleSubmitSolCR} />
-        </div>
-      </div>
-    )
-  }
-
   if (portal === 'manager') {
     return (
       <div style={loginWrap}>
@@ -438,16 +396,15 @@ export default function Login({ onLogin }) {
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {MANAGER_OPTIONS.map(opt => {
-            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'contacts' ? showContacts : opt.id === 'sandra' ? showSandra : showRH
+            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'contacts' ? showContacts : showRH
             return (
               <div key={opt.id}>
                 <div
                   onClick={() => {
-                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowContacts(false); setShowSandra(false); setError('') }
-                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowContacts(false); setShowSandra(false); setSelected(null); setRomainError('') }
-                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setShowSandra(false); setSelected(null); setContactsError('') }
-                    else if (opt.id === 'sandra') { setShowSandra(true); setShowRH(false); setShowRomain(false); setShowContacts(false); setSelected(null); setSandraError('') }
-                    else { setShowRH(true); setShowRomain(false); setShowContacts(false); setShowSandra(false); setSelected(null); setRhError('') }
+                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowContacts(false); setError('') }
+                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowContacts(false); setSelected(null); setRomainError('') }
+                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setSelected(null); setContactsError('') }
+                    else { setShowRH(true); setShowRomain(false); setShowContacts(false); setSelected(null); setRhError('') }
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', background: opt.bg, border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'), transition: 'all 0.15s' }}>
                   <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
@@ -493,17 +450,6 @@ export default function Login({ onLogin }) {
                   </div>
                 )}
 
-                {opt.id === 'sandra' && isSelected && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={labelStyle}>Mot de passe</div>
-                    <input type="password" value={sandraPassword} onChange={e => { setSandraPassword(e.target.value); setSandraError('') }} onKeyDown={e => e.key === 'Enter' && handleSandraLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
-                    {sandraError && <ErrorMsg msg={sandraError} />}
-                    <button onClick={handleSandraLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                      Se connecter
-                    </button>
-                  </div>
-                )}
-
                 {opt.id === 'rh' && isSelected && (
                   <div style={{ marginTop: 10 }}>
                     <div style={labelStyle}>Mot de passe</div>
@@ -521,7 +467,8 @@ export default function Login({ onLogin }) {
       </div>
     )
   }
-if (portal === 'admin') {
+
+  if (portal === 'admin') {
     return (
       <div style={loginWrap}>
         <BackButton onClick={handleBack} />
@@ -536,4 +483,125 @@ if (portal === 'admin') {
         </div>
       </div>
     )
-  }}
+  }
+
+  // ───────────────────────────────────────────
+  // Espace SOL (AS) : choix du rôle (IA / CR / Dashboard de Sandra), puis écran associé
+  // ───────────────────────────────────────────
+  if (space === 'sol') {
+    const solIaList = iaList.filter(ia => ia.entite === 'sandra' && ia.type !== 'cr' && ia.statut !== 'ancien')
+    const solCrList = iaList.filter(ia => ia.entite === 'sandra' && ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
+
+    const backToRoleChoice = () => { setSolRole(null); setSelected(null); setPassword(''); setError(''); setSandraPassword(''); setSandraError('') }
+
+    if (!solRole) {
+      return (
+        <div style={loginWrap}>
+          <BackButton onClick={handleBackToSpaces} />
+          <Header icon="🏢" title="SOL (AS)" />
+          <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {SOL_OPTIONS.map(opt => (
+              <div key={opt.id} onClick={() => setSolRole(opt.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid #0E749040', background: '#CFFAFE', transition: 'all 0.15s' }}>
+                <div style={{ fontSize: 22, width: 48, height: 48, borderRadius: 12, background: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{opt.icon}</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#0E7490' }}>{opt.label}</div>
+                  <div style={{ fontSize: 12, color: '#0E7490AA', marginTop: 2 }}>{opt.desc}</div>
+                </div>
+                <div style={{ marginLeft: 'auto', color: '#0E7490', fontSize: 18 }}>›</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    if (solRole === 'ia') {
+      return (
+        <div style={loginWrap}>
+          <BackButton onClick={backToRoleChoice} />
+          <Header icon="💼" title="SOL (AS) — Commerce" />
+          <div style={{ width: '100%', maxWidth: 400 }}>
+            <div style={labelStyle}>Je suis...</div>
+            {loading ? <Loader /> : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+                {solIaList.map((ia, i) => {
+                  const c = CARD_COLORS[i % CARD_COLORS.length]
+                  const isSelected = selected && selected.id === ia.id
+                  return (
+                    <div key={ia.id} onClick={() => { setSelected(ia); setError('') }}
+                      style={{ borderRadius: 12, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
+                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
+                        {ia.nom.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center', lineHeight: 1.2 }}>{ia.nom}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {!loading && solIaList.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune IA enregistrée pour le moment.</div>
+            )}
+            <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
+            {error && <ErrorMsg msg={error} />}
+            <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[solIaList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
+          </div>
+        </div>
+      )
+    }
+
+    if (solRole === 'cr') {
+      return (
+        <div style={loginWrap}>
+          <BackButton onClick={backToRoleChoice} />
+          <Header icon="👥" title="SOL (AS) — Recrutement" />
+          <div style={{ width: '100%', maxWidth: 360 }}>
+            <div style={labelStyle}>Je suis...</div>
+            {loading ? <Loader /> : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
+                {solCrList.map((cr, i) => {
+                  const c = CARD_COLORS[i % CARD_COLORS.length]
+                  const isSelected = selected === cr
+                  return (
+                    <div key={cr} onClick={() => { setSelected(cr); setError('') }}
+                      style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
+                        {cr.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {!loading && solCrList.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune CR enregistrée pour le moment.</div>
+            )}
+            <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitSolCR} />
+            {error && <ErrorMsg msg={error} />}
+            <SubmitBtn disabled={!selected} onClick={handleSubmitSolCR} />
+          </div>
+        </div>
+      )
+    }
+
+    // solRole === 'dashboard' : accès direct de Sandra à son dashboard (ex-sous-option de "Manager")
+    return (
+      <div style={loginWrap}>
+        <BackButton onClick={backToRoleChoice} />
+        <Header icon="📊" title="Dashboard de Sandra" />
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div style={labelStyle}>Mot de passe</div>
+          <input type="password" value={sandraPassword} onChange={e => { setSandraPassword(e.target.value); setSandraError('') }} onKeyDown={e => e.key === 'Enter' && handleSandraLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+          {sandraError && <ErrorMsg msg={sandraError} />}
+          <button onClick={handleSandraLogin} style={{ width: '100%', padding: 13, background: '#0E7490', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            Se connecter
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
