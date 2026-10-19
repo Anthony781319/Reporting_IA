@@ -43,9 +43,11 @@ export default function Admin({ onSelectIA, selectedIaId }) {
 
   useEffect(() => { loadIA(); loadItc() }, [])
 
+  // Exclut systématiquement l'entité de Sandra ("SOL (AS)") : elle gère sa propre équipe en autonomie
+  // depuis son écran dédié (AdminEntite), cet écran-ci reste réservé à l'équipe d'Anthony.
   const loadIA = async () => {
     const { data } = await supabase.from('ia').select('*').order('nom')
-    const all = data || []
+    const all = (data || []).filter(ia => ia.entite !== 'sandra')
     setIaList(all.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr'))
     setAnciensList(all.filter(ia => ia.statut === 'ancien' && ia.type !== 'cr'))
     setCrList(all.filter(ia => ia.type === 'cr' && ia.statut !== 'ancien'))
