@@ -47,7 +47,7 @@ const KpiCard = ({ label, value, color, bg, previous }) => (
   </div>
 )
 
-const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false, expected, expectedLabel, scopedIds = null }) => {
+const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee, iaId, allYear = false, expected, expectedLabel }) => {
   const [open, setOpen] = useState(false)
   const [details, setDetails] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -61,10 +61,7 @@ const KpiCardDetail = ({ label, value, color, bg, previous, type, semaine, annee
       if (iaId) query = query.eq('ia_id', iaId)
       if (!allYear && semaine) query = query.eq('semaine', semaine)
       const { data } = await query
-      // Vue équipe d'un manager scopé (Romain, Stéphane…) : on ne garde que les lignes de ses membres,
-      // sinon le détail remonte l'activité de toute l'entreprise malgré le périmètre restreint.
-      const filtered = scopedIds ? (data || []).filter(d => scopedIds.has(d.ia_id)) : (data || [])
-      setDetails(filtered)
+      setDetails(data || [])
       setLoaded(true)
     }
     setOpen(o => !o)
@@ -414,7 +411,7 @@ function Podium({ ranking, accentColor, bgGradient, borderColor }) {
 // ─────────────────────────────────────────────
 // PANNEAU GAUCHE : COMMERCE
 // ─────────────────────────────────────────────
-function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, rdvDetailsAnnuel, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh, scopedIds = null }) {
+function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgrammes, rdvDetailsAnnuel, selectedWeek, setSelectedWeek, semaine, annee, refreshKey, onRefresh }) {
   const [view, setView] = useState('equipe')
   const sum = (data, key) => data.reduce((s, d) => s + (d[key] || 0), 0)
 
@@ -479,10 +476,10 @@ function PanneauCommerce({ saisies, iaList, p1Data, positionnements, rdvProgramm
             <KpiCard label="Pipe total" color="#854D0E" bg="#FEF9C3"
               value={sum(weekData, 'besoins_sans_solution') + sum(weekData, 'attente_retour') + sum(weekData, 'attente_retour_prez')}
               previous={selectedWeek > 1 ? sum(prevData, 'besoins_sans_solution') + sum(prevData, 'attente_retour') + sum(prevData, 'attente_retour_prez') : undefined} />
-            <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`p-${selectedWeek}-${refreshKey}`} expected={selectedWeek > 1 ? sum(prevData, 'presentations_a_monter') : undefined} expectedLabel={`Attendu (décl. S${selectedWeek - 1})`} scopedIds={scopedIds} />
-            <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`s-${selectedWeek}-${refreshKey}`} scopedIds={scopedIds} />
-            <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`d-${selectedWeek}-${refreshKey}`} scopedIds={scopedIds} />
-            <KpiCardDetail label="Fins mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} key={`f-${selectedWeek}-${refreshKey}`} scopedIds={scopedIds} />
+            <KpiCardDetail label="Présentations" value={sum(weekData, 'presentations')} color="#1E40AF" bg="#DBEAFE" previous={p('presentations')} type="presentation" semaine={selectedWeek} annee={annee} key={`p-${selectedWeek}-${refreshKey}`} expected={selectedWeek > 1 ? sum(prevData, 'presentations_a_monter') : undefined} expectedLabel={`Attendu (décl. S${selectedWeek - 1})`} />
+            <KpiCardDetail label="Signatures" value={sum(weekData, 'signatures')} color="#9D174D" bg="#FCE7F3" previous={p('signatures')} type="signature" semaine={selectedWeek} annee={annee} key={`s-${selectedWeek}-${refreshKey}`} />
+            <KpiCardDetail label="Démarrages" value={sum(weekData, 'demarrages')} color="#065F46" bg="#D1FAE5" previous={p('demarrages')} type="demarrage" semaine={selectedWeek} annee={annee} key={`d-${selectedWeek}-${refreshKey}`} />
+            <KpiCardDetail label="Fins mission" value={sum(weekData, 'fins_de_mission')} color="#92400E" bg="#FEF3C7" previous={p('fins_de_mission')} type="fin_mission" semaine={selectedWeek} annee={annee} key={`f-${selectedWeek}-${refreshKey}`} />
             <P1KpiCard value={validP1.length} previous={selectedWeek > 1 ? prevValidP1.length : undefined} data={validP1} recurringIds={recurringP1Ids} key={`p1kpi-${selectedWeek}`} />
           </div>
 
@@ -721,7 +718,7 @@ const KpiCardDetailRH = ({ label, value, color, bg, previous, rows, renderDetail
   )
 }
 
-function PanneauRecrutement({ semaine, setSemaine }) {
+function PanneauRecrutement({ semaine, setSemaine, entite = null }) {
   const annee = new Date().getFullYear()
   const semaineCourante = currentWeek()
   const [view, setView] = useState('equipe')
@@ -734,15 +731,16 @@ function PanneauRecrutement({ semaine, setSemaine }) {
   const [crList, setCrList] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Liste des CR : dynamique (table ia, type='cr'), gérée depuis Admin — plus besoin de retoucher au code
-  // à chaque arrivée/départ d'une CR.
+  // Liste des CR : dynamique (table ia, type='cr'), gérée depuis Admin (ou AdminEntite pour Sandra) —
+  // plus besoin de retoucher au code à chaque arrivée/départ d'une CR. Scopée par entité (étanche :
+  // sans entite, on reste sur l'équipe d'Anthony et on exclut explicitement celle de Sandra).
   useEffect(() => {
     let active = true
-    supabase.from('ia').select('nom').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
-      if (active) setCrList((data || []).map(r => r.nom))
+    supabase.from('ia').select('nom, entite').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
+      if (active) setCrList((data || []).filter(r => entite ? r.entite === entite : r.entite !== 'sandra').map(r => r.nom))
     })
     return () => { active = false }
-  }, [])
+  }, [entite])
 
   useEffect(() => {
     const load = async () => {
@@ -1252,9 +1250,13 @@ export default function DashboardManager({ restrictedScope = null }) {
   )
 
   // Périmètre actif : imposé quand cette instance est dédiée à un sous-manager
-  // (accès restreint de Romain, ou onglet "Dashboard Romain" côté Anthony) ; sinon vue complète.
+  // (accès restreint de Romain par liste de noms, Dashboard SOL (AS) de Sandra par entité, ou onglet
+  // "Dashboard Romain"/"Dashboard SOL (AS)" côté Anthony) ; sinon vue complète (équipe d'Anthony, en
+  // excluant explicitement l'entité de Sandra pour rester étanche).
   const activeScope = restrictedScope || null
-  const scopedIaList = activeScope ? iaList.filter(ia => activeScope.members.includes(ia.nom)) : iaList
+  const scopedIaList = activeScope
+    ? (activeScope.entite ? iaList.filter(ia => ia.entite === activeScope.entite) : iaList.filter(ia => activeScope.members.includes(ia.nom)))
+    : iaList.filter(ia => ia.entite !== 'sandra')
   const scopedIds = new Set(scopedIaList.map(ia => ia.id))
   const scopedSaisies = activeScope ? saisies.filter(s => scopedIds.has(s.ia_id)) : saisies
   const scopedP1Data = activeScope ? p1Data.filter(p => scopedIds.has(p.ia_id)) : p1Data
@@ -1265,8 +1267,9 @@ export default function DashboardManager({ restrictedScope = null }) {
   return (
     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
 
-      {/* Bouton réunion */}
-      {!restrictedScope && (
+      {/* Bouton réunion — visible en vue complète (Anthony) et pour un périmètre qui garde le
+          Recrutement (Sandra), pas pour un accès restreint par liste de membres (Romain) */}
+      {(!activeScope || activeScope.showRecrutement) && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px', borderBottom: '1px solid var(--color-border-tertiary)', background: 'var(--color-background-primary)', flexShrink: 0 }}>
           <button onClick={() => setShowReunion(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -1275,9 +1278,10 @@ export default function DashboardManager({ restrictedScope = null }) {
         </div>
       )}
 
-      {/* Split panels (le panneau Recrutement ne concerne pas un accès manager restreint à une équipe commerciale) */}
+      {/* Split panels (le panneau Recrutement ne concerne pas un accès manager restreint par liste de
+          membres comme Romain ; Sandra, elle, garde son propre Recrutement via showRecrutement) */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ flex: 1, borderRight: restrictedScope ? 'none' : '2px solid var(--color-border-tertiary)', overflow: 'hidden' }}>
+        <div style={{ flex: 1, borderRight: (!activeScope || activeScope.showRecrutement) ? '2px solid var(--color-border-tertiary)' : 'none', overflow: 'hidden' }}>
           <PanneauCommerce
             saisies={scopedSaisies}
             iaList={scopedIaList}
@@ -1291,12 +1295,11 @@ export default function DashboardManager({ restrictedScope = null }) {
             annee={annee}
             refreshKey={refreshKey}
             onRefresh={() => { load(); setRefreshKey(k => k + 1) }}
-            scopedIds={activeScope ? scopedIds : null}
           />
         </div>
-        {!restrictedScope && (
+        {(!activeScope || activeScope.showRecrutement) && (
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} />
+            <PanneauRecrutement semaine={selectedWeek} setSemaine={setSelectedWeek} entite={activeScope ? activeScope.entite : null} />
           </div>
         )}
       </div>
@@ -1310,6 +1313,7 @@ export default function DashboardManager({ restrictedScope = null }) {
           selectedWeek={selectedWeek - 1}
           annee={annee}
           onClose={() => setShowReunion(false)}
+          entite={activeScope ? activeScope.entite : null}
         />
       )}
     </div>
@@ -1561,7 +1565,7 @@ function ReunionCardPresentationsEnAttente({ selectedWeek, items, loading, onSta
   )
 }
 
-function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, onClose }) {
+function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, onClose, entite = null }) {
   const [crReporting, setCrReporting] = useState([])
   const [crLoading, setCrLoading] = useState(true)
   const [crList, setCrList] = useState([])
@@ -1581,14 +1585,15 @@ function ModalReunion({ saisies, iaList, positionnements, selectedWeek, annee, o
     return () => { active = false }
   }, [annee])
 
-  // Liste des CR, dynamique (table ia, type='cr') — mêmes conventions que PanneauRecrutement.
+  // Liste des CR, dynamique (table ia, type='cr') — mêmes conventions que PanneauRecrutement, scopée
+  // par entité pour rester étanche entre l'équipe d'Anthony et celle de Sandra.
   useEffect(() => {
     let active = true
-    supabase.from('ia').select('nom').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
-      if (active) setCrList((data || []).map(r => r.nom))
+    supabase.from('ia').select('nom, entite').eq('type', 'cr').neq('statut', 'ancien').order('nom').then(({ data }) => {
+      if (active) setCrList((data || []).filter(r => entite ? r.entite === entite : r.entite !== 'sandra').map(r => r.nom))
     })
     return () => { active = false }
-  }, [])
+  }, [entite])
 
   // Détail des présentations (S-1 + S en cours), chargé UNE SEULE FOIS ici et partagé entre les cartes
   // "Présentations réalisées" et "Retours de prez en attente" : elles filtrent chacune ce même tableau
