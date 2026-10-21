@@ -631,10 +631,14 @@ export default function Dashboard({ ytdOnly = false, scopeMembers = null }) {
       supabase.from('ia').select('*').order('nom'),
       supabase.from('p1').select('*, ia(nom)').eq('annee', annee)
     ])
-    const inScope = nom => !scopeMembers || scopeMembers.includes(nom)
-    setSaisies((all || []).filter(s => inScope(s.ia?.nom)))
-    setIaList((ia || []).filter(i => i.statut !== 'ancien' && i.type !== 'cr' && inScope(i.nom)))
-    setP1Data((p1 || []).filter(p => inScope(p.ia?.nom)))
+    // Le filtrage se fait par id (via scopedIds), pas juste par nom : sinon un homonyme côté entité
+    // Sandra (étanche) pourrait se glisser dans la vue restreinte d'un manager comme Stéphane.
+    const scopedIaRows = (ia || []).filter(i => i.statut !== 'ancien' && i.type !== 'cr' && (!scopeMembers || (scopeMembers.includes(i.nom) && i.entite !== 'sandra')))
+    const scopedIds = new Set(scopedIaRows.map(i => i.id))
+    const inScope = iaId => !scopeMembers || scopedIds.has(iaId)
+    setSaisies((all || []).filter(s => inScope(s.ia_id)))
+    setIaList(scopedIaRows)
+    setP1Data((p1 || []).filter(p => inScope(p.ia_id)))
     if (showLoading) setLoading(false)
   }
 
