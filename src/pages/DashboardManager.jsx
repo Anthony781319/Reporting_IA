@@ -1255,7 +1255,7 @@ export default function DashboardManager({ restrictedScope = null }) {
   // excluant explicitement l'entité de Sandra pour rester étanche).
   const activeScope = restrictedScope || null
   const scopedIaList = activeScope
-    ? (activeScope.entite ? iaList.filter(ia => ia.entite === activeScope.entite) : iaList.filter(ia => activeScope.members.includes(ia.nom)))
+    ? (activeScope.entite ? iaList.filter(ia => ia.entite === activeScope.entite) : iaList.filter(ia => activeScope.members.includes(ia.nom) && ia.entite !== 'sandra'))
     : iaList.filter(ia => ia.entite !== 'sandra')
   const scopedIds = new Set(scopedIaList.map(ia => ia.id))
   const scopedSaisies = activeScope ? saisies.filter(s => scopedIds.has(s.ia_id)) : saisies
