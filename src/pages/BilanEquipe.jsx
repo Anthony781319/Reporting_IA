@@ -148,7 +148,7 @@ export default function BilanEquipe({ scopeMembers = null, scopeEntite = null })
       if (!active) return
       if (err1 || err2) { setError((err1 || err2).message); setLoading(false); return }
 
-            setAllBms((iaList || []).filter(isBM).filter(ia => scopeEntite ? ia.entite === scopeEntite : scopeMembers ? scopeMembers.includes(ia.nom) : ia.entite !== 'sandra'))
+            setAllBms((iaList || []).filter(isBM).filter(ia => scopeEntite ? ia.entite === scopeEntite : scopeMembers ? (scopeMembers.includes(ia.nom) && ia.entite !== 'sandra') : ia.entite !== 'sandra'))
       setSaisies(saisiesData || [])
       setLoading(false)
     }
