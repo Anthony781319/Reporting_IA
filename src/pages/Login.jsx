@@ -17,10 +17,11 @@ const PORTALS = [
 ]
 
 const MANAGER_OPTIONS = [
-  { id: 'commerce', icon: '📊', label: 'Dashboard Anthony', desc: 'Commerce + Recrutement réunis',   bg: '#DBEAFE', color: '#2563EB', darkColor: '#1E3A8A' },
-  { id: 'romain',   icon: '🎯', label: 'Dashboard Romain',  desc: 'Équipe Luxhana, Virginie, Andrea', bg: '#FEF3C7', color: '#B45309', darkColor: '#78350F' },
-  { id: 'contacts', icon: '📇', label: 'Base Contacts',     desc: 'Répertoire clients & prospects',   bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
-  { id: 'rh',       icon: '👥', label: 'Dashboard RH',      desc: 'Suivi recrutement & candidats',    bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
+  { id: 'commerce', icon: '📊', label: 'Dashboard Anthony',  desc: 'Commerce + Recrutement réunis',        bg: '#DBEAFE', color: '#2563EB', darkColor: '#1E3A8A' },
+  { id: 'romain',   icon: '🎯', label: 'Dashboard Romain',   desc: 'Équipe Luxhana, Virginie, Andrea, Laila', bg: '#FEF3C7', color: '#B45309', darkColor: '#78350F' },
+  { id: 'stephane', icon: '📈', label: 'Dashboard Stéphane', desc: 'Équipe Antoine, Nassim, Karim, Sarah',  bg: '#EDE9FE', color: '#6D28D9', darkColor: '#4C1D95' },
+  { id: 'contacts', icon: '📇', label: 'Base Contacts',      desc: 'Répertoire clients & prospects',        bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
+  { id: 'rh',       icon: '👥', label: 'Dashboard RH',       desc: 'Suivi recrutement & candidats',         bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
 ]
 
 // Rôles disponibles une fois dans l'espace SOL (AS).
@@ -96,15 +97,18 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('')
   const [rhPassword, setRhPassword] = useState('')
   const [romainPassword, setRomainPassword] = useState('')
+  const [stephanePassword, setStephanePassword] = useState('')
   const [contactsPassword, setContactsPassword] = useState('')
   const [sandraPassword, setSandraPassword] = useState('')
   const [showRH, setShowRH] = useState(false)
   const [showRomain, setShowRomain] = useState(false)
+  const [showStephane, setShowStephane] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
   const [solRole, setSolRole] = useState(null)
   const [error, setError] = useState('')
   const [rhError, setRhError] = useState('')
   const [romainError, setRomainError] = useState('')
+  const [stephaneError, setStephaneError] = useState('')
   const [contactsError, setContactsError] = useState('')
   const [sandraError, setSandraError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -194,31 +198,43 @@ export default function Login({ onLogin }) {
 
   const handleRHLogin = () => {
     if (!rhPassword) return setRhError('Entre le mot de passe RH')
-    const ok = onLogin({ nom: 'RH' }, rhPassword)
+    const ok = onLogin({ nom: 'RH' }, rhPassword, 'manager-rh')
     if (!ok) setRhError('Mot de passe incorrect')
   }
 
-  const handleRomainLogin = () => {
+  // Récupère la vraie fiche ia (avec son id réel en base) avant de connecter un manager qui a aussi
+  // accès à l'onglet "Ma saisie" — sans ça, iaId est undefined et l'onglet reste bloqué sur l'écran
+  // "Va dans l'onglet Admin".
+  const handleRomainLogin = async () => {
     if (!romainPassword) return setRomainError('Entre le mot de passe')
-    const ok = onLogin({ nom: 'Romain' }, romainPassword)
+    const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Romain').maybeSingle()
+    const ok = onLogin(iaRecord || { nom: 'Romain' }, romainPassword, 'manager-romain')
     if (!ok) setRomainError('Mot de passe incorrect')
+  }
+
+  const handleStephaneLogin = async () => {
+    if (!stephanePassword) return setStephaneError('Entre le mot de passe')
+    const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Stéphane').maybeSingle()
+    const ok = onLogin(iaRecord || { nom: 'Stéphane' }, stephanePassword, 'manager-stephane')
+    if (!ok) setStephaneError('Mot de passe incorrect')
   }
 
   const handleContactsLogin = () => {
     if (!contactsPassword) return setContactsError('Entre le mot de passe')
-    const ok = onLogin({ nom: 'Contacts' }, contactsPassword)
+    const ok = onLogin({ nom: 'Contacts' }, contactsPassword, 'manager-contacts')
     if (!ok) setContactsError('Mot de passe incorrect')
   }
 
   const handleSandraLogin = () => {
     if (!sandraPassword) return setSandraError('Entre le mot de passe')
-    const ok = onLogin({ nom: 'Sandra' }, sandraPassword)
+    const ok = onLogin({ nom: 'Sandra' }, sandraPassword, 'manager-sandra')
     if (!ok) setSandraError('Mot de passe incorrect')
   }
 
-  const handleManagerLogin = () => {
+  const handleManagerLogin = async () => {
     if (!password) return setError('Entre ton mot de passe')
-    const ok = onLogin({ nom: 'Anthony' }, password)
+    const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Anthony').maybeSingle()
+    const ok = onLogin(iaRecord || { nom: 'Anthony' }, password, 'manager-commerce')
     if (!ok) setError('Mot de passe incorrect')
   }
 
@@ -396,15 +412,16 @@ export default function Login({ onLogin }) {
         <Header icon="🎯" title="Manager" />
         <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {MANAGER_OPTIONS.map(opt => {
-            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'contacts' ? showContacts : showRH
+            const isSelected = opt.id === 'commerce' ? (selected === 'commerce') : opt.id === 'romain' ? showRomain : opt.id === 'stephane' ? showStephane : opt.id === 'contacts' ? showContacts : showRH
             return (
               <div key={opt.id}>
                 <div
                   onClick={() => {
-                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowContacts(false); setError('') }
-                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowContacts(false); setSelected(null); setRomainError('') }
-                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setSelected(null); setContactsError('') }
-                    else { setShowRH(true); setShowRomain(false); setShowContacts(false); setSelected(null); setRhError('') }
+                    if (opt.id === 'commerce') { setSelected('commerce'); setShowRH(false); setShowRomain(false); setShowStephane(false); setShowContacts(false); setError('') }
+                    else if (opt.id === 'romain') { setShowRomain(true); setShowRH(false); setShowStephane(false); setShowContacts(false); setSelected(null); setRomainError('') }
+                    else if (opt.id === 'stephane') { setShowStephane(true); setShowRH(false); setShowRomain(false); setShowContacts(false); setSelected(null); setStephaneError('') }
+                    else if (opt.id === 'contacts') { setShowContacts(true); setShowRH(false); setShowRomain(false); setShowStephane(false); setSelected(null); setContactsError('') }
+                    else { setShowRH(true); setShowRomain(false); setShowStephane(false); setShowContacts(false); setSelected(null); setRhError('') }
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', background: opt.bg, border: '2px solid ' + (isSelected ? opt.color : opt.color + '40'), transition: 'all 0.15s' }}>
                   <div style={{ width: 48, height: 48, borderRadius: 12, background: opt.bg, border: '1.5px solid ' + opt.color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
@@ -434,6 +451,17 @@ export default function Login({ onLogin }) {
                     <input type="password" value={romainPassword} onChange={e => { setRomainPassword(e.target.value); setRomainError('') }} onKeyDown={e => e.key === 'Enter' && handleRomainLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
                     {romainError && <ErrorMsg msg={romainError} />}
                     <button onClick={handleRomainLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                      Se connecter
+                    </button>
+                  </div>
+                )}
+
+                {opt.id === 'stephane' && isSelected && (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={labelStyle}>Mot de passe</div>
+                    <input type="password" value={stephanePassword} onChange={e => { setStephanePassword(e.target.value); setStephaneError('') }} onKeyDown={e => e.key === 'Enter' && handleStephaneLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+                    {stephaneError && <ErrorMsg msg={stephaneError} />}
+                    <button onClick={handleStephaneLogin} style={{ width: '100%', padding: 13, background: opt.color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
                       Se connecter
                     </button>
                   </div>
