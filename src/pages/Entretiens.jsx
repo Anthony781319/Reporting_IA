@@ -63,8 +63,10 @@ export default function Entretiens({ scopeMembers = null }) {
   useEffect(() => { fetchIas() }, [])
 
   const fetchIas = async () => {
-    const { data } = await supabase.from('ia').select('id, nom, email, statut').order('nom')
-    if (data) setIas(data.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr' && (!scopeMembers || scopeMembers.includes(ia.nom))))
+    const { data } = await supabase.from('ia').select('id, nom, email, statut, entite').order('nom')
+    // Filtrage par nom ET par id réel (via entite) : un homonyme côté entité Sandra (étanche) ne doit
+    // jamais apparaître dans la liste restreinte d'un manager comme Stéphane.
+    if (data) setIas(data.filter(ia => ia.statut !== 'ancien' && ia.type !== 'cr' && (!scopeMembers || (scopeMembers.includes(ia.nom) && ia.entite !== 'sandra'))))
   }
 
   const fetchData = async (iaId) => {
