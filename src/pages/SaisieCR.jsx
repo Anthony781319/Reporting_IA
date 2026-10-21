@@ -1,233 +1,507 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
 
-// ─────────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────────
-const METRICS = [
-  { key: 'total_rdv',        label: 'Rendez-vous',      color: '#6D28D9', bg: '#EDE9FE' },
-  { key: 'presentations',    label: 'Présentations',    color: '#1E40AF', bg: '#DBEAFE' },
-  { key: 'signatures',       label: 'Signatures',       color: '#9D174D', bg: '#FCE7F3' },
-  { key: 'demarrages',       label: 'Démarrages',       color: '#065F46', bg: '#D1FAE5' },
-  { key: 'fins_de_mission',  label: 'Fins de mission',  color: '#92400E', bg: '#FEF3C7' },
-]
-
-const SEMESTRES = [
-  { id: 1, label: '1er semestre', from: 1,  to: 26 },
-  { id: 2, label: '2e semestre',  from: 27, to: 53 },
-]
-
-// exclut les comptes techniques de la table ia (mêmes règles que le reste de l'appli)
-const isBM = (ia) => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.nom !== 'RH' && ia.type !== 'cr' && ia.statut !== 'ancien'
-
-const STORAGE_KEY = 'bilanEquipe_excludedIds'
-const round1 = (n) => Math.round(n * 10) / 10
-
-const loadExcluded = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-const saveExcluded = (ids) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ids)) } catch {}
+const currentWeek = () => {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), 0, 1)
+  return Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7)
 }
 
-// ─────────────────────────────────────────────
-// UI PIECES
-// ─────────────────────────────────────────────
-function MetricCard({ label, avg, total, color, bg }) {
-  return (
-    <div style={{ background: bg, borderRadius: 12, padding: '12px 14px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color, opacity: 0.75, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{avg}</div>
-      <div style={{ fontSize: 11, color, opacity: 0.6 }}>moy. / BM · {total} total</div>
-    </div>
-  )
-}
+export default function SaisieCR({ crNom }) {
+  const annee = new Date().getFullYear()
+  const semaineActuelle = currentWeek()
+  const [semaine, setSemaine] = useState(semaineActuelle)
+  const [iaList, setIaList] = useState([])
 
-function MetricChart({ metric, rows, teamAvg }) {
-  const data = rows.map(r => ({ nom: r.nom, valeur: r[metric.key] || 0 }))
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', marginBottom: 8 }}>
-        {metric.label}
-        <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: 8, fontSize: 12 }}>
-          moyenne équipe : {teamAvg}
-        </span>
-      </div>
-      <ResponsiveContainer width="100%" height={Math.max(180, data.length * 34)}>
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(0,0,0,0.06)" />
-          <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} allowDecimals={false} />
-          <YAxis type="category" dataKey="nom" width={90} tick={{ fontSize: 12, fill: 'var(--color-text)' }} />
-          <Tooltip formatter={(v) => [v, metric.label]} />
-          <ReferenceLine x={teamAvg} stroke="#888" strokeDasharray="4 4" label={{ value: 'moy.', position: 'top', fontSize: 11, fill: '#888' }} />
-          <Bar dataKey="valeur" radius={[0, 4, 4, 0]} maxBarSize={22}>
-            {data.map((d, i) => (
-              <Cell key={i} fill={d.valeur >= teamAvg ? metric.color : metric.color + '80'} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
+  const [nbEntretiens, setNbEntretiens] = useState(0)
+  const [nbCvEnvoyes, setNbCvEnvoyes] = useState(0)
+  const [nbPresentations, setNbPresentations] = useState(0)
+  const [nbSignatures, setNbSignatures] = useState(0)
 
-function MembreFilter({ allBms, excludedIds, onToggle, onResetAll }) {
-  const [open, setOpen] = useState(false)
-  const nbExclus = excludedIds.length
+  const [rdvList, setRdvList] = useState([])
+  const [rdvForm, setRdvForm] = useState({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
+  const [showRdvForm, setShowRdvForm] = useState(false)
 
-  return (
-    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: 12, padding: '10px 14px', marginBottom: 20 }}>
-      <button onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', fontSize: 13, fontWeight: 600, padding: 0 }}>
-        <span>
-          <i className="ti ti-filter" aria-hidden="true" style={{ marginRight: 6 }}></i>
-          Membres pris en compte
-          {nbExclus > 0 && <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', marginLeft: 6 }}>({nbExclus} exclu{nbExclus > 1 ? 's' : ''})</span>}
-        </span>
-        <i className={`ti ${open ? 'ti-chevron-up' : 'ti-chevron-down'}`} aria-hidden="true"></i>
-      </button>
+  const [presList, setPresList] = useState([])
+  const [presForm, setPresForm] = useState({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
+  const [showPresForm, setShowPresForm] = useState(false)
 
-      {open && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {allBms.map(ia => {
-              const excluded = excludedIds.includes(ia.id)
-              return (
-                <button key={ia.id} onClick={() => onToggle(ia.id)}
-                  style={{
-                    borderRadius: 20, padding: '5px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                    border: excluded ? '1px solid var(--color-border)' : '1px solid transparent',
-                    background: excluded ? 'transparent' : '#DBEAFE',
-                    color: excluded ? 'var(--color-text-muted)' : '#1E40AF',
-                    textDecoration: excluded ? 'line-through' : 'none',
-                  }}>
-                  {ia.nom}
-                </button>
-              )
-            })}
-          </div>
-          {nbExclus > 0 && (
-            <button onClick={onResetAll} style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-              Tout réinclure
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
+  const [sigList, setSigList] = useState([])
+  const [sigForm, setSigForm] = useState({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
+  const [showSigForm, setShowSigForm] = useState(false)
 
-// ─────────────────────────────────────────────
-// MAIN COMPONENT
-// ─────────────────────────────────────────────
-export default function BilanEquipe({ scopeMembers = null, scopeEntite = null }) {
-  const [annee, setAnnee] = useState(new Date().getFullYear())
-  const [semestreId, setSemestreId] = useState(1)
-  const [allBms, setAllBms] = useState([])
-  const [saisies, setSaisies] = useState([])
-  const [excludedIds, setExcludedIds] = useState(loadExcluded)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [cvList, setCvList] = useState([])
+  const [cvForm, setCvForm] = useState({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
+  const [showCvForm, setShowCvForm] = useState(false)
 
-  const semestre = SEMESTRES.find(s => s.id === semestreId)
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState('')
+
+  const nbCandidatsValides = rdvList.filter(r => r.valide).length
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   useEffect(() => {
-    let active = true
-    setLoading(true)
-    setError(null)
-
-    async function fetchData() {
-      const [{ data: saisiesData, error: err1 }, { data: iaList, error: err2 }] = await Promise.all([
-        supabase.from('saisies').select('*').eq('annee', annee).gte('semaine', semestre.from).lte('semaine', semestre.to),
-        supabase.from('ia').select('*').order('nom'),
-      ])
-
-      if (!active) return
-      if (err1 || err2) { setError((err1 || err2).message); setLoading(false); return }
-
-            setAllBms((iaList || [])
-        .filter(isBM)
-        .filter(ia => !scopeMembers || scopeMembers.includes(ia.nom))
-        .filter(ia => scopeEntite ? ia.entite === scopeEntite : ia.entite !== 'sandra'))
-      setSaisies(saisiesData || [])
-      setLoading(false)
-    }
-
-    fetchData()
-    return () => { active = false }
-  }, [annee, semestreId, scopeMembers, scopeEntite])
-
-  const toggleExcluded = (id) => {
-    setExcludedIds(prev => {
-      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-      saveExcluded(next)
-      return next
+    supabase.from('ia').select('*').order('nom').then(({ data }) => {
+      setIaList((data || []).filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr'))
     })
+  }, [])
+
+  useEffect(() => {
+    const load = async () => {
+      setRdvList([]); setPresList([]); setSigList([]); setCvList([])
+      setShowRdvForm(false); setShowPresForm(false); setShowSigForm(false); setShowCvForm(false)
+
+      const [{ data: rep }, { data: rdv }, { data: pres }, { data: sig }, { data: cv }] = await Promise.all([
+        supabase.from('cr_reporting').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee).single(),
+        supabase.from('cr_rendez_vous').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
+        supabase.from('cr_presentations').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
+        supabase.from('cr_signatures').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
+        supabase.from('cr_cv_proposes').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee),
+      ])
+      if (rep) {
+        setNbEntretiens(rep.nb_entretiens || 0)
+        setNbCvEnvoyes(rep.nb_cv_envoyes || 0)
+        setNbPresentations(rep.nb_presentations || 0)
+        setNbSignatures(rep.nb_signatures || 0)
+      } else {
+        setNbEntretiens(0); setNbCvEnvoyes(0); setNbPresentations(0); setNbSignatures(0)
+      }
+      if (rdv) setRdvList(rdv)
+      if (pres) setPresList(pres)
+      if (sig) setSigList(sig)
+      if (cv) setCvList(cv)
+    }
+    load()
+  }, [crNom, semaine, annee])
+
+  // Sauvegarde automatique du reporting global chaque fois que les compteurs ou candidats validés changent
+  useEffect(() => {
+    const save = async () => {
+      await supabase.from('cr_reporting').upsert({
+        cr_nom: crNom, semaine, annee,
+        nb_entretiens: nbEntretiens,
+        nb_candidats_valides: nbCandidatsValides,
+        nb_cv_envoyes: nbCvEnvoyes,
+        nb_presentations: nbPresentations,
+        nb_signatures: nbSignatures,
+      }, { onConflict: 'cr_nom,semaine,annee' })
+    }
+    save()
+  }, [nbEntretiens, nbCandidatsValides, nbCvEnvoyes, nbPresentations, nbSignatures, crNom, semaine, annee])
+
+  const addRdv = async () => {
+    if (!rdvForm.identite_candidat) return
+    const { data, error } = await supabase.from('cr_rendez_vous').insert({ cr_nom: crNom, semaine, annee, ...rdvForm }).select().single()
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
+    setRdvList([...rdvList, data])
+    setRdvForm({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
+    setShowRdvForm(false)
+    showToast('✅ Rendez-vous ajouté !')
   }
-  const resetAll = () => { setExcludedIds([]); saveExcluded([]) }
 
-  const activeBms = allBms.filter(ia => !excludedIds.includes(ia.id))
+  const deleteRdv = async (id) => {
+    await supabase.from('cr_rendez_vous').delete().eq('id', id)
+    setRdvList(rdvList.filter(r => r.id !== id))
+  }
 
-  const rows = activeBms.map(ia => {
-    const mine = saisies.filter(s => s.ia_id === ia.id)
-    const out = { id: ia.id, nom: ia.nom }
-    METRICS.forEach(m => { out[m.key] = mine.reduce((sum, s) => sum + (s[m.key] || 0), 0) })
-    return out
-  }).sort((a, b) => a.nom.localeCompare(b.nom))
+  const addPres = async () => {
+    if (!presForm.identite_candidat) return
+    const { data, error } = await supabase.from('cr_presentations').insert({ cr_nom: crNom, semaine, annee, ...presForm }).select().single()
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
+    setPresList([...presList, data])
+    setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
+    setShowPresForm(false)
+    showToast('✅ Présentation ajoutée !')
+  }
 
-  const teamAverages = {}
-  METRICS.forEach(m => {
-    const total = rows.reduce((s, r) => s + (r[m.key] || 0), 0)
-    teamAverages[m.key] = rows.length ? round1(total / rows.length) : 0
-  })
+  const deletePres = async (id) => {
+    await supabase.from('cr_presentations').delete().eq('id', id)
+    setPresList(presList.filter(p => p.id !== id))
+  }
+
+  const addSig = async () => {
+    if (!sigForm.identite_candidat) return
+    const { data, error } = await supabase.from('cr_signatures').insert({ cr_nom: crNom, semaine, annee, ...sigForm }).select().single()
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
+    setSigList([...sigList, data])
+    setSigForm({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
+    setShowSigForm(false)
+    showToast('✅ Signature ajoutée !')
+  }
+
+  const deleteSig = async (id) => {
+    await supabase.from('cr_signatures').delete().eq('id', id)
+    setSigList(sigList.filter(s => s.id !== id))
+  }
+
+  const toggleIA = (nom) => {
+    const current = cvForm.ias_concernees
+    if (current.includes(nom)) {
+      setCvForm({ ...cvForm, ias_concernees: current.filter(n => n !== nom) })
+    } else {
+      setCvForm({ ...cvForm, ias_concernees: [...current, nom] })
+    }
+  }
+
+  const addCv = async () => {
+    if (!cvForm.identite_candidat || cvForm.ias_concernees.length === 0) {
+      showToast('❌ Remplis le candidat et sélectionne au moins une IA')
+      return
+    }
+    if (cvForm.type_envoi === 'besoin' && !cvForm.besoin_concerne.trim()) {
+      showToast('❌ Indique le besoin concerné')
+      return
+    }
+    const { data, error } = await supabase.from('cr_cv_proposes').insert({
+      cr_nom: crNom, semaine, annee,
+      identite_candidat: cvForm.identite_candidat,
+      profil: cvForm.profil,
+      ias_concernees: cvForm.ias_concernees.join(', '),
+      type_envoi: cvForm.type_envoi,
+      besoin_concerne: cvForm.type_envoi === 'besoin' ? cvForm.besoin_concerne : null
+    }).select().single()
+    if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
+    setCvList([...cvList, { ...data, ias_concernees: cvForm.ias_concernees.join(', ') }])
+    setCvForm({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
+    setShowCvForm(false)
+    showToast('✅ CV ajouté !')
+  }
+
+  const deleteCv = async (id) => {
+    await supabase.from('cr_cv_proposes').delete().eq('id', id)
+    setCvList(cvList.filter(c => c.id !== id))
+  }
+
+  const rdvOk  = rdvList.length === nbEntretiens
+  const cvOk   = cvList.length === nbCvEnvoyes
+  const presOk = presList.length === nbPresentations
+  const sigOk  = sigList.length === nbSignatures
 
   return (
-    <div style={{ padding: '0 4px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Bilan équipe</h2>
-          <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '2px 0 0' }}>
-            Comparatif des BM · {semestre.label} {annee}
-          </p>
+    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
+
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 20, background: '#1a1a2e', color: '#fff', padding: '10px 18px', borderRadius: 10, fontSize: 13, zIndex: 999 }}>
+          {toast}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <select value={semestreId} onChange={e => setSemestreId(Number(e.target.value))}
-            style={{ borderRadius: 8, padding: '6px 10px', fontSize: 13, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
-            {SEMESTRES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-          </select>
-          <select value={annee} onChange={e => setAnnee(Number(e.target.value))}
-            style={{ borderRadius: 8, padding: '6px 10px', fontSize: 13, border: '1px solid var(--color-border)', background: 'var(--color-bg)', color: 'var(--color-text)' }}>
-            {[annee - 1, annee, annee + 1].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>👋 Bonjour {crNom}</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{annee}</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => setSemaine(s => Math.max(1, s - 1))} style={btnNav}>←</button>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>Semaine {semaine}</div>
+            {semaine === semaineActuelle && <div style={{ fontSize: 10, color: '#534AB7', fontWeight: 500 }}>Semaine actuelle</div>}
+          </div>
+          <button onClick={() => setSemaine(s => Math.min(52, s + 1))} style={btnNav}>→</button>
         </div>
       </div>
 
-      {!loading && allBms.length > 0 && (
-        <MembreFilter allBms={allBms} excludedIds={excludedIds} onToggle={toggleExcluded} onResetAll={resetAll} />
-      )}
-
-      {error && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 12 }}>❌ {error}</div>}
-      {loading ? (
-        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Chargement…</div>
-      ) : rows.length === 0 ? (
-        <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Aucune donnée sur cette période pour les membres sélectionnés.</div>
-      ) : (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 24 }}>
-            {METRICS.map(m => (
-              <MetricCard key={m.key} label={m.label} avg={teamAverages[m.key]}
-                total={rows.reduce((s, r) => s + (r[m.key] || 0), 0)} color={m.color} bg={m.bg} />
-            ))}
+      {/* ── BLOC 1 : Rendez-vous ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #534AB7' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#EEEDFE' }}>📅</div>
+          <div>
+            <div style={blockTitle}>Rendez-vous</div>
+            <div style={blockSub}>Entretiens & candidats validés</div>
           </div>
+        </div>
+        <div style={grid2}>
+          <Counter label="Entretiens réalisés" value={nbEntretiens} onChange={setNbEntretiens} color="#534AB7" />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>Candidats validés</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#534AB7' }}>{nbCandidatsValides}</div>
+            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 4, fontStyle: 'italic' }}>auto (depuis détail)</div>
+          </div>
+        </div>
+        {!rdvOk && (
+          <div style={warningBox}>
+            ⚠️ {rdvList.length}/{nbEntretiens} entretien{nbEntretiens !== 1 ? 's' : ''} détaillé{nbEntretiens !== 1 ? 's' : ''} — complète le détail ci-dessous pour valider.
+          </div>
+        )}
+      </div>
 
-          {METRICS.map(m => (
-            <MetricChart key={m.key} metric={m} rows={rows} teamAvg={teamAverages[m.key]} />
-          ))}
-        </>
-      )}
+      {/* ── BLOC 3a : Détail Rendez-vous ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #0C447C' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#E6F1FB' }}>🗂</div>
+          <div>
+            <div style={blockTitle}>Détail — Rendez-vous</div>
+            <div style={blockSub}>{rdvList.length} / {nbEntretiens} entrée{nbEntretiens !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+        {rdvList.map(r => (
+          <div key={r.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{r.identite_candidat}</span>
+              <span style={profilBadge}>{r.profil}</span>
+            </div>
+            <div style={detailRow}>
+              <span style={{ ...statusBadge, background: r.valide ? '#E1F5EE' : '#FCEBEB', color: r.valide ? '#085041' : '#A32D2D' }}>
+                {r.valide ? '✅ Validé' : '❌ Non validé'}
+              </span>
+              {r.positionne_sur_besoins && <span style={infoBadge}>📌 {r.positionne_sur_besoins}</span>}
+            </div>
+            <button onClick={() => deleteRdv(r.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+        {showRdvForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={rdvForm.identite_candidat} onChange={v => setRdvForm({ ...rdvForm, identite_candidat: v })} />
+            <Input label="Profil" value={rdvForm.profil} onChange={v => setRdvForm({ ...rdvForm, profil: v })} />
+            <Input label="Positionné sur besoins" value={rdvForm.positionne_sur_besoins} onChange={v => setRdvForm({ ...rdvForm, positionne_sur_besoins: v })} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <input type="checkbox" id="valide" checked={rdvForm.valide} onChange={e => setRdvForm({ ...rdvForm, valide: e.target.checked })} />
+              <label htmlFor="valide" style={{ fontSize: 13 }}>Candidat validé</label>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addRdv} style={{ ...btnSave, background: '#0C447C' }}>Ajouter</button>
+              <button onClick={() => setShowRdvForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => rdvOk ? null : setShowRdvForm(true)} disabled={rdvOk}
+            style={{ ...btnAdd, borderColor: '#0C447C', color: rdvOk ? '#A0A0A0' : '#0C447C', cursor: rdvOk ? 'not-allowed' : 'pointer', opacity: rdvOk ? 0.5 : 1 }}>
+            {rdvOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter un rendez-vous'}
+          </button>
+        )}
+      </div>
+
+      {/* ── BLOC 2 : CV envoyés (fusionné avec CV proposés) ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #2E7D32' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#E8F5E9' }}>📨</div>
+          <div>
+            <div style={blockTitle}>CV envoyés aux IAs</div>
+            <div style={blockSub}>{cvList.length} / {nbCvEnvoyes} candidat{nbCvEnvoyes !== 1 ? 's' : ''} proposé{nbCvEnvoyes !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Counter label="CV envoyés" value={nbCvEnvoyes} onChange={setNbCvEnvoyes} color="#2E7D32" />
+        </div>
+        {!cvOk && (
+          <div style={warningBox}>
+            ⚠️ {cvList.length}/{nbCvEnvoyes} CV détaillé{nbCvEnvoyes !== 1 ? 's' : ''} — complète le détail ci-dessous.
+          </div>
+        )}
+
+        {cvList.map(c => (
+          <div key={c.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{c.identite_candidat}</span>
+              <span style={profilBadge}>{c.profil}</span>
+              <span style={{ ...infoBadge, background: c.type_envoi === 'besoin' ? '#FFF3E0' : '#E3F2FD', color: c.type_envoi === 'besoin' ? '#92400E' : '#0C447C', border: `1px solid ${c.type_envoi === 'besoin' ? '#FDBA74' : '#90CAF9'}` }}>
+                {c.type_envoi === 'besoin' ? `📌 Besoin : ${c.besoin_concerne}` : '🚀 Push'}
+              </span>
+            </div>
+            <div style={detailRow}>
+              {(c.ias_concernees ? c.ias_concernees.split(', ') : []).map(ia => (
+                <span key={ia} style={{ ...infoBadge, background: '#E8F5E9', color: '#2E7D32', border: '1px solid #A5D6A7' }}>👤 {ia}</span>
+              ))}
+            </div>
+            <button onClick={() => deleteCv(c.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+
+        {showCvForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={cvForm.identite_candidat} onChange={v => setCvForm({ ...cvForm, identite_candidat: v })} />
+            <Input label="Profil" value={cvForm.profil} onChange={v => setCvForm({ ...cvForm, profil: v })} />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Type d'envoi</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {[['push', '🚀 Push'], ['besoin', '📌 Positionnement besoin']].map(([id, label]) => {
+                  const checked = cvForm.type_envoi === id
+                  return (
+                    <div key={id} onClick={() => setCvForm({ ...cvForm, type_envoi: id })}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', border: checked ? '2px solid #2E7D32' : '1px solid var(--color-border-tertiary)', background: checked ? '#E8F5E9' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: checked ? 600 : 400, color: checked ? '#2E7D32' : 'var(--color-text-primary)' }}>{label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {cvForm.type_envoi === 'besoin' && (
+              <Input label="Besoin concerné" value={cvForm.besoin_concerne} onChange={v => setCvForm({ ...cvForm, besoin_concerne: v })} />
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>IAs concernées</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                {iaList.map(ia => {
+                  const checked = cvForm.ias_concernees.includes(ia.nom)
+                  return (
+                    <div key={ia.id} onClick={() => toggleIA(ia.nom)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: checked ? '2px solid #2E7D32' : '1px solid var(--color-border-tertiary)', background: checked ? '#E8F5E9' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
+                    >
+                      <div style={{ width: 18, height: 18, borderRadius: 4, border: checked ? '2px solid #2E7D32' : '2px solid var(--color-border-tertiary)', background: checked ? '#2E7D32' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {checked && <span style={{ color: '#fff', fontSize: 11 }}>✓</span>}
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: checked ? 500 : 400, color: checked ? '#2E7D32' : 'var(--color-text-primary)' }}>{ia.nom}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addCv} style={{ ...btnSave, background: '#2E7D32' }}>Ajouter</button>
+              <button onClick={() => setShowCvForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => cvOk ? null : setShowCvForm(true)} disabled={cvOk}
+            style={{ ...btnAdd, borderColor: '#2E7D32', color: cvOk ? '#A0A0A0' : '#2E7D32', cursor: cvOk ? 'not-allowed' : 'pointer', opacity: cvOk ? 0.5 : 1 }}>
+            {cvOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter un CV proposé'}
+          </button>
+        )}
+      </div>
+
+      {/* ── BLOC 3b : Présentations ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #633806' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#FAEEDA' }}>📋</div>
+          <div>
+            <div style={blockTitle}>Présentations</div>
+            <div style={blockSub}>{presList.length} / {nbPresentations} entrée{nbPresentations !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Counter label="Présentations" value={nbPresentations} onChange={setNbPresentations} color="#633806" />
+        </div>
+        {!presOk && (
+          <div style={warningBox}>
+            ⚠️ {presList.length}/{nbPresentations} présentation{nbPresentations !== 1 ? 's' : ''} détaillée{nbPresentations !== 1 ? 's' : ''} — complète le détail ci-dessous.
+          </div>
+        )}
+        {presList.map(p => (
+          <div key={p.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{p.identite_candidat}</span>
+              <span style={profilBadge}>{p.profil}</span>
+            </div>
+            <div style={detailRow}>
+              {p.date_presentation && <span style={infoBadge}>📅 {p.date_presentation}</span>}
+              {p.ia_concerne && <span style={infoBadge}>👤 {p.ia_concerne}</span>}
+            </div>
+            <button onClick={() => deletePres(p.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+        {showPresForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={presForm.identite_candidat} onChange={v => setPresForm({ ...presForm, identite_candidat: v })} />
+            <Input label="Profil" value={presForm.profil} onChange={v => setPresForm({ ...presForm, profil: v })} />
+            <Input label="IA concerné" value={presForm.ia_concerne} onChange={v => setPresForm({ ...presForm, ia_concerne: v })} />
+            <Input label="Date de présentation" type="date" value={presForm.date_presentation} onChange={v => setPresForm({ ...presForm, date_presentation: v })} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addPres} style={{ ...btnSave, background: '#633806' }}>Ajouter</button>
+              <button onClick={() => setShowPresForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => presOk ? null : setShowPresForm(true)} disabled={presOk}
+            style={{ ...btnAdd, borderColor: '#633806', color: presOk ? '#A0A0A0' : '#633806', cursor: presOk ? 'not-allowed' : 'pointer', opacity: presOk ? 0.5 : 1 }}>
+            {presOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter une présentation'}
+          </button>
+        )}
+      </div>
+
+      {/* ── BLOC 3c : Signatures ── */}
+      <div style={{ ...blockCard, borderTop: '4px solid #72243E' }}>
+        <div style={blockHeader}>
+          <div style={{ ...blockIcon, background: '#FBEAF0' }}>✍️</div>
+          <div>
+            <div style={blockTitle}>Signatures</div>
+            <div style={blockSub}>{sigList.length} / {nbSignatures} entrée{nbSignatures !== 1 ? 's' : ''} cette semaine</div>
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <Counter label="Signatures" value={nbSignatures} onChange={setNbSignatures} color="#72243E" />
+        </div>
+        {!sigOk && (
+          <div style={warningBox}>
+            ⚠️ {sigList.length}/{nbSignatures} signature{nbSignatures !== 1 ? 's' : ''} détaillée{nbSignatures !== 1 ? 's' : ''} — complète le détail ci-dessous.
+          </div>
+        )}
+        {sigList.map(s => (
+          <div key={s.id} style={detailCard}>
+            <div style={detailRow}>
+              <span style={candidatName}>{s.identite_candidat}</span>
+              <span style={profilBadge}>{s.profil}</span>
+            </div>
+            <div style={detailRow}>
+              {s.salaire_envisage && <span style={infoBadge}>💰 {s.salaire_envisage}</span>}
+              {s.date_signature && <span style={infoBadge}>📅 {s.date_signature}</span>}
+            </div>
+            <button onClick={() => deleteSig(s.id)} style={btnDelete}>Supprimer</button>
+          </div>
+        ))}
+        {showSigForm ? (
+          <div style={formBox}>
+            <Input label="Identité du candidat" value={sigForm.identite_candidat} onChange={v => setSigForm({ ...sigForm, identite_candidat: v })} />
+            <Input label="Profil" value={sigForm.profil} onChange={v => setSigForm({ ...sigForm, profil: v })} />
+            <Input label="Salaire envisagé" value={sigForm.salaire_envisage} onChange={v => setSigForm({ ...sigForm, salaire_envisage: v })} />
+            <Input label="Date de signature" type="date" value={sigForm.date_signature} onChange={v => setSigForm({ ...sigForm, date_signature: v })} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={addSig} style={{ ...btnSave, background: '#72243E' }}>Ajouter</button>
+              <button onClick={() => setShowSigForm(false)} style={btnCancel}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => sigOk ? null : setShowSigForm(true)} disabled={sigOk}
+            style={{ ...btnAdd, borderColor: '#72243E', color: sigOk ? '#A0A0A0' : '#72243E', cursor: sigOk ? 'not-allowed' : 'pointer', opacity: sigOk ? 0.5 : 1 }}>
+            {sigOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter une signature'}
+          </button>
+        )}
+      </div>
+
     </div>
   )
 }
+
+function Counter({ label, value, onChange, color }) {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+        <button onClick={() => onChange(Math.max(0, value - 1))} style={{ ...btnCounter, borderColor: color }}>−</button>
+        <span style={{ fontSize: 22, fontWeight: 700, minWidth: 32, textAlign: 'center', color }}>{value}</span>
+        <button onClick={() => onChange(value + 1)} style={{ ...btnCounter, borderColor: color }}>+</button>
+      </div>
+    </div>
+  )
+}
+
+function Input({ label, value, onChange, type = 'text' }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 4 }}>{label}</div>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
+    </div>
+  )
+}
+
+const blockCard = { background: 'var(--color-background-primary)', borderRadius: 14, padding: '20px', marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }
+const blockHeader = { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }
+const blockIcon = { width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }
+const blockTitle = { fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)' }
+const blockSub = { fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }
+const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 4 }
+const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, fontSize: 13 }
+const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
+const candidatName = { fontWeight: 600, fontSize: 13 }
+const profilBadge = { fontSize: 12, color: 'var(--color-text-secondary)', background: 'var(--color-background-primary)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--color-border-tertiary)' }
+const statusBadge = { borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 500 }
+const infoBadge = { background: 'var(--color-background-primary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
+const formBox = { background: 'var(--color-background-secondary)', borderRadius: 10, padding: '16px', marginBottom: 8, marginTop: 8 }
+const warningBox = { background: '#FEF3C7', color: '#92400E', borderRadius: 8, padding: '10px 14px', fontSize: 12, marginBottom: 16, fontWeight: 500 }
+const btnSave = { padding: '10px 18px', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }
+const btnCancel = { padding: '10px 18px', background: 'none', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
+const btnAdd = { width: '100%', padding: '10px', background: 'none', border: '1px dashed', borderRadius: 8, fontSize: 13, cursor: 'pointer', marginTop: 4, fontWeight: 500 }
+const btnDelete = { marginTop: 6, padding: '4px 10px', background: 'none', border: '1px solid #f5c6c6', borderRadius: 6, fontSize: 11, color: '#A32D2D', cursor: 'pointer' }
+const btnCounter = { width: 28, height: 28, borderRadius: '50%', border: '1px solid', background: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
