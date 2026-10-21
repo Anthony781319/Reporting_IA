@@ -123,7 +123,7 @@ function MembreFilter({ allBms, excludedIds, onToggle, onResetAll }) {
 // ─────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
-export default function BilanEquipe({ scopeMembers = null }) {
+export default function BilanEquipe({ scopeMembers = null, scopeEntite = null }) {
   const [annee, setAnnee] = useState(new Date().getFullYear())
   const [semestreId, setSemestreId] = useState(1)
   const [allBms, setAllBms] = useState([])
@@ -148,14 +148,14 @@ export default function BilanEquipe({ scopeMembers = null }) {
       if (!active) return
       if (err1 || err2) { setError((err1 || err2).message); setLoading(false); return }
 
-            setAllBms((iaList || []).filter(isBM).filter(ia => !scopeMembers || scopeMembers.includes(ia.nom)))
+            setAllBms((iaList || []).filter(isBM).filter(ia => scopeEntite ? ia.entite === scopeEntite : scopeMembers ? scopeMembers.includes(ia.nom) : ia.entite !== 'sandra'))
       setSaisies(saisiesData || [])
       setLoading(false)
     }
 
     fetchData()
     return () => { active = false }
-  }, [annee, semestreId, scopeMembers])
+  }, [annee, semestreId, scopeMembers, scopeEntite])
 
   const toggleExcluded = (id) => {
     setExcludedIds(prev => {
