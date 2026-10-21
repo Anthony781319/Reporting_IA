@@ -18,9 +18,13 @@ import './App.css'
 const ADMIN_PASSWORD = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
-// Accès manager restreint : Romain gère Luxhana, Virginie et Andrea en plus de sa propre saisie.
+// Accès manager restreint : Romain gère Luxhana, Virginie, Andrea et Laila en plus de sa propre saisie.
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
-const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Romain']
+const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Laila', 'Romain']
+// Accès manager Stéphane : accès complet comme Anthony (Dashboard, Bilan équipe, Ma saisie, Year to
+// Date, 1:1), mais Year to Date et 1:1 restent limités à son équipe.
+const STEPHANE_MANAGER_PASSWORD = 'Stéphane'
+const STEPHANE_TEAM = ['Antoine', 'Nassim', 'Karim', 'Sarah', 'Stéphane']
 // Accès à la base de contacts (répertoire clients/prospects issu des saisies des IA).
 const CONTACTS_PASSWORD = 'crm'
 // Accès manager dédié à l'entité de Sandra ("SOL (AS)") : équipe totalement étanche de celle d'Anthony
@@ -42,14 +46,20 @@ export default function App() {
   const [isContacts, setIsContacts] = useState(false)
   const [isProspection, setIsProspection] = useState(false)
   const [isSandraManager, setIsSandraManager] = useState(false)
+  const [isStephaneManager, setIsStephaneManager] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
-    if (ia.nom === 'RH' && password === RH_PASSWORD) {
+    // Les tuiles manager (RH, Commerce/Admin, Romain, Contacts, Sandra) sont marquées par un
+    // initialTab dédié : si la tuile correspond mais le mot de passe est faux, on retourne false
+    // immédiatement au lieu de laisser retomber sur la règle générique en bas (ia.nom === mot de
+    // passe), qui connecterait sinon silencieusement la personne en simple IA sans son rôle manager.
+    if (ia.nom === 'RH' && initialTab === 'manager-rh') {
+      if (password !== RH_PASSWORD) return false
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
     }
     if (ia.type === 'cr' && password.toLowerCase() === ia.nom.toLowerCase()) {
@@ -58,20 +68,28 @@ export default function App() {
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
-    if (ia.nom === 'Anthony' && password === ADMIN_PASSWORD) {
+    if (ia.nom === 'Anthony' && (initialTab === 'admin' || initialTab === 'manager-commerce')) {
+      if (password !== ADMIN_PASSWORD) return false
       resetRoles()
       setUser(ia)
       if (initialTab === 'admin') { setIsAdminOnly(true); setTab('admin') }
       else { setIsManager(true); setTab('dashboard-manager') }
       return true
     }
-    if (ia.nom === 'Romain' && password === ROMAIN_MANAGER_PASSWORD) {
+    if (ia.nom === 'Romain' && initialTab === 'manager-romain') {
+      if (password !== ROMAIN_MANAGER_PASSWORD) return false
       resetRoles(); setUser(ia); setIsManager(true); setIsTeamManager(true); setTab('dashboard-manager'); return true
     }
-    if (ia.nom === 'Contacts' && password === CONTACTS_PASSWORD) {
+    if (ia.nom === 'Stéphane' && initialTab === 'manager-stephane') {
+      if (password.toLowerCase() !== STEPHANE_MANAGER_PASSWORD.toLowerCase()) return false
+      resetRoles(); setUser(ia); setIsManager(true); setIsStephaneManager(true); setTab('dashboard-manager'); return true
+    }
+    if (ia.nom === 'Contacts' && initialTab === 'manager-contacts') {
+      if (password !== CONTACTS_PASSWORD) return false
       resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
     }
-    if (ia.nom === 'Sandra' && password === SANDRA_PASSWORD) {
+    if (ia.nom === 'Sandra' && initialTab === 'manager-sandra') {
+      if (password !== SANDRA_PASSWORD) return false
       resetRoles(); setUser(ia); setIsSandraManager(true); setTab('dashboard-manager'); return true
     }
     if (initialTab === 'prospection' && password.toLowerCase() === ia.nom.toLowerCase()) {
@@ -116,6 +134,9 @@ export default function App() {
   ]
 
   const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : userTabs
+
+  // Scope (liste de membres) à appliquer à Year to Date et 1:1 pour un manager restreint à son équipe.
+  const managerScope = isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null
 
   const getAvatar = () => {
     if (user.nom === 'P1 of the week') return 'P1'
@@ -163,16 +184,16 @@ export default function App() {
       )}
 
       <div className="content">
-        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : isSandraManager ? { label: SANDRA_LABEL, entite: SANDRA_ENTITE, showRecrutement: true } : null} />}
-        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : null} scopeEntite={isSandraManager ? SANDRA_ENTITE : null} />}
+        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : isStephaneManager ? { label: user.nom, members: STEPHANE_TEAM } : isSandraManager ? { label: SANDRA_LABEL, entite: SANDRA_ENTITE, showRecrutement: true } : null} />}
+        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null} scopeEntite={isSandraManager ? SANDRA_ENTITE : null} />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
-        {tab === 'ytd'               && <Dashboard ytdOnly={true} />}
+        {tab === 'ytd'               && <Dashboard ytdOnly={true} scopeMembers={managerScope} />}
         {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
         {tab === 'admin-sol'         && <AdminEntite entite={SANDRA_ENTITE} entiteLabel={SANDRA_LABEL} />}
         {tab === 'p1'                && <P1Page />}
         {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} entite={user.entite} />}
         {tab === 'dashboard-rh'      && <DashboardRH />}
-        {tab === 'entretiens'        && <Entretiens />}
+        {tab === 'entretiens'        && <Entretiens scopeMembers={managerScope} />}
         {tab === 'contacts'          && <Contacts />}
         {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
         {tab === 'prospection-classement' && <Classement />}
