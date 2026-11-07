@@ -121,8 +121,12 @@ export default function ChallengeItc({ iaId, iaName }) {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
+      // "Ma saisie" est maintenant scopée à la fenêtre du challenge elle aussi (comme le classement et
+      // les présentés) : sinon d'anciens positionnements saisis avant le 1er novembre (via l'ancien
+      // panneau de Ma saisie) réapparaissaient ici sans jamais compter nulle part ailleurs, ce qui
+      // semait la confusion.
       const [{ data: mine }, { data: windowData }, { data: itc }] = await Promise.all([
-        iaId ? supabase.from('positionnements').select('*').eq('ia_id', iaId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+        iaId ? supabase.from('positionnements').select('*').eq('ia_id', iaId).gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         supabase.from('positionnements').select('*, ia(nom, entite)').gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END),
         supabase.from('collaborateurs_itc').select('*').eq('statut', 'actif').order('nom'),
       ])
@@ -254,7 +258,8 @@ export default function ChallengeItc({ iaId, iaName }) {
     .filter(p => PRESENTED_STATUTS.includes(p.statut))
     .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
 
-  const totalChallenge = allWindowPositionnements.length
+  const totalPush = allWindowPositionnements.filter(p => p.type_positionnement === 'push').length
+  const totalBesoin = allWindowPositionnements.filter(p => p.type_positionnement === 'besoin').length
   const totalPresentations = presentes.length
   const totalSignatures = allWindowPositionnements.filter(p => p.statut === 'signe').length
 
@@ -266,7 +271,7 @@ export default function ChallengeItc({ iaId, iaName }) {
   )
 
   return (
-    <div style={{ padding: 16, maxWidth: 760, margin: '0 auto' }}>
+    <div style={{ padding: 16 }}>
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 500 }}>Challenge ITC — Bonjour {iaName} 👋</div>
         <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
@@ -274,18 +279,22 @@ export default function ChallengeItc({ iaId, iaName }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
-        <div style={{ background: ACCENT_LIGHT, borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, color: ACCENT, fontWeight: 600, textTransform: 'uppercase' }}>Positionnements</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: ACCENT }}>{totalChallenge}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <div style={{ background: '#EDE9FE', borderRadius: 10, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: '#4338CA', fontWeight: 600, textTransform: 'uppercase' }}>Push</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#4338CA' }}>{totalPush}</div>
         </div>
-        <div style={{ background: '#EDE9FE', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, color: '#4338CA', fontWeight: 600, textTransform: 'uppercase' }}>Présentations</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#4338CA' }}>{totalPresentations}</div>
+        <div style={{ background: ACCENT_LIGHT, borderRadius: 10, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: ACCENT, fontWeight: 600, textTransform: 'uppercase' }}>Positionnement sur besoin</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: ACCENT }}>{totalBesoin}</div>
         </div>
-        <div style={{ background: '#D1FAE5', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, color: '#0F6E56', fontWeight: 600, textTransform: 'uppercase' }}>Signatures</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#0F6E56' }}>{totalSignatures}</div>
+        <div style={{ background: '#DBEAFE', borderRadius: 10, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: '#1E40AF', fontWeight: 600, textTransform: 'uppercase' }}>Présentation</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#1E40AF' }}>{totalPresentations}</div>
+        </div>
+        <div style={{ background: '#D1FAE5', borderRadius: 10, padding: '10px 14px' }}>
+          <div style={{ fontSize: 10, color: '#0F6E56', fontWeight: 600, textTransform: 'uppercase' }}>Signature</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#0F6E56' }}>{totalSignatures}</div>
         </div>
       </div>
 
