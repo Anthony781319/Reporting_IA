@@ -165,7 +165,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app${tab === 'p1' ? ' wide' : ''}`}>
+    <div className={`app${tab === 'p1' || tab === 'challenge-itc' ? ' wide' : ''}`}>
       <div className="nav">
         <div className="nav-title">
           <i className="ti ti-chart-bar" aria-hidden="true"></i>
