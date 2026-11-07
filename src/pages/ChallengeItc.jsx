@@ -257,6 +257,13 @@ export default function ChallengeItc({ iaId, iaName }) {
       // On fusionne plutôt que remplacer : data (retour de l'update) n'inclut pas le join ia(nom,
       // entite), donc un remplacement pur aurait fait disparaître p.ia et cassé le classement/présentés.
       setAllWindowPositionnements(l => l.map(p => p.id === id ? { ...p, ...data } : p))
+      // Une fois signé, le collaborateur n'est plus en intercontrat : on l'archive automatiquement dans
+      // collaborateurs_itc pour qu'il disparaisse de la Fiche ITC et de la liste de saisie, sans que
+      // personne n'ait à y penser manuellement dans Admin.
+      if (statut === 'signe' && data.collaborateur_itc) {
+        await supabase.from('collaborateurs_itc').update({ statut: 'ancien' }).ilike('nom', data.collaborateur_itc)
+        setItcCollaborateurs(l => l.filter(c => c.nom.toLowerCase() !== data.collaborateur_itc.toLowerCase()))
+      }
     } else {
       setError(err?.message ? `Le statut ne s'est pas enregistré : ${err.message}` : "Le statut ne s'est pas enregistré, réessaie ou préviens Anthony.")
     }
