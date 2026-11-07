@@ -271,6 +271,12 @@ export default function ChallengeItc({ iaId, iaName }) {
     }, {})
   ).sort((a, b) => b.score - a.score)
 
+  // Tous les positionnements de la fenêtre, tous statuts confondus (vue détaillée demandée par Antho,
+  // entre Classement et Présentés) : à la différence de "Présentés"/"Signé" qui ne montrent que les
+  // positionnements arrivés à un certain stade, celle-ci liste tout, y compris ceux encore en attente.
+  const tousPositionnes = [...allWindowPositionnements]
+    .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
+
   const presentes = allWindowPositionnements
     .filter(p => PRESENTED_STATUTS.includes(p.statut))
     .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
@@ -326,7 +332,7 @@ export default function ChallengeItc({ iaId, iaName }) {
       </div>
 
       <div style={{ display: 'flex', background: ACCENT_LIGHT, borderRadius: 10, padding: 3, marginBottom: 16, border: `1px solid ${BORDER}` }}>
-        {[['classement', '🏆 Classement'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie']].map(([id, label]) => (
+        {[['classement', '🏆 Classement'], ['positionnes', '📋 Positionné'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie']].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: view === id ? 700 : 400, background: view === id ? ACCENT : 'transparent', color: view === id ? '#fff' : ACCENT, cursor: 'pointer', transition: 'all 0.2s' }}>
             {label}
           </button>
@@ -352,6 +358,36 @@ export default function ChallengeItc({ iaId, iaName }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {view === 'positionnes' && (
+        <div>
+          {tousPositionnes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 24, color: TEXT_SECONDARY, fontSize: 13 }}>Aucun positionnement enregistré sur la période pour l'instant.</div>
+          ) : tousPositionnes.map(p => {
+            const typeColor = POSITIONNEMENT_TYPE_COLORS[p.type_positionnement] || ACCENT
+            const typeLabel = POSITIONNEMENT_TYPE_OPTIONS.find(t => t.value === p.type_positionnement)?.label
+            return (
+              <div key={p.id} style={{ background: '#fff', border: `1.5px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: TITLE_COLOR }}>{p.collaborateur_itc}</div>
+                    {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: typeColor, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{typeLabel}</span>}
+                  </div>
+                  <StatutBadge statut={p.statut} />
+                </div>
+                <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 4 }}>
+                  🏢 {p.client} · positionné par <strong>{p.ia?.nom}</strong> · {new Date(p.date_push).toLocaleDateString('fr-FR')}
+                </div>
+                {(p.nom || p.prenom) && (
+                  <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 2 }}>
+                    👤 {[p.prenom, p.nom].filter(Boolean).join(' ')}{p.fonction && ` · ${p.fonction}`}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
