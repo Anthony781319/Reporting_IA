@@ -117,22 +117,39 @@ export default function ChallengeItc({ iaId, iaName }) {
   const [selectedPosContactId, setSelectedPosContactId] = useState(null)
 
   const [view, setView] = useState('classement')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      // "Ma saisie" est maintenant scopée à la fenêtre du challenge elle aussi (comme le classement et
-      // les présentés) : sinon d'anciens positionnements saisis avant le 1er novembre (via l'ancien
-      // panneau de Ma saisie) réapparaissaient ici sans jamais compter nulle part ailleurs, ce qui
-      // semait la confusion.
-      const [{ data: mine }, { data: windowData }, { data: itc }] = await Promise.all([
+      setLoadError('')
+      // "Ma saisie" est scopée à la fenêtre du challenge elle aussi (comme le classement et les
+      // présentés) : sinon d'anciens positionnements saisis avant le 1er novembre (via l'ancien panneau
+      // de Ma saisie) réapparaissaient ici sans jamais compter nulle part ailleurs, ce qui semait la
+      // confusion.
+      //
+      // On ne demande plus le join embarqué ia(nom, entite) : la colonne positionnements.ia_id n'a
+      // jamais été déclarée comme clé étrangère vers ia.id (seul son type a été corrigé en uuid dans
+      // fix_ia_id_positionnements.sql), donc PostgREST ne sait pas faire ce join et la requête
+      // échouait silencieusement (windowData restait vide, d'où un classement/des totaux bloqués à
+      // zéro malgré des saisies bien enregistrées). On récupère la table ia à part et on fait le
+      // rapprochement nous-mêmes en JS, ce qui ne dépend plus de cette relation.
+      const [{ data: mine, error: mineErr }, { data: windowData, error: windowErr }, { data: itc }, { data: iaRows, error: iaErr }] = await Promise.all([
         iaId ? supabase.from('positionnements').select('*').eq('ia_id', iaId).gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
-        supabase.from('positionnements').select('*, ia(nom, entite)').gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END),
+        supabase.from('positionnements').select('*').gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END),
         supabase.from('collaborateurs_itc').select('*').eq('statut', 'actif').order('nom'),
+        supabase.from('ia').select('id, nom, entite'),
       ])
+      const firstErr = mineErr || windowErr || iaErr
+      if (firstErr) setLoadError(`Erreur de chargement : ${firstErr.message}`)
+      const iaById = new Map((iaRows || []).map(i => [i.id, i]))
       setMyPositionnements(mine || [])
       // On exclut l'entité de Sandra (SOL (AS), challenge étanche réservé à l'équipe INFRA d'Anthony).
-      setAllWindowPositionnements((windowData || []).filter(p => p.ia?.entite !== 'sandra' && p.ia?.nom))
+      setAllWindowPositionnements(
+        (windowData || [])
+          .map(p => ({ ...p, ia: iaById.get(p.ia_id) || null }))
+          .filter(p => p.ia?.entite !== 'sandra' && p.ia?.nom)
+      )
       setItcCollaborateurs(itc || [])
       setLoading(false)
     }
@@ -278,6 +295,12 @@ export default function ChallengeItc({ iaId, iaName }) {
           Du {new Date(CHALLENGE_START).toLocaleDateString('fr-FR')} au {new Date(CHALLENGE_END).toLocaleDateString('fr-FR')} — positionnement des intercontrats
         </div>
       </div>
+
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12.5, fontWeight: 600 }}>
+          ⚠️ {loadError} — préviens Anthony, les chiffres affichés ci-dessous ne sont pas fiables tant que ce message est là.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
         <div style={{ background: '#EDE9FE', borderRadius: 10, padding: '10px 14px' }}>
