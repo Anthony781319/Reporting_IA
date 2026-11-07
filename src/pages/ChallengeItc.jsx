@@ -117,6 +117,7 @@ export default function ChallengeItc({ iaId, iaName }) {
   const [selectedPosContactId, setSelectedPosContactId] = useState(null)
 
   const [view, setView] = useState('classement')
+  const [ficheSearch, setFicheSearch] = useState('')
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
@@ -137,7 +138,10 @@ export default function ChallengeItc({ iaId, iaName }) {
       const [{ data: mine, error: mineErr }, { data: windowData, error: windowErr }, { data: itc }, { data: iaRows, error: iaErr }] = await Promise.all([
         iaId ? supabase.from('positionnements').select('*').eq('ia_id', iaId).gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         supabase.from('positionnements').select('*').gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END),
-        supabase.from('collaborateurs_itc').select('*').eq('statut', 'actif').order('nom'),
+        // On ne sélectionne jamais salaire/notes_internes ici : cette liste atterrit dans le navigateur
+        // de n'importe quel commercial connecté au portail (pas de mot de passe), donc même si rien ne
+        // les affiche côté UI, on évite par principe qu'elles transitent jusqu'au client.
+        supabase.from('collaborateurs_itc').select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut').eq('statut', 'actif').order('nom'),
         supabase.from('ia').select('id, nom, entite'),
       ])
       const firstErr = mineErr || windowErr || iaErr
@@ -336,12 +340,39 @@ export default function ChallengeItc({ iaId, iaName }) {
       </div>
 
       <div style={{ display: 'flex', background: ACCENT_LIGHT, borderRadius: 10, padding: 3, marginBottom: 16, border: `1px solid ${BORDER}` }}>
-        {[['classement', '🏆 Classement'], ['positionnes', '📋 Positionné'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie']].map(([id, label]) => (
+        {[['fiche', '🧑‍💼 Fiche ITC'], ['classement', '🏆 Classement'], ['positionnes', '📋 Positionné'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie']].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: view === id ? 700 : 400, background: view === id ? ACCENT : 'transparent', color: view === id ? '#fff' : ACCENT, cursor: 'pointer', transition: 'all 0.2s' }}>
             {label}
           </button>
         ))}
       </div>
+
+      {view === 'fiche' && (
+        <div>
+          <input type="text" value={ficheSearch} onChange={e => setFicheSearch(e.target.value)} placeholder="Rechercher un collaborateur, une fonction, une ville..."
+            style={{ width: '100%', height: 42, padding: '0 12px', borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13.5, boxSizing: 'border-box', marginBottom: 12 }} />
+          {(() => {
+            const term = ficheSearch.trim().toLowerCase()
+            const filtered = !term ? itcCollaborateurs : itcCollaborateurs.filter(c =>
+              [c.nom, c.prenom, c.nom_famille, c.fonction, c.habite].filter(Boolean).some(v => v.toLowerCase().includes(term))
+            )
+            if (filtered.length === 0) return (
+              <div style={{ textAlign: 'center', padding: 24, color: TEXT_SECONDARY, fontSize: 13 }}>Aucun collaborateur ne correspond à la recherche.</div>
+            )
+            return filtered.map(c => (
+              <div key={c.id} style={{ background: '#fff', border: `1.5px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: TITLE_COLOR }}>{[c.prenom, c.nom_famille].filter(Boolean).join(' ') || c.nom}</div>
+                  {c.disponibilite && <span style={{ fontSize: 10, fontWeight: 700, color: '#0F6E56', background: '#D1FAE5', borderRadius: 20, padding: '2px 8px' }}>{c.disponibilite}</span>}
+                </div>
+                {c.fonction && <div style={{ fontSize: 12.5, color: ACCENT, fontWeight: 600, marginTop: 3, whiteSpace: 'pre-line' }}>{c.fonction}</div>}
+                {c.habite && <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 4 }}>📍 {c.habite}</div>}
+                {c.a_retenir && <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 6, whiteSpace: 'pre-line' }}>{c.a_retenir}</div>}
+              </div>
+            ))
+          })()}
+        </div>
+      )}
 
       {view === 'classement' && (
         <div>
