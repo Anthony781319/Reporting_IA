@@ -175,7 +175,9 @@ export default function ChallengeItc({ iaId, iaName }) {
   }
 
   const collaborateurItcValide = itcCollaborateurs.some(c => c.nom.toLowerCase() === newPositionnement.collaborateur_itc.trim().toLowerCase())
-  const positionnementComplete = collaborateurItcValide && newPositionnement.client.trim() && newPositionnement.nom.trim() && newPositionnement.type_positionnement && newPositionnement.date_push
+  // Nom, prénom ET fonction de l'opérationnel visé sont désormais tous les trois obligatoires (demande
+  // d'Antho) — avant, seul le nom suffisait à activer le bouton d'enregistrement.
+  const positionnementComplete = collaborateurItcValide && newPositionnement.client.trim() && newPositionnement.nom.trim() && newPositionnement.prenom.trim() && newPositionnement.fonction.trim() && newPositionnement.type_positionnement && newPositionnement.date_push
 
   const addPositionnement = async () => {
     if (!positionnementComplete || !iaId) return
@@ -509,13 +511,13 @@ export default function ChallengeItc({ iaId, iaName }) {
                 )}
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Prénom</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Prénom *</label>
                 <input type="text" placeholder="Prénom" autoComplete="off" value={newPositionnement.prenom}
                   onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))}
                   style={{ height: 44, width: '100%', padding: '0 10px', borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13.5, boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Fonction</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Fonction *</label>
                 <input type="text" placeholder="Ex: DRH, Directeur IT..." autoComplete="off" value={newPositionnement.fonction}
                   onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))}
                   style={{ height: 44, width: '100%', padding: '0 10px', borderRadius: 9, border: `1.5px solid ${BORDER}`, fontSize: 13.5, boxSizing: 'border-box' }} />
