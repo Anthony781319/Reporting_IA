@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
@@ -197,6 +196,10 @@ export default function ChallengeItc({ iaId, iaName }) {
 
     if (data) {
       setMyPositionnements(l => [data, ...l])
+      // Mise à jour optimiste du classement global en plus du refetch (voir plus bas) : on ajoute
+      // tout de suite la ligne avec son ia rattaché, pour que le classement/les présentés réagissent
+      // sans attendre le prochain chargement.
+      setAllWindowPositionnements(l => [{ ...data, ia: { nom: iaName, entite: null } }, ...l])
       setNewPositionnement(emptyPositionnement())
       setSelectedPosContactId(null)
       setPosFormKey(k => k + 1)
@@ -209,19 +212,26 @@ export default function ChallengeItc({ iaId, iaName }) {
   }
 
   const removePositionnement = async (id) => {
-    await supabase.from('positionnements').delete().eq('id', id)
+    setError('')
+    const { error: err } = await supabase.from('positionnements').delete().eq('id', id)
+    if (err) { setError(`Erreur de suppression : ${err.message}`); return }
     setMyPositionnements(l => l.filter(p => p.id !== id))
-    setRefreshKey(k => k + 1)
+    setAllWindowPositionnements(l => l.filter(p => p.id !== id))
   }
 
   const updateStatut = async (id, statut) => {
+    setError('')
     const nowISO = todayISO()
-    const { data } = await supabase.from('positionnements')
+    const { data, error: err } = await supabase.from('positionnements')
       .update({ statut, derniere_maj_semaine: weekOfDate(nowISO), derniere_maj_annee: yearOfDate(nowISO), updated_at: new Date().toISOString() })
       .eq('id', id).select().single()
     if (data) {
       setMyPositionnements(l => l.map(p => p.id === id ? data : p))
-      setRefreshKey(k => k + 1)
+      // On fusionne plutôt que remplacer : data (retour de l'update) n'inclut pas le join ia(nom,
+      // entite), donc un remplacement pur aurait fait disparaître p.ia et cassé le classement/présentés.
+      setAllWindowPositionnements(l => l.map(p => p.id === id ? { ...p, ...data } : p))
+    } else {
+      setError(err?.message ? `Le statut ne s'est pas enregistré : ${err.message}` : "Le statut ne s'est pas enregistré, réessaie ou préviens Anthony.")
     }
   }
 
@@ -245,7 +255,7 @@ export default function ChallengeItc({ iaId, iaName }) {
     .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
 
   const totalChallenge = allWindowPositionnements.length
-  const totalPush = allWindowPositionnements.filter(p => p.type_positionnement === 'push').length
+  const totalPresentations = presentes.length
   const totalSignatures = allWindowPositionnements.filter(p => p.statut === 'signe').length
 
   if (loading) return (
@@ -270,8 +280,8 @@ export default function ChallengeItc({ iaId, iaName }) {
           <div style={{ fontSize: 22, fontWeight: 800, color: ACCENT }}>{totalChallenge}</div>
         </div>
         <div style={{ background: '#EDE9FE', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, color: '#4338CA', fontWeight: 600, textTransform: 'uppercase' }}>Dont push</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#4338CA' }}>{totalPush}</div>
+          <div style={{ fontSize: 10, color: '#4338CA', fontWeight: 600, textTransform: 'uppercase' }}>Présentations</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#4338CA' }}>{totalPresentations}</div>
         </div>
         <div style={{ background: '#D1FAE5', borderRadius: 10, padding: '10px 12px' }}>
           <div style={{ fontSize: 10, color: '#0F6E56', fontWeight: 600, textTransform: 'uppercase' }}>Signatures</div>
