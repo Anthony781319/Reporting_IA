@@ -271,10 +271,12 @@ export default function ChallengeItc({ iaId, iaName }) {
     }, {})
   ).sort((a, b) => b.score - a.score)
 
-  // Tous les positionnements de la fenêtre, tous statuts confondus (vue détaillée demandée par Antho,
-  // entre Classement et Présentés) : à la différence de "Présentés"/"Signé" qui ne montrent que les
-  // positionnements arrivés à un certain stade, celle-ci liste tout, y compris ceux encore en attente.
-  const tousPositionnes = [...allWindowPositionnements]
+  // Tous les positionnements de la fenêtre, tous statuts confondus SAUF signé (vue détaillée demandée
+  // par Antho, entre Classement et Présentés) : à la différence de "Présentés" qui ne montre que les
+  // positionnements arrivés à un certain stade, celle-ci liste tout, y compris ceux encore en attente —
+  // mais une fois signé/démarrage, ça n'a plus d'intérêt ici, l'info reste visible dans l'onglet Signé.
+  const tousPositionnes = allWindowPositionnements
+    .filter(p => p.statut !== 'signe')
     .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
 
   const presentes = allWindowPositionnements
