@@ -648,65 +648,8 @@ function RdvProgrammesPanel({ iaId }) {
   )
 }
 
-// ─────────────────────────────────────────────
-// POSITIONNEMENT COLLABORATEUR ITC
-// ─────────────────────────────────────────────
-const POSITIONNEMENT_STATUTS = [
-  { value: 'en_attente',             label: 'En attente de retour',    color: '#0369A1' },
-  { value: 'presentation_a_prevoir', label: 'Présentation à prévoir',  color: '#BA7517' },
-  { value: 'presentation_realisee',  label: 'Présentation réalisée',   color: '#1E40AF' },
-  { value: 'sans_suite',             label: 'Sans suite',              color: '#9F1239' },
-  { value: 'signe',                  label: 'Signé / Démarrage',       color: '#0F6E56' },
-]
-
-const POSITIONNEMENT_TYPE_OPTIONS = [
-  { value: 'besoin', label: 'Positionnement sur besoin' },
-  { value: 'push',   label: 'Push' },
-]
-const POSITIONNEMENT_TYPE_COLORS = { besoin: '#0F6E56', push: '#4338CA' }
-
-const emptyPositionnement = () => ({ collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '', type_positionnement: '', date_push: todayISO() })
-
-const POS_COLOR = '#7C6EE6'
-const POS_ACCENT_LIGHT = '#F4F2FF'
-const POS_ACCENT_RING = 'rgba(124,110,230,0.18)'
-
-const PositionnementCard = ({ p, onStatutChange, onRemove }) => {
-  const cfg = POSITIONNEMENT_STATUTS.find(s => s.value === p.statut) || POSITIONNEMENT_STATUTS[0]
-  const typeColor = POSITIONNEMENT_TYPE_COLORS[p.type_positionnement] || POS_COLOR
-  const typeLabel = POSITIONNEMENT_TYPE_OPTIONS.find(t => t.value === p.type_positionnement)?.label
-  return (
-    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1.5px solid ${cfg.color}45`, marginBottom: 10 }}>
-      <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: RDV_TITLE }}>{p.collaborateur_itc}</div>
-            {typeLabel && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: typeColor, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{typeLabel}</span>}
-          </div>
-          <div style={{ fontSize: 12, color: POS_COLOR, fontWeight: 600, marginTop: 2 }}>🏢 {p.client}</div>
-          {(p.nom || p.prenom) && (
-            <div style={{ fontSize: 12, color: RDV_TEXT_SECONDARY, marginTop: 4 }}>
-              👤 {[p.prenom, p.nom].filter(Boolean).join(' ')}{p.fonction && ` · ${p.fonction}`}
-            </div>
-          )}
-          <div style={{ fontSize: 10, color: '#98A2B3', marginTop: 6 }}>
-            {p.date_push ? `Poussé le ${new Date(p.date_push).toLocaleDateString('fr-FR')}` : `Poussé en S${p.semaine}`} · Dernière MAJ : S{p.derniere_maj_semaine || p.semaine}
-          </div>
-        </div>
-        {onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#98A2B3', fontSize: 16, lineHeight: 1, padding: 0, flexShrink: 0 }}>✕</button>}
-      </div>
-      <div style={{ padding: '0 14px 12px' }}>
-        <select value={p.statut} onChange={e => onStatutChange(p.id, e.target.value)}
-          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${cfg.color}60`, background: cfg.color + '14', color: cfg.color, fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
-          {POSITIONNEMENT_STATUTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-      </div>
-    </div>
-  )
-}
-
-// Accents "Gestion du Pipe" (teal) et "Résultats" (bordeaux) — même recette que POS_COLOR ci-dessus :
-// un accent + un fond très léger + une couleur de halo de focus, posés en variables CSS sur .ui-panel.
+// Accents "Gestion du Pipe" (teal) et "Résultats" (bordeaux) : un accent + un fond très léger + une
+// couleur de halo de focus, posés en variables CSS sur .ui-panel.
 const PIPE_COLOR = '#2F8F83'
 const PIPE_ACCENT_LIGHT = '#EFF8F6'
 const PIPE_ACCENT_RING = 'rgba(47,143,131,0.18)'
@@ -748,23 +691,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const [errorRdv, setErrorRdv] = useState('')
   const [contactSuggestions, setContactSuggestions] = useState([])
   const [selectedContactId, setSelectedContactId] = useState(null)
-  const [positionnements, setPositionnements] = useState([])
-  const [newPositionnement, setNewPositionnement] = useState(emptyPositionnement())
-  const [savingPositionnement, setSavingPositionnement] = useState(false)
-  const [errorPositionnement, setErrorPositionnement] = useState('')
-  const [posContactSuggestions, setPosContactSuggestions] = useState([])
-  const [selectedPosContactId, setSelectedPosContactId] = useState(null)
-  // Incrémenté après chaque ajout réussi pour forcer le remontage du champ date (voir input date_push
-  // plus bas) : un <input type="date"> entièrement piloté par React (value= + onChange) perd le fil de
-  // la saisie clavier dès qu'on tape dans le segment année (bug connu des date inputs contrôlés), d'où
-  // le passage en non-contrôlé (defaultValue) — remonté via `key` uniquement quand on veut le réinitialiser.
-  const [posFormKey, setPosFormKey] = useState(0)
-  const dateInputRef = useRef(null)
-  // Liste de référence des collaborateurs ITC (maintenue depuis Admin) : on force le choix dedans plutôt
-  // que du texte libre, pour que "collaborateur_itc" soit toujours écrit à l'identique d'une saisie à l'autre.
-  const [itcCollaborateurs, setItcCollaborateurs] = useState([])
-  const [itcSuggestions, setItcSuggestions] = useState([])
-  const [itcSuggestionsOpen, setItcSuggestionsOpen] = useState(false)
 
   const rdvCounts = {
     decouvertes:   rdvList.filter(r => r.objet_meeting === 'decouverte').length,
@@ -777,10 +703,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   // Pour un nouveau contact (pas encore rattaché), on exige au moins un email ou un téléphone
   const needsContactInfo = !selectedContactId && !newRdv.email.trim() && !newRdv.telephone.trim()
   const rdvComplete = newRdv.client.trim() && newRdv.nom.trim() && newRdv.date_meeting && newRdv.objet_meeting && newRdv.compte_rendu.trim() && !needsContactInfo
-  // Le collaborateur ITC doit venir de la liste de référence (Admin) — comparaison insensible à la casse
-  // pour ne pas coincer sur un accent de clavier différent, mais on stocke toujours le libellé exact de la liste.
-  const collaborateurItcValide = itcCollaborateurs.some(c => c.nom.toLowerCase() === newPositionnement.collaborateur_itc.trim().toLowerCase())
-  const positionnementComplete = collaborateurItcValide && newPositionnement.client.trim() && newPositionnement.nom.trim() && newPositionnement.type_positionnement && newPositionnement.date_push
 
   // Débloque la largeur du conteneur global (par défaut limité à 480px, pensé pour mobile)
   useEffect(() => {
@@ -815,20 +737,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     load()
   }, [iaId, selectedWeek])
 
-  // Positionnements ITC : indépendant de la semaine sélectionnée (un positionnement vit sur plusieurs
-  // semaines, seul son statut évolue) — on charge simplement tout ce qui est en cours pour cette IA.
-  useEffect(() => {
-    if (!iaId) return
-    supabase.from('positionnements').select('*').eq('ia_id', iaId).order('created_at', { ascending: false })
-      .then(({ data }) => setPositionnements(data || []))
-  }, [iaId])
-
-  // Liste de référence des collaborateurs ITC (indépendante de l'IA connectée, chargée une seule fois).
-  useEffect(() => {
-    supabase.from('collaborateurs_itc').select('*').eq('statut', 'actif').order('nom')
-      .then(({ data }) => setItcCollaborateurs(data || []))
-  }, [])
-
   // Recherche de contacts existants pendant la saisie du nom (avec un petit délai pour ne pas spammer la base)
   useEffect(() => {
     const term = newRdv.nom.trim()
@@ -851,23 +759,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
     setSelectedContactId(c.id)
     setNewRdv(r => ({ ...r, nom: c.nom, prenom: c.prenom || '', email: c.email || '', telephone: c.telephone || '' }))
     setContactSuggestions([])
-  }
-
-  // Même logique de rapprochement, pour le formulaire de positionnement
-  useEffect(() => {
-    const term = newPositionnement.nom.trim()
-    if (selectedPosContactId || term.length < 2) { setPosContactSuggestions([]); return }
-    const timeout = setTimeout(async () => {
-      const { data: matches } = await supabase.from('contacts').select('*').ilike('nom', `%${term}%`).limit(5)
-      setPosContactSuggestions(matches || [])
-    }, 300)
-    return () => clearTimeout(timeout)
-  }, [newPositionnement.nom, selectedPosContactId])
-
-  const pickPosContact = (c) => {
-    setSelectedPosContactId(c.id)
-    setNewPositionnement(p => ({ ...p, nom: c.nom, prenom: c.prenom || '' }))
-    setPosContactSuggestions([])
   }
 
   const set = key => val => setForm(f => ({ ...f, [key]: val }))
@@ -931,69 +822,6 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
   const removeRdv = async (id) => {
     await supabase.from('rdv_details').delete().eq('id', id)
     setRdvList(l => l.filter(r => r.id !== id))
-  }
-
-  const addPositionnement = async () => {
-    if (!positionnementComplete) return
-    setSavingPositionnement(true)
-    setErrorPositionnement('')
-
-    // Même logique de rapprochement que pour les RDV : contact existant relié, sinon nouveau contact créé (nom + prénom suffisent ici)
-    let contactId = selectedPosContactId
-    let createdContactId = null // trace qu'on vient de créer ce contact, pour pouvoir annuler si la suite échoue
-    if (!contactId) {
-      const { data: newContact, error: contactErr } = await supabase.from('contacts')
-        .insert({ nom: newPositionnement.nom.trim(), prenom: newPositionnement.prenom.trim() || null })
-        .select().single()
-      if (contactErr) {
-        setErrorPositionnement(`Erreur contact : ${contactErr.message}`)
-        setSavingPositionnement(false)
-        return
-      }
-      contactId = newContact.id
-      createdContactId = newContact.id
-    }
-
-    const { data, error: err } = await supabase.from('positionnements').insert({
-      ia_id: iaId, semaine: selectedWeek, annee,
-      collaborateur_itc: newPositionnement.collaborateur_itc.trim(),
-      client: newPositionnement.client.trim(),
-      contact_id: contactId,
-      nom: newPositionnement.nom.trim(),
-      prenom: newPositionnement.prenom.trim() || null,
-      fonction: newPositionnement.fonction.trim() || null,
-      type_positionnement: newPositionnement.type_positionnement,
-      date_push: newPositionnement.date_push,
-      statut: 'en_attente',
-      derniere_maj_semaine: selectedWeek,
-      derniere_maj_annee: annee,
-    }).select().single()
-
-    if (data) {
-      setPositionnements(l => [data, ...l])
-      setNewPositionnement(emptyPositionnement())
-      setSelectedPosContactId(null)
-      setPosFormKey(k => k + 1)
-    } else {
-      // Le contact avait été créé en 2 requêtes séparées (pas de vraie transaction côté Supabase) : si
-      // l'enregistrement du positionnement échoue derrière, on supprime le contact qu'on venait de créer
-      // pour ne pas polluer la base contacts avec des doublons orphelins à chaque nouvel essai.
-      if (createdContactId) await supabase.from('contacts').delete().eq('id', createdContactId)
-      setErrorPositionnement(err?.message ? `Erreur d'enregistrement : ${err.message}` : "Erreur d'enregistrement, réessaie ou préviens ton manager.")
-    }
-    setSavingPositionnement(false)
-  }
-
-  const removePositionnement = async (id) => {
-    await supabase.from('positionnements').delete().eq('id', id)
-    setPositionnements(l => l.filter(p => p.id !== id))
-  }
-
-  const updatePositionnementStatut = async (id, statut) => {
-    const { data } = await supabase.from('positionnements')
-      .update({ statut, derniere_maj_semaine: selectedWeek, derniere_maj_annee: annee, updated_at: new Date().toISOString() })
-      .eq('id', id).select().single()
-    if (data) setPositionnements(l => l.map(p => p.id === id ? data : p))
   }
 
   if (!iaId) return (
@@ -1140,123 +968,9 @@ export default function Saisie({ iaId, iaName, managerMode = false }) {
             <RdvProgrammesPanel iaId={iaId} />
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <PremiumPanel accent={POS_COLOR} accentLight={POS_ACCENT_LIGHT} accentRing={POS_ACCENT_RING}>
-              <PremiumSectionHeader icon="ti-send" title="Positionnement collaborateur ITC" />
-
-              {positionnements.map(p => (
-                <PositionnementCard key={p.id} p={p} onStatutChange={updatePositionnementStatut} onRemove={() => removePositionnement(p.id)} />
-              ))}
-
-              <div className="ui-card" style={{ marginTop: positionnements.length > 0 ? 14 : 0 }}>
-                <div className="ui-card-header">
-                  <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
-                  <div className="ui-card-title">Ajouter un positionnement</div>
-                </div>
-
-                <div className="ui-grid-2">
-                  <div className="ui-field">
-                    <label className="ui-field-label">Type de positionnement *</label>
-                    <select className="ui-input" value={newPositionnement.type_positionnement} onChange={e => setNewPositionnement(p => ({ ...p, type_positionnement: e.target.value }))}>
-                      <option value="">Choisir...</option>
-                      {POSITIONNEMENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="ui-field">
-                    <label className="ui-field-label">Date du push *</label>
-                    {/* Non-contrôlé (defaultValue) : un input date piloté par value= perd le fil dès qu'on tape dans le
-                        segment année (React réécrit la valeur à chaque frappe et coupe l'accumulation du navigateur).
-                        `key` force juste une réinitialisation propre après un ajout réussi. */}
-                    <input
-                      className="ui-input"
-                      ref={dateInputRef}
-                      key={posFormKey}
-                      type="date"
-                      defaultValue={newPositionnement.date_push}
-                      onChange={e => setNewPositionnement(p => ({ ...p, date_push: e.target.value }))}
-                      onClick={() => { try { dateInputRef.current?.showPicker?.() } catch { /* navigateur sans support showPicker : le petit icône calendrier reste cliquable normalement */ } }}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="ui-grid-2">
-                  <div className="ui-field">
-                    <label className="ui-field-label">Collaborateur en ITC *</label>
-                    <input className="ui-input" type="text" placeholder="Rechercher dans la liste..." autoComplete="off" name="pos-collaborateur-itc"
-                      value={newPositionnement.collaborateur_itc}
-                      onFocus={() => { setItcSuggestions(newPositionnement.collaborateur_itc.trim() ? itcCollaborateurs.filter(c => c.nom.toLowerCase().includes(newPositionnement.collaborateur_itc.trim().toLowerCase())) : itcCollaborateurs); setItcSuggestionsOpen(true) }}
-                      onBlur={() => setTimeout(() => setItcSuggestionsOpen(false), 150)}
-                      onChange={e => {
-                        const term = e.target.value
-                        setNewPositionnement(p => ({ ...p, collaborateur_itc: term }))
-                        setItcSuggestions(term.trim() ? itcCollaborateurs.filter(c => c.nom.toLowerCase().includes(term.trim().toLowerCase())) : itcCollaborateurs)
-                        setItcSuggestionsOpen(true)
-                      }} />
-                    {collaborateurItcValide && (
-                      <div className="ui-hint-ok">✓ Collaborateur reconnu</div>
-                    )}
-                    {!collaborateurItcValide && newPositionnement.collaborateur_itc.trim() && (
-                      <div className="ui-hint-warn">Sélectionne un nom dans la liste</div>
-                    )}
-                    {itcSuggestionsOpen && itcSuggestions.length > 0 && (
-                      <div className="ui-suggestions">
-                        {itcSuggestions.map(c => (
-                          <div key={c.id} className="ui-suggestion-item"
-                            onClick={() => { setNewPositionnement(p => ({ ...p, collaborateur_itc: c.nom })); setItcSuggestionsOpen(false); setItcSuggestions([]) }}>
-                            {c.nom}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="ui-field">
-                    <label className="ui-field-label">Client *</label>
-                    <input className="ui-input" type="text" placeholder="Raison sociale du client" autoComplete="off" name="pos-client" value={newPositionnement.client} onChange={e => setNewPositionnement(p => ({ ...p, client: e.target.value }))} />
-                  </div>
-                </div>
-
-                <div className="ui-grid-3">
-                  <div className="ui-field">
-                    <label className="ui-field-label">Nom de l'opérationnel visé *</label>
-                    <input className="ui-input" type="text" placeholder="Nom" value={newPositionnement.nom} autoComplete="off" name="pos-nom-operationnel"
-                      onChange={e => { setNewPositionnement(p => ({ ...p, nom: e.target.value })); setSelectedPosContactId(null) }} />
-                    {selectedPosContactId && (
-                      <div className="ui-hint-ok">✓ Contact déjà connu, relié automatiquement</div>
-                    )}
-                    {!selectedPosContactId && posContactSuggestions.length > 0 && (
-                      <div className="ui-suggestions">
-                        {posContactSuggestions.map(c => (
-                          <div key={c.id} className="ui-suggestion-item" onClick={() => pickPosContact(c)}>
-                            {[c.prenom, c.nom].filter(Boolean).join(' ')}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="ui-field">
-                    <label className="ui-field-label">Prénom</label>
-                    <input className="ui-input" type="text" placeholder="Prénom" autoComplete="off" name="pos-prenom-operationnel" value={newPositionnement.prenom} onChange={e => setNewPositionnement(p => ({ ...p, prenom: e.target.value }))} />
-                  </div>
-                  <div className="ui-field">
-                    <label className="ui-field-label">Fonction</label>
-                    <input className="ui-input" type="text" placeholder="Ex: DRH, Directeur IT..." autoComplete="off" name="pos-fonction" value={newPositionnement.fonction} onChange={e => setNewPositionnement(p => ({ ...p, fonction: e.target.value }))} />
-                  </div>
-                </div>
-
-                <div className="ui-cta-row">
-                  <button className="ui-btn-primary" onClick={addPositionnement} disabled={savingPositionnement || !positionnementComplete}>
-                    {savingPositionnement ? 'Enregistrement...' : 'Ajouter le positionnement'}
-                  </button>
-                </div>
-                {errorPositionnement && (
-                  <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12 }}>
-                    ⚠️ {errorPositionnement}
-                  </div>
-                )}
-              </div>
-            </PremiumPanel>
-          </div>
+          {/* Le panneau "Positionnement collaborateur ITC" (push/besoin) a déménagé vers le portail
+              dédié "Challenge ITC" (voir ChallengeItc.jsx) pour ne pas faire doublon avec son propre
+              formulaire + classement. */}
 
           <div style={{ marginBottom: 24 }}>
             <PremiumPanel accent={PIPE_COLOR} accentLight={PIPE_ACCENT_LIGHT} accentRing={PIPE_ACCENT_RING}>
