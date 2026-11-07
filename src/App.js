@@ -13,6 +13,7 @@ import Contacts from './pages/Contacts'
 import Classement from './pages/Classement'
 import ProspectionSaisie from './pages/ProspectionSaisie'
 import AdminEntite from './pages/AdminEntite'
+import ChallengeItc from './pages/ChallengeItc'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
@@ -47,10 +48,11 @@ export default function App() {
   const [isProspection, setIsProspection] = useState(false)
   const [isSandraManager, setIsSandraManager] = useState(false)
   const [isStephaneManager, setIsStephaneManager] = useState(false)
+  const [isChallengeItc, setIsChallengeItc] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false); setIsChallengeItc(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
@@ -67,6 +69,11 @@ export default function App() {
     }
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
+    }
+    // Portail "Challenge ITC" : pas de mot de passe, juste une sélection de prénom (voir Login.jsx) —
+    // léger exprès pour ne pas freiner la saisie pendant le challenge.
+    if (initialTab === 'challenge-itc') {
+      resetRoles(); setUser(ia); setIsChallengeItc(true); setTab('challenge-itc'); return true
     }
     if (ia.nom === 'Anthony' && (initialTab === 'admin' || initialTab === 'manager-commerce')) {
       if (password !== ADMIN_PASSWORD) return false
@@ -127,13 +134,14 @@ export default function App() {
     { id: 'prospection-saisie',     icon: 'ti-edit',   label: 'Saisie RDV' },
     { id: 'prospection-classement', icon: 'ti-trophy', label: 'Classement' },
   ]
+  const challengeItcTabs = [{ id: 'challenge-itc', icon: 'ti-rocket', label: 'Challenge ITC' }]
   const sandraManagerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'admin-sol',         icon: 'ti-settings',       label: 'Équipe' },
   ]
 
-  const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : userTabs
+  const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : isChallengeItc ? challengeItcTabs : userTabs
 
   // Scope (liste de membres) à appliquer à Year to Date et 1:1 pour un manager restreint à son équipe.
   const managerScope = isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null
@@ -152,6 +160,7 @@ export default function App() {
     if (isCR || isRH) return 'Espace Recrutement'
     if (isContacts) return 'Base Contacts'
     if (isProspection) return 'Prospection du lundi'
+    if (isChallengeItc) return 'Challenge ITC'
     return 'Reporting'
   }
 
@@ -197,6 +206,7 @@ export default function App() {
         {tab === 'contacts'          && <Contacts />}
         {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
         {tab === 'prospection-classement' && <Classement />}
+        {tab === 'challenge-itc'          && <ChallengeItc iaId={user.id} iaName={user.nom} />}
       </div>
     </div>
   )
