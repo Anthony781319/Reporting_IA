@@ -275,6 +275,10 @@ export default function ChallengeItc({ iaId, iaName }) {
     .filter(p => PRESENTED_STATUTS.includes(p.statut))
     .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
 
+  const signes = allWindowPositionnements
+    .filter(p => p.statut === 'signe')
+    .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
+
   const totalPush = allWindowPositionnements.filter(p => p.type_positionnement === 'push').length
   const totalBesoin = allWindowPositionnements.filter(p => p.type_positionnement === 'besoin').length
   const totalPresentations = presentes.length
@@ -322,7 +326,7 @@ export default function ChallengeItc({ iaId, iaName }) {
       </div>
 
       <div style={{ display: 'flex', background: ACCENT_LIGHT, borderRadius: 10, padding: 3, marginBottom: 16, border: `1px solid ${BORDER}` }}>
-        {[['classement', '🏆 Classement'], ['presentes', '🎤 Présentés'], ['saisie', '➕ Ma saisie']].map(([id, label]) => (
+        {[['classement', '🏆 Classement'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie']].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: view === id ? 700 : 400, background: view === id ? ACCENT : 'transparent', color: view === id ? '#fff' : ACCENT, cursor: 'pointer', transition: 'all 0.2s' }}>
             {label}
           </button>
@@ -363,6 +367,24 @@ export default function ChallengeItc({ iaId, iaName }) {
               </div>
               <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 3 }}>
                 🏢 {p.client} · présenté par <strong>{p.ia?.nom}</strong> · {new Date(p.date_push).toLocaleDateString('fr-FR')}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === 'signes' && (
+        <div>
+          {signes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 24, color: TEXT_SECONDARY, fontSize: 13 }}>Aucune signature enregistrée sur la période pour l'instant.</div>
+          ) : signes.map(p => (
+            <div key={p.id} style={{ background: '#fff', border: `1.5px solid ${BORDER}`, borderRadius: 12, padding: '10px 14px', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: TITLE_COLOR }}>{p.collaborateur_itc}</div>
+                <StatutBadge statut={p.statut} />
+              </div>
+              <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginTop: 3 }}>
+                🏢 {p.client} · signé par <strong>{p.ia?.nom}</strong> · {new Date(p.date_push).toLocaleDateString('fr-FR')}
               </div>
             </div>
           ))}
