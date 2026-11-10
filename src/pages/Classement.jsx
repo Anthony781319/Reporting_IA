@@ -47,7 +47,11 @@ function computeRanking(rows, iaList) {
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
-export default function Classement() {
+// entite : étanchéité SOL (Sandra) / INFRA (Anthony) — sans elle, le classement d'une entité
+// affichait aussi les IA de l'autre (même carte "séance du lundi" partagée par les deux équipes).
+// null (vue INFRA, portail de prospection générique) exclut explicitement 'sandra' ; une valeur
+// (ex. 'sandra', passée côté App.js à partir de l'entite du compte connecté) restreint à cette seule entité.
+export default function Classement({ entite = null }) {
   const [rows, setRows] = useState([])
   const [iaList, setIaList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -69,11 +73,14 @@ export default function Classement() {
       } else {
         setError('')
       }
-      setRows(rdvRes.data || [])
-      setIaList((iaRes.data || []).filter(i =>
+      const scopedIaList = (iaRes.data || []).filter(i =>
         i && i.statut !== 'ancien' && i.type !== 'cr' && i.nom !== 'Anthony' && i.nom !== 'RH' &&
-        !String(i.nom || '').toLowerCase().includes('p1')
-      ))
+        !String(i.nom || '').toLowerCase().includes('p1') &&
+        (entite ? i.entite === entite : i.entite !== 'sandra')
+      )
+      const scopedIds = new Set(scopedIaList.map(i => i.id))
+      setRows((rdvRes.data || []).filter(r => r && scopedIds.has(r.ia_id)))
+      setIaList(scopedIaList)
     } catch (e) {
       setError(e?.message || "Erreur inattendue au chargement du classement.")
     } finally {
@@ -94,7 +101,7 @@ export default function Classement() {
       // Le temps réel est un plus ; une app qui ne le supporte pas doit quand même afficher le classement.
     }
     return () => { if (channel) supabase.removeChannel(channel) }
-  }, [])
+  }, [entite])
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15000)
