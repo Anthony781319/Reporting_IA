@@ -205,7 +205,7 @@ export default function App() {
         {tab === 'entretiens'        && <Entretiens scopeMembers={managerScope} />}
         {tab === 'contacts'          && <Contacts />}
         {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
-        {tab === 'prospection-classement' && <Classement />}
+        {tab === 'prospection-classement' && <Classement entite={user?.entite || null} />}
         {tab === 'challenge-itc'          && <ChallengeItc iaId={user.id} iaName={user.nom} />}
       </div>
     </div>
