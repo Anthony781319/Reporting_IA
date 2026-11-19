@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import Saisie from './Saisie'
 
@@ -51,6 +51,10 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   const [editingItcId, setEditingItcId] = useState(null)
   const [itcAdding, setItcAdding] = useState(false)
   const [itcMsg, setItcMsg] = useState('')
+  // Le formulaire d'ajout/modif ITC est rendu tout en bas de la section (après la liste), donc cliquer
+  // sur ✎ "Modifier" sans retour visuel donnait l'impression que rien ne se passait — on scrolle
+  // maintenant automatiquement jusqu'au formulaire dès qu'on ouvre une fiche en modification.
+  const itcFormRef = useRef(null)
 
   useEffect(() => { loadIA(); loadItc() }, [])
 
@@ -172,6 +176,9 @@ export default function Admin({ onSelectIA, selectedIaId }) {
       notes_internes: c.notes_internes || '', salaire: c.salaire ?? '',
       statut: c.statut === 'retenu' ? 'retenu' : 'actif', commentaire_indispo: c.commentaire_indispo || '',
     })
+    // Sans ça, le formulaire se remplit bien mais tout en bas de la section, hors écran : on amène la
+    // page jusqu'à lui pour que ce soit visible immédiatement après le clic sur le crayon.
+    setTimeout(() => itcFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   const cancelEditItc = () => { setEditingItcId(null); setItcForm(emptyItcForm()) }
@@ -448,9 +455,9 @@ export default function Admin({ onSelectIA, selectedIaId }) {
         ))}
       </div>
 
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14 }}>
+      <div ref={itcFormRef} style={{ background: editingItcId ? '#FFFBEB' : 'var(--color-background-primary)', border: editingItcId ? '2px solid #F59E0B' : '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, scrollMarginTop: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 10 }}>
-          {editingItcId ? '✎ Modifier la fiche' : '+ Ajouter un collaborateur ITC'}
+          {editingItcId ? `✎ Modification de la fiche — ${itcForm.nom || '...'}` : '+ Ajouter un collaborateur ITC'}
         </div>
         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
           Nom, prénom, fonction et lieu d'habitation sont visibles par tous les commerciaux dans le portail Challenge ITC. Salaire et notes internes restent réservés à cet écran.
