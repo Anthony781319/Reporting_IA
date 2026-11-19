@@ -33,12 +33,14 @@ export default function Intercontrats() {
         // Même allowlist de colonnes que la Fiche ITC : jamais salaire/notes_internes ici, cette page
         // étant accessible sans la moindre identification. On récupère aussi les "retenu" (provisoirement
         // indisponibles) : FicheItcList se charge de les cacher de la liste par défaut et de ne les
-        // ressortir qu'à la recherche explicite d'un nom, avec le commentaire d'Anthony.
+        // ressortir qu'à la recherche explicite d'un nom, avec le commentaire d'Anthony. famille_metier
+        // sert uniquement à regrouper l'affichage par grande famille, jamais montrée telle quelle.
         supabase.from('collaborateurs_itc')
-          .select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut, commentaire_indispo')
+          .select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut, commentaire_indispo, famille_metier')
           .in('statut', ['actif', 'retenu']).order('nom'),
-        // Pour les compteurs "push / besoin / présenté" par collaborateur, sur la fenêtre du challenge.
-        supabase.from('positionnements').select('collaborateur_itc, type_positionnement, statut, ia_id')
+        // Pour les compteurs "push / besoin / présenté" par collaborateur, et le détail (client, contact
+        // visé, date, statut) affiché au dépli de chaque carte, sur la fenêtre du challenge.
+        supabase.from('positionnements').select('id, collaborateur_itc, type_positionnement, statut, ia_id, client, nom, prenom, fonction, date_push')
           .gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END),
         supabase.from('ia').select('id, entite'),
       ])
