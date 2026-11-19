@@ -286,6 +286,17 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
     }
   }
 
+  // Classe/reclasse un collaborateur dans une grande famille de métier directement depuis le Dashboard
+  // (sans repasser par Admin) : famille_metier vide reclassé en "Non classé" par FicheItcList côté
+  // affichage, pas besoin de le gérer ici. Met à jour itcDirectory pour que la carte change aussitôt
+  // de groupe à l'écran.
+  const updateFamilleMetier = async (id, famille_metier) => {
+    setError('')
+    const { error: err } = await supabase.from('collaborateurs_itc').update({ famille_metier: famille_metier || null }).eq('id', id)
+    if (err) { setError(`La famille ne s'est pas enregistrée : ${err.message}`); return }
+    setItcDirectory(l => l.map(c => c.id === id ? { ...c, famille_metier } : c))
+  }
+
   // ── Classement ──
   const byBm = Object.values(
     allWindowPositionnements.reduce((acc, p) => {
@@ -581,10 +592,10 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
       {view === 'dashboard' && (
         <div>
           <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginBottom: 12 }}>
-            Tous les collaborateurs en intercontrat avec le détail de leurs positionnements — change le statut directement ici : la mise à jour se répercute dans Ma saisie de l'IA concerné, le classement, et archive automatiquement le collaborateur (donc le retire de la Fiche ITC / Intercontrats disponibles) une fois marqué "Signé / Démarrage".
+            Tous les collaborateurs en intercontrat avec le détail de leurs positionnements — change le statut directement ici : la mise à jour se répercute dans Ma saisie de l'IA concerné, le classement, et archive automatiquement le collaborateur (donc le retire de la Fiche ITC / Intercontrats disponibles) une fois marqué "Signé / Démarrage". Le menu sous le nom permet aussi de classer ou reclasser la grande famille de métier en un clic (sans passer par Admin).
           </div>
           <FicheItcList collaborateurs={itcDirectory} positionnementStats={itcPositionnementStats}
-            editable onStatutChange={updateStatut}
+            editable onStatutChange={updateStatut} onFamilleChange={updateFamilleMetier}
             accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
         </div>
       )}
