@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import Saisie from './Saisie'
+import { FAMILLES_METIER } from '../components/FicheItcList'
 
 const AVATAR_COLORS = [
   ['#EDE9FE','#6D28D9'],['#D1FAE5','#065F46'],['#FEF3C7','#92400E'],
@@ -46,7 +47,7 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   // Intercontrats disponibles), mais reste trouvable s'ils recherchent son nom — ils voient alors le
   // commentaire. Différent d'archiver (statut='ancien', géré séparément par archiveItc) : "retenu" est
   // pensé comme temporaire/réversible depuis cette même fiche, pas depuis les boutons archiver/réactiver.
-  const emptyItcForm = () => ({ nom: '', prenom: '', nom_famille: '', habite: '', disponibilite: '', fonction: '', a_retenir: '', notes_internes: '', salaire: '', statut: 'actif', commentaire_indispo: '' })
+  const emptyItcForm = () => ({ nom: '', prenom: '', nom_famille: '', habite: '', disponibilite: '', fonction: '', famille_metier: '', a_retenir: '', notes_internes: '', salaire: '', statut: 'actif', commentaire_indispo: '' })
   const [itcForm, setItcForm] = useState(emptyItcForm())
   const [editingItcId, setEditingItcId] = useState(null)
   const [itcAdding, setItcAdding] = useState(false)
@@ -146,6 +147,7 @@ export default function Admin({ onSelectIA, selectedIaId }) {
       habite: itcForm.habite.trim() || null,
       disponibilite: itcForm.disponibilite.trim() || null,
       fonction: itcForm.fonction.trim() || null,
+      famille_metier: itcForm.famille_metier || null,
       a_retenir: itcForm.a_retenir.trim() || null,
       notes_internes: itcForm.notes_internes.trim() || null,
       salaire: itcForm.salaire === '' ? null : Number(itcForm.salaire),
@@ -172,7 +174,7 @@ export default function Admin({ onSelectIA, selectedIaId }) {
     setEditingItcId(c.id)
     setItcForm({
       nom: c.nom || '', prenom: c.prenom || '', nom_famille: c.nom_famille || '', habite: c.habite || '',
-      disponibilite: c.disponibilite || '', fonction: c.fonction || '', a_retenir: c.a_retenir || '',
+      disponibilite: c.disponibilite || '', fonction: c.fonction || '', famille_metier: c.famille_metier || '', a_retenir: c.a_retenir || '',
       notes_internes: c.notes_internes || '', salaire: c.salaire ?? '',
       statut: c.statut === 'retenu' ? 'retenu' : 'actif', commentaire_indispo: c.commentaire_indispo || '',
     })
@@ -433,6 +435,9 @@ export default function Admin({ onSelectIA, selectedIaId }) {
           <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <span style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 600 }}>{c.nom}</span>
+              {c.famille_metier && (
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>{c.famille_metier}</span>
+              )}
               {c.statut === 'retenu' && (
                 <span style={{ fontSize: 9.5, fontWeight: 700, color: '#B45309', background: '#FEF3C7', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>🔶 Retenu</span>
               )}
@@ -491,6 +496,13 @@ export default function Admin({ onSelectIA, selectedIaId }) {
             <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Disponibilité</label>
             <input type="text" value={itcForm.disponibilite} onChange={e => setItcForm(f => ({ ...f, disponibilite: e.target.value }))} placeholder="ex: Immédiate" style={{ width: '100%' }} />
           </div>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Famille de métier (pour regrouper la liste ITC par grande famille)</label>
+          <select value={itcForm.famille_metier} onChange={e => setItcForm(f => ({ ...f, famille_metier: e.target.value }))} style={{ width: '100%' }}>
+            <option value="">Non classé</option>
+            {FAMILLES_METIER.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
         </div>
         <div style={{ marginBottom: 8 }}>
           <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Disponibilité pour le challenge</label>
