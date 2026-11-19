@@ -150,7 +150,9 @@ export default function ChallengeItc({ iaId, iaName }) {
         supabase.from('collaborateurs_itc').select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut').eq('statut', 'actif').order('nom'),
         // Même allowlist + commentaire_indispo, mais actif ET retenu : pour l'onglet "Fiche ITC" (voir
         // FicheItcList, qui cache les "retenu" par défaut et ne les ressort qu'à la recherche).
-        supabase.from('collaborateurs_itc').select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut, commentaire_indispo').in('statut', ['actif', 'retenu']).order('nom'),
+        // + famille_metier : sert uniquement à regrouper la Fiche ITC par grande famille de métier
+        // (voir FicheItcList), jamais affichée telle quelle ailleurs.
+        supabase.from('collaborateurs_itc').select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut, commentaire_indispo, famille_metier').in('statut', ['actif', 'retenu']).order('nom'),
         supabase.from('ia').select('id, nom, entite'),
       ])
       const firstErr = mineErr || windowErr || iaErr
