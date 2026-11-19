@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
-import FicheItcList from '../components/FicheItcList'
+import FicheItcList, { buildPositionnementStats } from '../components/FicheItcList'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Portail "Challenge ITC" : suivi dédié du challenge de positionnement des
@@ -311,6 +311,10 @@ export default function ChallengeItc({ iaId, iaName }) {
     .filter(p => p.statut === 'signe')
     .sort((a, b) => new Date(b.date_push) - new Date(a.date_push))
 
+  // Compteurs par collaborateur ITC (push / besoin / présentations), pour la Fiche ITC — allWindowPositionnements
+  // exclut déjà l'entité de Sandra, donc pas besoin de refiltrer ici.
+  const itcPositionnementStats = buildPositionnementStats(allWindowPositionnements)
+
   const totalPush = allWindowPositionnements.filter(p => p.type_positionnement === 'push').length
   const totalBesoin = allWindowPositionnements.filter(p => p.type_positionnement === 'besoin').length
   const totalPresentations = presentes.length
@@ -366,7 +370,7 @@ export default function ChallengeItc({ iaId, iaName }) {
       </div>
 
       {view === 'fiche' && (
-        <FicheItcList collaborateurs={itcDirectory} accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
+        <FicheItcList collaborateurs={itcDirectory} positionnementStats={itcPositionnementStats} accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
       )}
 
       {view === 'classement' && (
