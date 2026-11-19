@@ -5,13 +5,18 @@ import { useState } from 'react'
 // (demande d'Antho). "Non classé" n'y figure pas volontairement : c'est le groupe de repli pour toute
 // fiche sans famille renseignée (ou une valeur devenue obsolète), toujours affiché en dernier.
 export const FAMILLES_METIER = [
-  'Développement & Data',
-  'Infrastructure & Systèmes',
-  'Réseaux & Télécom',
-  'Cybersécurité',
-  'Support & Exploitation',
-  'Gestion de projet & PMO',
-  'Fonctionnel & Autres',
+  'Chef de projet',
+  'Coordinateur de projet',
+  'Ingénieur Système',
+  'Ingénieur réseaux',
+  'Ingénieur Cybersécurité',
+  'Ingénieur de production',
+  'Ingénieur Mainframe',
+  'Ingénieur Flux',
+  'Ingénieur Telecom',
+  'Ingénieur Active Directory',
+  'Ingénieur DevOps',
+  'Profil Fonctionnels / Autres',
 ]
 
 // Mêmes libellés/couleurs que POSITIONNEMENT_STATUTS dans ChallengeItc.jsx, dupliqués ici car ce
@@ -124,28 +129,10 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
   )
 }
 
-// Carte-annuaire des intercontrats (nom/prénom, fonction, lieu d'habitation, disponibilité, à
-// retenir, regroupés par grande famille de métier, et un résumé + détail des positionnements en
-// cours) — jamais salaire ni notes_internes ici, réservées à Admin (mot de passe). Composant partagé
-// entre l'onglet "Fiche ITC" du portail Challenge ITC et le portail public "Intercontrats disponibles"
-// (lecture seule, sans mot de passe).
-//
-// Le parent passe tous les collaborateurs actifs OU "retenus" (jamais les archivés) ; c'est ce
-// composant qui décide de la visibilité par défaut : un collaborateur "retenu" (provisoirement
-// indisponible — ex: retenu sur une mission chez un client, avec le commentaire d'Anthony expliquant
-// pourquoi) n'apparaît PAS dans la liste par défaut, mais reste trouvable si un commercial tape
-// explicitement son nom/sa fonction/sa ville dans la recherche — il voit alors le commentaire.
-//
-// Présentation en grille (plusieurs cartes par ligne selon la largeur) plutôt qu'en liste empilée
-// verticale, regroupée par grande famille de métier (FAMILLES_METIER, choisie dans Admin) — demande
-// d'Antho ("exploiter davantage l'horizontalité... classer par grande famille de collaborateurs").
-// Nécessite que le conteneur parent soit en pleine largeur (classe .wide) pour que ça se voie vraiment.
 export default function FicheItcList({ collaborateurs, positionnementStats, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const term = search.trim().toLowerCase()
-  // Sans recherche : seuls les "actif" ressortent. Avec une recherche : les "retenu" redeviennent
-  // trouvables (mais pas les archivés, déjà exclus en amont par le parent).
   const pool = term ? collaborateurs : collaborateurs.filter(c => c.statut !== 'retenu')
   const filtered = !term ? pool : pool.filter(c =>
     [c.nom, c.prenom, c.nom_famille, c.fonction, c.habite].filter(Boolean).some(v => v.toLowerCase().includes(term))
@@ -160,8 +147,6 @@ export default function FicheItcList({ collaborateurs, positionnementStats, acce
     })
   }
 
-  // Regroupe par grande famille de métier ; "Non classé" en repli pour toute fiche sans famille
-  // renseignée (ou une valeur qui ne correspond plus à FAMILLES_METIER), toujours en dernier.
   const groups = new Map()
   for (const c of filtered) {
     const fam = FAMILLES_METIER.includes(c.famille_metier) ? c.famille_metier : 'Non classé'
