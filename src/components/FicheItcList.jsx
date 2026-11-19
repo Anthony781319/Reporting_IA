@@ -16,6 +16,11 @@ export const FAMILLES_METIER = [
   'Ingénieur Telecom',
   'Ingénieur Active Directory',
   'Ingénieur DevOps',
+  'Ingénieur Poste de travail',
+  'Administrateur IAM',
+  'Administrateur (Système, Réseau, Téléphonie, etc.)',
+  'Technicien Bureautique',
+  'Technicien Réseau Télécom',
   'Profil Fonctionnels / Autres',
 ]
 
@@ -95,7 +100,7 @@ function PositionnementDetailRow({ p, border, titleColor, textSecondary, editabl
   )
 }
 
-function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, accent, border, titleColor, textSecondary }) {
+function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, onFamilleChange, accent, border, titleColor, textSecondary }) {
   const isHeld = c.statut === 'retenu'
   return (
     <div style={{ background: '#fff', border: `1.5px solid ${isHeld ? '#FDBA74' : border}`, borderRadius: 12, padding: '12px 14px' }}>
@@ -107,6 +112,14 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
           <span style={{ fontSize: 10, fontWeight: 700, color: '#0F6E56', background: '#D1FAE5', borderRadius: 20, padding: '2px 8px' }}>{c.disponibilite}</span>
         )}
       </div>
+      {editable && onFamilleChange && (
+        <select value={FAMILLES_METIER.includes(c.famille_metier) ? c.famille_metier : ''}
+          onChange={e => onFamilleChange(c.id, e.target.value)} onClick={e => e.stopPropagation()}
+          style={{ display: 'block', width: '100%', fontSize: 11, fontWeight: 600, color: accent, background: accent + '0F', border: `1.5px solid ${accent}50`, borderRadius: 8, padding: '4px 6px', marginTop: 6, fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}>
+          <option value="">Non classé</option>
+          {FAMILLES_METIER.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+      )}
       {c.fonction && <div style={{ fontSize: 12.5, color: accent, fontWeight: 600, marginTop: 3, whiteSpace: 'pre-line' }}>{c.fonction}</div>}
       {c.habite && <div style={{ fontSize: 11.5, color: textSecondary, marginTop: 4 }}>📍 {c.habite}</div>}
       {isHeld && c.commentaire_indispo && (
@@ -164,7 +177,12 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
 // changement passe par la même fonction updateStatut que "Ma saisie", donc se répercute partout :
 // classement, Présentés/Signé, et l'archivage auto du collaborateur une fois signé (qui le fait
 // disparaître d'ici et de la Fiche ITC / Intercontrats disponibles).
-export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
+//
+// onFamilleChange : même principe, toujours réservé au Dashboard — affiche un menu déroulant de
+// FAMILLES_METIER sur chaque carte pour classer en un clic les collaborateurs "Non classé" (ou changer
+// une famille déjà renseignée), sans repasser par Admin. Le changement met à jour famille_metier
+// directement dans collaborateurs_itc et regroupe aussitôt la carte dans sa nouvelle famille.
+export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const term = search.trim().toLowerCase()
@@ -218,7 +236,7 @@ export default function FicheItcList({ collaborateurs, positionnementStats, edit
                   stats={positionnementStats?.get((c.nom || '').trim().toLowerCase())}
                   expanded={isExpanded(c.id)}
                   onToggleExpand={() => toggleExpand(c.id)}
-                  editable={editable} onStatutChange={onStatutChange}
+                  editable={editable} onStatutChange={onStatutChange} onFamilleChange={onFamilleChange}
                   accent={accent} border={border} titleColor={titleColor} textSecondary={textSecondary} />
               ))}
             </div>
