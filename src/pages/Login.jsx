@@ -20,6 +20,10 @@ const PORTALS = [
   { id: 'challenge-itc', icon: '🚀', label: 'Challenge ITC',    desc: '1er nov → 31 déc : positionnements & push ITC', bg: '#FFF7ED', color: '#C2410C' },
   { id: 'intercontrats', icon: '📋', label: 'Intercontrats disponibles', desc: 'ITC actuel et à venir — ouverture directe, sans mot de passe', bg: '#CCFBF1', color: '#0F766E' },
   { id: 'admin',        icon: '⚙️', label: 'Admin',             desc: "Gestion de l'équipe",              bg: '#F3E8FF', color: '#7C3AED' },
+  // Accès direct au Dashboard du Challenge ITC (vue globale de tous les collaborateurs + changement de
+  // statut), sans passer par la sélection de prénom — même mot de passe que Admin (demande d'Antho :
+  // "le dashboard je le veux là", directement depuis ce menu).
+  { id: 'challenge-itc-dashboard', icon: '🔐', label: 'Dashboard Challenge ITC', desc: 'Vue globale push/positionnements, changer les statuts', bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
 const MANAGER_OPTIONS = [
@@ -254,6 +258,12 @@ export default function Login({ onLogin }) {
   const handleAdminLogin = () => {
     if (!password) return setError('Entre ton mot de passe')
     const ok = onLogin({ nom: 'Anthony' }, password, 'admin')
+    if (!ok) setError('Mot de passe incorrect')
+  }
+
+  const handleChallengeDashboardLogin = () => {
+    if (!password) return setError('Entre ton mot de passe')
+    const ok = onLogin({ nom: 'Anthony' }, password, 'challenge-itc-dashboard')
     if (!ok) setError('Mot de passe incorrect')
   }
 
@@ -554,6 +564,26 @@ export default function Login({ onLogin }) {
           <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
           {error && <ErrorMsg msg={error} />}
           <button onClick={handleAdminLogin} style={{ width: '100%', padding: 13, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            Se connecter
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Accès direct au Dashboard du Challenge ITC : juste un mot de passe, aucune sélection de prénom —
+  // ouvre directement ChallengeItc avec son onglet Dashboard déjà déverrouillé (voir handleLogin dans
+  // App.js, initialTab='challenge-itc-dashboard').
+  if (portal === 'challenge-itc-dashboard') {
+    return (
+      <div style={loginWrap}>
+        <BackButton onClick={handleBack} />
+        <Header icon="🔐" title="Dashboard Challenge ITC" />
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div style={labelStyle}>Mot de passe</div>
+          <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && handleChallengeDashboardLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+          {error && <ErrorMsg msg={error} />}
+          <button onClick={handleChallengeDashboardLogin} style={{ width: '100%', padding: 13, background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             Se connecter
           </button>
         </div>
