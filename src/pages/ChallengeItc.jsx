@@ -43,11 +43,6 @@ const POSITIONNEMENT_TYPE_OPTIONS = [
 ]
 const POSITIONNEMENT_TYPE_COLORS = { besoin: '#0F6E56', push: '#4338CA' }
 const PRESENTED_STATUTS = ['presentation_realisee', 'signe']
-// Onglet "Dashboard" interne au Challenge ITC : même principe que les autres accès protégés de l'app
-// (mot de passe "go" en Admin), mais local à cette page — n'importe quel IA peut ouvrir le portail
-// Challenge ITC sans mot de passe, mais seul Anthony doit pouvoir faire évoluer les statuts depuis
-// cette vue d'ensemble. Comparaison insensible à la casse pour ne pas coincer sur "Go"/"GO"/"go".
-const DASHBOARD_PASSWORD = 'go'
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const emptyPositionnement = () => ({ collaborateur_itc: '', client: '', nom: '', prenom: '', fonction: '', type_positionnement: '', date_push: todayISO() })
@@ -126,20 +121,12 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
   const [posContactSuggestions, setPosContactSuggestions] = useState([])
   const [selectedPosContactId, setSelectedPosContactId] = useState(null)
 
-  // Si on arrive via le portail "Dashboard Challenge ITC" (accès direct, mot de passe déjà vérifié
-  // dans App.js), on ouvre directement sur cet onglet, déjà déverrouillé — sinon comportement habituel
-  // (Classement par défaut, Dashboard verrouillé tant que le mot de passe n'a pas été saisi ici).
+  // startOnDashboard : on arrive ici via la carte spéciale "🔐 Dashboard" de l'écran "Je suis..." du
+  // Challenge ITC (voir Login.jsx), mot de passe déjà vérifié à cette étape — donc l'onglet Dashboard
+  // n'est ni verrouillé ni même proposé aux IA qui entrent normalement par leur prénom (voir plus bas,
+  // où l'onglet n'est ajouté à la barre que si startOnDashboard est vrai).
   const [view, setView] = useState(startOnDashboard ? 'dashboard' : 'classement')
   const [loadError, setLoadError] = useState('')
-  // Verrou local de l'onglet Dashboard (protégé par mot de passe) — se réinitialise à chaque
-  // connexion/rechargement de page, comme les autres accès protégés par mot de passe dans l'app.
-  const [dashboardUnlocked, setDashboardUnlocked] = useState(startOnDashboard)
-  const [dashboardPwd, setDashboardPwd] = useState('')
-  const [dashboardPwdError, setDashboardPwdError] = useState(false)
-  const unlockDashboard = () => {
-    if (dashboardPwd.trim().toLowerCase() === DASHBOARD_PASSWORD) { setDashboardUnlocked(true); setDashboardPwdError(false) }
-    else setDashboardPwdError(true)
-  }
 
   useEffect(() => {
     const load = async () => {
@@ -381,7 +368,10 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
       </div>
 
       <div style={{ display: 'flex', background: ACCENT_LIGHT, borderRadius: 10, padding: 3, marginBottom: 16, border: `1px solid ${BORDER}` }}>
-        {[['fiche', '🧑‍💼 Fiche ITC'], ['classement', '🏆 Classement'], ['positionnes', '📋 Positionné'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie'], ['dashboard', '🔐 Dashboard']].map(([id, label]) => (
+        {/* L'onglet Dashboard n'existe que pour qui est entré par la carte spéciale "🔐 Dashboard" de
+            l'écran "Je suis..." (voir Login.jsx) — les autres IA (Anissa, Antoine, Georges...) ne le
+            voient jamais, ça ne les concerne pas. */}
+        {[['fiche', '🧑‍💼 Fiche ITC'], ['classement', '🏆 Classement'], ['positionnes', '📋 Positionné'], ['presentes', '🎤 Présentés'], ['signes', '✍️ Signé'], ['saisie', '➕ Ma saisie'], ...(startOnDashboard ? [['dashboard', '🔐 Dashboard']] : [])].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)} style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: view === id ? 700 : 400, background: view === id ? ACCENT : 'transparent', color: view === id ? '#fff' : ACCENT, cursor: 'pointer', transition: 'all 0.2s' }}>
             {label}
           </button>
@@ -589,30 +579,14 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
       )}
 
       {view === 'dashboard' && (
-        !dashboardUnlocked ? (
-          <div style={{ background: '#fff', border: `1.5px solid ${BORDER}`, borderRadius: 14, padding: '20px 18px', maxWidth: 360, margin: '0 auto' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: TITLE_COLOR, marginBottom: 4 }}>🔐 Accès protégé</div>
-            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 12 }}>Vue d'ensemble de tous les collaborateurs avec leurs positionnements, et possibilité de faire évoluer leur statut.</div>
-            <input type="password" value={dashboardPwd} autoFocus
-              onChange={e => { setDashboardPwd(e.target.value); setDashboardPwdError(false) }}
-              onKeyDown={e => e.key === 'Enter' && unlockDashboard()}
-              placeholder="Mot de passe"
-              style={{ width: '100%', height: 44, padding: '0 12px', borderRadius: 9, border: `1.5px solid ${dashboardPwdError ? '#B42318' : BORDER}`, fontSize: 13.5, boxSizing: 'border-box', marginBottom: dashboardPwdError ? 8 : 12 }} />
-            {dashboardPwdError && <div style={{ fontSize: 11.5, color: '#B42318', fontWeight: 600, marginBottom: 12 }}>Mot de passe incorrect.</div>}
-            <button onClick={unlockDashboard} style={{ width: '100%', height: 44, borderRadius: 10, background: ACCENT, color: '#fff', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-              Déverrouiller
-            </button>
+        <div>
+          <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginBottom: 12 }}>
+            Tous les collaborateurs en intercontrat avec le détail de leurs positionnements — change le statut directement ici : la mise à jour se répercute dans Ma saisie de l'IA concerné, le classement, et archive automatiquement le collaborateur (donc le retire de la Fiche ITC / Intercontrats disponibles) une fois marqué "Signé / Démarrage".
           </div>
-        ) : (
-          <div>
-            <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginBottom: 12 }}>
-              Tous les collaborateurs en intercontrat avec le détail de leurs positionnements — change le statut directement ici : la mise à jour se répercute dans Ma saisie de l'IA concerné, le classement, et archive automatiquement le collaborateur (donc le retire de la Fiche ITC / Intercontrats disponibles) une fois marqué "Signé / Démarrage".
-            </div>
-            <FicheItcList collaborateurs={itcDirectory} positionnementStats={itcPositionnementStats}
-              editable onStatutChange={updateStatut}
-              accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
-          </div>
-        )
+          <FicheItcList collaborateurs={itcDirectory} positionnementStats={itcPositionnementStats}
+            editable onStatutChange={updateStatut}
+            accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
+        </div>
       )}
     </div>
   )
