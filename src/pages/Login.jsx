@@ -8,12 +8,17 @@ const SPACES = [
 ]
 
 // Portails disponibles une fois dans l'espace INFRA.
+// "intercontrats" est à part : pas de mot de passe NI de sélection de prénom (contrairement à
+// Challenge ITC) — un clic ouvre directement la liste, en lecture seule pour les commerciaux (voir
+// le traitement spécial de son onClick dans l'écran ci-dessous, et handleLogin/initialTab='intercontrats'
+// dans App.js).
 const PORTALS = [
   { id: 'ia',           icon: '💼', label: "Le Commerce",       desc: 'Accès à ton espace reporting',    bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
   { id: 'manager',      icon: '🎯', label: 'Manager',           desc: 'Accès dashboard & pilotage',      bg: '#FAEEDA', color: '#BA7517' },
   { id: 'prospection',  icon: '🏆', label: 'Prospection du lundi', desc: 'Séance de prospection en direct', bg: '#DCFCE7', color: '#16A34A' },
   { id: 'challenge-itc', icon: '🚀', label: 'Challenge ITC',    desc: '1er nov → 31 déc : positionnements & push ITC', bg: '#FFF7ED', color: '#C2410C' },
+  { id: 'intercontrats', icon: '📋', label: 'Intercontrats disponibles', desc: 'ITC actuel et à venir — ouverture directe, sans mot de passe', bg: '#CCFBF1', color: '#0F766E' },
   { id: 'admin',        icon: '⚙️', label: 'Admin',             desc: "Gestion de l'équipe",              bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
@@ -281,27 +286,30 @@ export default function Login({ onLogin }) {
   }
 
   // ───────────────────────────────────────────
-  // Espace INFRA : liste des portails (Commerce, Recrutement, Manager, Prospection, Admin)
+  // Espace INFRA : grille des modules (Commerce, Recrutement, Manager, Prospection, Challenge ITC,
+  // Intercontrats disponibles, Admin) — présentée en grille plutôt qu'en liste verticale empilée, pour
+  // mieux exploiter la largeur de l'écran (demande d'Antho). "Intercontrats disponibles" est un cas
+  // particulier : son clic n'ouvre pas un sous-écran, il connecte directement en lecture seule (voir
+  // l'onClick ci-dessous et le commentaire sur PORTALS plus haut).
   // ───────────────────────────────────────────
   if (space === 'infra' && !portal) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
         <BackButton onClick={handleBackToSpaces} />
-        <div style={{ marginBottom: 40, textAlign: 'center' }}>
+        <div style={{ marginBottom: 32, textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🏠</div>
           <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>INFRA</div>
           <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 6 }}>Quel est ton espace ?</div>
         </div>
-        <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ width: '100%', maxWidth: 440, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {PORTALS.map(p => (
-            <div key={p.id} onClick={() => setPortal(p.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid ' + p.color + '40', background: p.bg, transition: 'all 0.15s' }}>
-              <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{p.icon}</div>
+            <div key={p.id} onClick={() => p.id === 'intercontrats' ? onLogin({ nom: 'Intercontrats' }, '', 'intercontrats') : setPortal(p.id)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 10, padding: '20px 14px', borderRadius: 16, cursor: 'pointer', border: '1.5px solid ' + p.color + '40', background: p.bg, transition: 'all 0.15s' }}>
+              <div style={{ fontSize: 24, width: 52, height: 52, borderRadius: 14, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{p.icon}</div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: p.color }}>{p.label}</div>
-                <div style={{ fontSize: 12, color: p.color + 'AA', marginTop: 2 }}>{p.desc}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: p.color, lineHeight: 1.25 }}>{p.label}</div>
+                <div style={{ fontSize: 11, color: p.color + 'AA', marginTop: 3, lineHeight: 1.3 }}>{p.desc}</div>
               </div>
-              <div style={{ marginLeft: 'auto', color: p.color, fontSize: 18 }}>›</div>
             </div>
           ))}
         </div>
