@@ -19,16 +19,17 @@ export const FAMILLES_METIER = [
   'Profil Fonctionnels / Autres',
 ]
 
-// Mêmes libellés/couleurs que POSITIONNEMENT_STATUTS dans ChallengeItc.jsx, dupliqués ici car ce
+// Mêmes libellés/couleurs/ordre que POSITIONNEMENT_STATUTS dans ChallengeItc.jsx, dupliqués ici car ce
 // composant est aussi utilisé par Intercontrats.jsx, en dehors de tout contexte Challenge ITC — à
 // garder en synchro si la liste des statuts change côté ChallengeItc.jsx.
-const STATUT_LABELS = {
-  en_attente:             { label: 'En attente de retour',   color: '#0369A1' },
-  presentation_a_prevoir: { label: 'Présentation à prévoir', color: '#BA7517' },
-  presentation_realisee:  { label: 'Présentation réalisée',  color: '#1E40AF' },
-  sans_suite:             { label: 'Sans suite',              color: '#9F1239' },
-  signe:                  { label: 'Signé / Démarrage',       color: '#0F6E56' },
-}
+const STATUT_OPTIONS = [
+  { value: 'en_attente',             label: 'En attente de retour',   color: '#0369A1' },
+  { value: 'presentation_a_prevoir', label: 'Présentation à prévoir', color: '#BA7517' },
+  { value: 'presentation_realisee',  label: 'Présentation réalisée',  color: '#1E40AF' },
+  { value: 'sans_suite',             label: 'Sans suite',              color: '#9F1239' },
+  { value: 'signe',                  label: 'Signé / Démarrage',       color: '#0F6E56' },
+]
+const STATUT_LABELS = Object.fromEntries(STATUT_OPTIONS.map(s => [s.value, s]))
 
 // Calcule, pour chaque collaborateur ITC (par nom, insensible à la casse), le nombre de push, de
 // positionnements sur besoin et de présentations qui lui sont associés, ainsi que le détail complet
@@ -60,8 +61,12 @@ function StatBadge({ color, bg, children }) {
 }
 
 // Une ligne de détail pour un push/besoin donné : client, contact visé (nom/prénom + fonction), date
-// et statut d'avancement.
-function PositionnementDetailRow({ p, border, titleColor, textSecondary }) {
+// et statut d'avancement. En mode "editable" (Dashboard du Challenge ITC, protégé par mot de passe),
+// le badge de statut devient un menu déroulant : le changer met à jour directement la table
+// positionnements via onStatutChange, donc l'info évolue partout ailleurs dans l'app (Ma saisie de
+// l'IA concerné, Présentés/Signé, classement) puisque c'est la même ligne en base — rien d'autre à
+// synchroniser. Ailleurs (Fiche ITC, Intercontrats disponibles), editable reste false : lecture seule.
+function PositionnementDetailRow({ p, border, titleColor, textSecondary, editable, onStatutChange }) {
   const statutCfg = STATUT_LABELS[p.statut] || STATUT_LABELS.en_attente
   const contact = [p.prenom, p.nom].filter(Boolean).join(' ')
   return (
@@ -77,13 +82,20 @@ function PositionnementDetailRow({ p, border, titleColor, textSecondary }) {
       )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, gap: 6, flexWrap: 'wrap' }}>
         <span style={{ color: textSecondary }}>{p.date_push ? new Date(p.date_push + 'T00:00:00').toLocaleDateString('fr-FR') : ''}</span>
-        <span style={{ fontSize: 9.5, fontWeight: 700, color: statutCfg.color, background: statutCfg.color + '18', borderRadius: 20, padding: '2px 7px', whiteSpace: 'nowrap' }}>{statutCfg.label}</span>
+        {editable ? (
+          <select value={p.statut} onChange={e => onStatutChange(p.id, e.target.value)} onClick={e => e.stopPropagation()}
+            style={{ fontSize: 9.5, fontWeight: 700, color: statutCfg.color, background: statutCfg.color + '14', border: `1.5px solid ${statutCfg.color}60`, borderRadius: 20, padding: '2px 6px', fontFamily: 'inherit', cursor: 'pointer' }}>
+            {STATUT_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        ) : (
+          <span style={{ fontSize: 9.5, fontWeight: 700, color: statutCfg.color, background: statutCfg.color + '18', borderRadius: 20, padding: '2px 7px', whiteSpace: 'nowrap' }}>{statutCfg.label}</span>
+        )}
       </div>
     </div>
   )
 }
 
-function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, accent, border, titleColor, textSecondary }) {
+function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, accent, border, titleColor, textSecondary }) {
   const isHeld = c.statut === 'retenu'
   return (
     <div style={{ background: '#fff', border: `1.5px solid ${isHeld ? '#FDBA74' : border}`, borderRadius: 12, padding: '12px 14px' }}>
@@ -115,7 +127,7 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
             </div>
             {expanded && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-                {stats.items.map((p, i) => <PositionnementDetailRow key={p.id || i} p={p} border={border} titleColor={titleColor} textSecondary={textSecondary} />)}
+                {stats.items.map((p, i) => <PositionnementDetailRow key={p.id || i} p={p} border={border} titleColor={titleColor} textSecondary={textSecondary} editable={editable} onStatutChange={onStatutChange} />)}
               </div>
             )}
           </div>
@@ -129,10 +141,35 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
   )
 }
 
-export default function FicheItcList({ collaborateurs, positionnementStats, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
+// Carte-annuaire des intercontrats (nom/prénom, fonction, lieu d'habitation, disponibilité, à
+// retenir, regroupés par grande famille de métier, et un résumé + détail des positionnements en
+// cours) — jamais salaire ni notes_internes ici, réservées à Admin (mot de passe). Composant partagé
+// entre l'onglet "Fiche ITC" du portail Challenge ITC et le portail public "Intercontrats disponibles"
+// (lecture seule, sans mot de passe).
+//
+// Le parent passe tous les collaborateurs actifs OU "retenus" (jamais les archivés) ; c'est ce
+// composant qui décide de la visibilité par défaut : un collaborateur "retenu" (provisoirement
+// indisponible — ex: retenu sur une mission chez un client, avec le commentaire d'Anthony expliquant
+// pourquoi) n'apparaît PAS dans la liste par défaut, mais reste trouvable si un commercial tape
+// explicitement son nom/sa fonction/sa ville dans la recherche — il voit alors le commentaire.
+//
+// Présentation en grille (plusieurs cartes par ligne selon la largeur) plutôt qu'en liste empilée
+// verticale, regroupée par grande famille de métier (FAMILLES_METIER, choisie dans Admin) — demande
+// d'Antho ("exploiter davantage l'horizontalité... classer par grande famille de collaborateurs").
+// Nécessite que le conteneur parent soit en pleine largeur (classe .wide) pour que ça se voie vraiment.
+//
+// editable + onStatutChange : réservés au nouvel onglet "Dashboard" du Challenge ITC (protégé par mot
+// de passe) — permet de faire évoluer le statut d'un positionnement (signé/présenté/sans suite...)
+// directement depuis cette vue groupée par collaborateur, sans ressaisir ni rouvrir "Ma saisie". Le
+// changement passe par la même fonction updateStatut que "Ma saisie", donc se répercute partout :
+// classement, Présentés/Signé, et l'archivage auto du collaborateur une fois signé (qui le fait
+// disparaître d'ici et de la Fiche ITC / Intercontrats disponibles).
+export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const term = search.trim().toLowerCase()
+  // Sans recherche : seuls les "actif" ressortent. Avec une recherche : les "retenu" redeviennent
+  // trouvables (mais pas les archivés, déjà exclus en amont par le parent).
   const pool = term ? collaborateurs : collaborateurs.filter(c => c.statut !== 'retenu')
   const filtered = !term ? pool : pool.filter(c =>
     [c.nom, c.prenom, c.nom_famille, c.fonction, c.habite].filter(Boolean).some(v => v.toLowerCase().includes(term))
@@ -146,7 +183,13 @@ export default function FicheItcList({ collaborateurs, positionnementStats, acce
       return next
     })
   }
+  // En mode editable (Dashboard), le détail est ouvert par défaut pour tout voir d'un coup — le Set ne
+  // sert alors qu'à retenir les cartes qu'on a explicitement repliées, l'inverse du mode normal où il
+  // retient celles qu'on a explicitement dépliées.
+  const isExpanded = (id) => editable ? !expandedIds.has(id) : expandedIds.has(id)
 
+  // Regroupe par grande famille de métier ; "Non classé" en repli pour toute fiche sans famille
+  // renseignée (ou une valeur qui ne correspond plus à FAMILLES_METIER), toujours en dernier.
   const groups = new Map()
   for (const c of filtered) {
     const fam = FAMILLES_METIER.includes(c.famille_metier) ? c.famille_metier : 'Non classé'
@@ -173,8 +216,9 @@ export default function FicheItcList({ collaborateurs, positionnementStats, acce
                 <CollaborateurCard key={c.id} c={c}
                   statsProvided={statsProvided}
                   stats={positionnementStats?.get((c.nom || '').trim().toLowerCase())}
-                  expanded={expandedIds.has(c.id)}
+                  expanded={isExpanded(c.id)}
                   onToggleExpand={() => toggleExpand(c.id)}
+                  editable={editable} onStatutChange={onStatutChange}
                   accent={accent} border={border} titleColor={titleColor} textSecondary={textSecondary} />
               ))}
             </div>
