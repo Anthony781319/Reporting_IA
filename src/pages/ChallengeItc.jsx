@@ -105,7 +105,7 @@ function PositionnementRow({ p, onStatutChange, onRemove }) {
   )
 }
 
-export default function ChallengeItc({ iaId, iaName }) {
+export default function ChallengeItc({ iaId, iaName, startOnDashboard = false }) {
   const [loading, setLoading] = useState(true)
   const [myPositionnements, setMyPositionnements] = useState([])
   const [allWindowPositionnements, setAllWindowPositionnements] = useState([]) // tous BM, dans la fenêtre du challenge
@@ -126,11 +126,14 @@ export default function ChallengeItc({ iaId, iaName }) {
   const [posContactSuggestions, setPosContactSuggestions] = useState([])
   const [selectedPosContactId, setSelectedPosContactId] = useState(null)
 
-  const [view, setView] = useState('classement')
+  // Si on arrive via le portail "Dashboard Challenge ITC" (accès direct, mot de passe déjà vérifié
+  // dans App.js), on ouvre directement sur cet onglet, déjà déverrouillé — sinon comportement habituel
+  // (Classement par défaut, Dashboard verrouillé tant que le mot de passe n'a pas été saisi ici).
+  const [view, setView] = useState(startOnDashboard ? 'dashboard' : 'classement')
   const [loadError, setLoadError] = useState('')
   // Verrou local de l'onglet Dashboard (protégé par mot de passe) — se réinitialise à chaque
   // connexion/rechargement de page, comme les autres accès protégés par mot de passe dans l'app.
-  const [dashboardUnlocked, setDashboardUnlocked] = useState(false)
+  const [dashboardUnlocked, setDashboardUnlocked] = useState(startOnDashboard)
   const [dashboardPwd, setDashboardPwd] = useState('')
   const [dashboardPwdError, setDashboardPwdError] = useState(false)
   const unlockDashboard = () => {
