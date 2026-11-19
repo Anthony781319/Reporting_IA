@@ -23,10 +23,12 @@ export default function Intercontrats() {
       setLoading(true)
       setLoadError('')
       // Même allowlist de colonnes que la Fiche ITC : jamais salaire/notes_internes ici, cette page
-      // étant accessible sans la moindre identification.
+      // étant accessible sans la moindre identification. On récupère aussi les "retenu" (provisoirement
+      // indisponibles) : FicheItcList se charge de les cacher de la liste par défaut et de ne les
+      // ressortir qu'à la recherche explicite d'un nom, avec le commentaire d'Anthony.
       const { data, error } = await supabase.from('collaborateurs_itc')
-        .select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut')
-        .eq('statut', 'actif').order('nom')
+        .select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut, commentaire_indispo')
+        .in('statut', ['actif', 'retenu']).order('nom')
       if (error) setLoadError(`Erreur de chargement : ${error.message}`)
       setCollaborateurs(data || [])
       setLoading(false)
