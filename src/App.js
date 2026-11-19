@@ -50,11 +50,15 @@ export default function App() {
   const [isSandraManager, setIsSandraManager] = useState(false)
   const [isStephaneManager, setIsStephaneManager] = useState(false)
   const [isChallengeItc, setIsChallengeItc] = useState(false)
+  // Accès direct au Dashboard du Challenge ITC (voir Login.jsx, portail "challenge-itc-dashboard") :
+  // ChallengeItc s'ouvre alors avec son onglet Dashboard déjà sélectionné et déverrouillé, le mot de
+  // passe ayant déjà été vérifié ici au moment de la connexion.
+  const [challengeDashboardDirect, setChallengeDashboardDirect] = useState(false)
   const [isIntercontrats, setIsIntercontrats] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false); setIsChallengeItc(false); setIsIntercontrats(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false); setIsChallengeItc(false); setChallengeDashboardDirect(false); setIsIntercontrats(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
@@ -76,6 +80,13 @@ export default function App() {
     // léger exprès pour ne pas freiner la saisie pendant le challenge.
     if (initialTab === 'challenge-itc') {
       resetRoles(); setUser(ia); setIsChallengeItc(true); setTab('challenge-itc'); return true
+    }
+    // Accès direct au Dashboard du Challenge ITC depuis le menu INFRA (voir Login.jsx), sans passer par
+    // la sélection de prénom — même mot de passe que Admin (demande d'Antho : "le dashboard je le veux
+    // là"). ChallengeItc s'ouvre avec son onglet Dashboard déjà déverrouillé.
+    if (initialTab === 'challenge-itc-dashboard') {
+      if (password !== ADMIN_PASSWORD) return false
+      resetRoles(); setUser(ia); setIsChallengeItc(true); setChallengeDashboardDirect(true); setTab('challenge-itc'); return true
     }
     // Portail public "Intercontrats disponibles" : accès direct depuis l'écran INFRA, sans même
     // sélectionner un prénom (lecture seule pour les commerciaux — seul Anthony via Admin peut changer
@@ -216,7 +227,7 @@ export default function App() {
         {tab === 'contacts'          && <Contacts />}
         {tab === 'prospection-saisie'     && <ProspectionSaisie iaId={user.id} iaName={user.nom} />}
         {tab === 'prospection-classement' && <Classement entite={user?.entite || null} />}
-        {tab === 'challenge-itc'          && <ChallengeItc iaId={user.id} iaName={user.nom} />}
+        {tab === 'challenge-itc'          && <ChallengeItc iaId={user.id} iaName={user.nom} startOnDashboard={challengeDashboardDirect} />}
         {tab === 'intercontrats'          && <Intercontrats />}
       </div>
     </div>
