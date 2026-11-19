@@ -105,6 +105,10 @@ export default function ChallengeItc({ iaId, iaName }) {
   const [myPositionnements, setMyPositionnements] = useState([])
   const [allWindowPositionnements, setAllWindowPositionnements] = useState([]) // tous BM, dans la fenêtre du challenge
   const [itcCollaborateurs, setItcCollaborateurs] = useState([])
+  // Distinct de itcCollaborateurs (actif uniquement, utilisé pour l'autocomplete du formulaire de push —
+  // on ne doit jamais pouvoir pousser quelqu'un de "retenu") : itcDirectory inclut aussi les "retenu",
+  // pour l'onglet "Fiche ITC" qui les cache par défaut mais les ressort à la recherche (voir FicheItcList).
+  const [itcDirectory, setItcDirectory] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [newPositionnement, setNewPositionnement] = useState(emptyPositionnement())
@@ -135,13 +139,18 @@ export default function ChallengeItc({ iaId, iaName }) {
       // échouait silencieusement (windowData restait vide, d'où un classement/des totaux bloqués à
       // zéro malgré des saisies bien enregistrées). On récupère la table ia à part et on fait le
       // rapprochement nous-mêmes en JS, ce qui ne dépend plus de cette relation.
-      const [{ data: mine, error: mineErr }, { data: windowData, error: windowErr }, { data: itc }, { data: iaRows, error: iaErr }] = await Promise.all([
+      const [{ data: mine, error: mineErr }, { data: windowData, error: windowErr }, { data: itc }, { data: itcDir }, { data: iaRows, error: iaErr }] = await Promise.all([
         iaId ? supabase.from('positionnements').select('*').eq('ia_id', iaId).gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         supabase.from('positionnements').select('*').gte('date_push', CHALLENGE_START).lte('date_push', CHALLENGE_END),
         // On ne sélectionne jamais salaire/notes_internes ici : cette liste atterrit dans le navigateur
         // de n'importe quel commercial connecté au portail (pas de mot de passe), donc même si rien ne
-        // les affiche côté UI, on évite par principe qu'elles transitent jusqu'au client.
+        // les affiche côté UI, on évite par principe qu'elles transitent jusqu'au client. Actif
+        // uniquement : c'est la liste utilisée pour valider/suggérer un nom dans le formulaire de push,
+        // on ne doit jamais pouvoir y sélectionner quelqu'un de "retenu".
         supabase.from('collaborateurs_itc').select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut').eq('statut', 'actif').order('nom'),
+        // Même allowlist + commentaire_indispo, mais actif ET retenu : pour l'onglet "Fiche ITC" (voir
+        // FicheItcList, qui cache les "retenu" par défaut et ne les ressort qu'à la recherche).
+        supabase.from('collaborateurs_itc').select('id, nom, prenom, nom_famille, habite, disponibilite, fonction, a_retenir, statut, commentaire_indispo').in('statut', ['actif', 'retenu']).order('nom'),
         supabase.from('ia').select('id, nom, entite'),
       ])
       const firstErr = mineErr || windowErr || iaErr
@@ -155,6 +164,7 @@ export default function ChallengeItc({ iaId, iaName }) {
           .filter(p => p.ia?.entite !== 'sandra' && p.ia?.nom)
       )
       setItcCollaborateurs(itc || [])
+      setItcDirectory(itcDir || [])
       setLoading(false)
     }
     load()
@@ -263,6 +273,7 @@ export default function ChallengeItc({ iaId, iaName }) {
       if (statut === 'signe' && data.collaborateur_itc) {
         await supabase.from('collaborateurs_itc').update({ statut: 'ancien' }).ilike('nom', data.collaborateur_itc)
         setItcCollaborateurs(l => l.filter(c => c.nom.toLowerCase() !== data.collaborateur_itc.toLowerCase()))
+        setItcDirectory(l => l.filter(c => c.nom.toLowerCase() !== data.collaborateur_itc.toLowerCase()))
       }
     } else {
       setError(err?.message ? `Le statut ne s'est pas enregistré : ${err.message}` : "Le statut ne s'est pas enregistré, réessaie ou préviens Anthony.")
@@ -355,7 +366,7 @@ export default function ChallengeItc({ iaId, iaName }) {
       </div>
 
       {view === 'fiche' && (
-        <FicheItcList collaborateurs={itcCollaborateurs} accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
+        <FicheItcList collaborateurs={itcDirectory} accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
       )}
 
       {view === 'classement' && (
