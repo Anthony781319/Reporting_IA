@@ -100,7 +100,7 @@ function PositionnementDetailRow({ p, border, titleColor, textSecondary, editabl
   )
 }
 
-function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, onFamilleChange, onDisponibiliteChange, onManage, accent, border, titleColor, textSecondary }) {
+function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, allowDetail, editable, onStatutChange, onFamilleChange, onDisponibiliteChange, onManage, accent, border, titleColor, textSecondary }) {
   const isHeld = c.statut === 'retenu'
   const isSick = c.statut === 'arret_maladie'
   const isUnavailable = isHeld || isSick
@@ -148,13 +148,13 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
       {statsProvided && (
         stats && stats.total > 0 ? (
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${border}` }}>
-            <div onClick={onToggleExpand} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', cursor: 'pointer' }}>
+            <div onClick={allowDetail ? onToggleExpand : undefined} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', cursor: allowDetail ? 'pointer' : 'default' }}>
               {stats.push > 0 && <StatBadge color="#4338CA" bg="#EEF2FF">🚀 Push ×{stats.push}</StatBadge>}
               {stats.besoin > 0 && <StatBadge color="#0F6E56" bg="#E1F5EE">🎯 Besoin ×{stats.besoin}</StatBadge>}
               {stats.presentations > 0 && <StatBadge color="#1E40AF" bg="#DBEAFE">🎤 Présenté ×{stats.presentations}</StatBadge>}
-              <span style={{ fontSize: 10.5, color: textSecondary, fontWeight: 600, marginLeft: 2 }}>{expanded ? '▲ masquer le détail' : '▼ voir le détail'}</span>
+              {allowDetail && <span style={{ fontSize: 10.5, color: textSecondary, fontWeight: 600, marginLeft: 2 }}>{expanded ? '▲ masquer le détail' : '▼ voir le détail'}</span>}
             </div>
-            {expanded && (
+            {allowDetail && expanded && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                 {stats.items.map((p, i) => <PositionnementDetailRow key={p.id || i} p={p} border={border} titleColor={titleColor} textSecondary={textSecondary} editable={editable} onStatutChange={onStatutChange} />)}
               </div>
@@ -210,7 +210,14 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
 // bouton "✎ Gérer" qui ouvre la fiche complète (nom, salaire, notes internes, archivage...) dans
 // Intercontrats.jsx, qui porte toute la logique d'ajout/modification/archivage des collaborateurs ITC
 // (la gestion ne se fait plus du tout dans Admin, supprimée de cet écran).
-export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, onDisponibiliteChange, onManage, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
+//
+// allowDetail (true par défaut) : la page "Intercontrats disponibles" n'ayant aucun mot de passe en
+// lecture (accès direct depuis INFRA, voulu sans friction), on n'y affiche jamais le détail des
+// push/besoins (client, contact visé, date, statut) — uniquement les compteurs ("🚀 Push ×3"), pour
+// montrer qu'un collaborateur est déjà "joué" sans exposer les infos commerciales sensibles. Pour le
+// détail complet, direction le Dashboard du Challenge ITC (protégé par mot de passe), qui passe
+// allowDetail à true (défaut, inchangé) — voir Intercontrats.jsx pour le choix explicite à false.
+export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, onDisponibiliteChange, onManage, allowDetail = true, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const term = search.trim().toLowerCase()
@@ -264,6 +271,7 @@ export default function FicheItcList({ collaborateurs, positionnementStats, edit
                   stats={positionnementStats?.get((c.nom || '').trim().toLowerCase())}
                   expanded={isExpanded(c.id)}
                   onToggleExpand={() => toggleExpand(c.id)}
+                  allowDetail={allowDetail}
                   editable={editable} onStatutChange={onStatutChange} onFamilleChange={onFamilleChange} onDisponibiliteChange={onDisponibiliteChange} onManage={onManage}
                   accent={accent} border={border} titleColor={titleColor} textSecondary={textSecondary} />
               ))}
