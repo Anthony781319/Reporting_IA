@@ -28,12 +28,18 @@ export default async function handler(req, res) {
   .or('total_rdv.gt.0,presentations.gt.0,signatures.gt.0,demarrages.gt.0,fins_de_mission.gt.0,cv_envoyes.gt.0,besoins_detectes.gt.0')
 
     const iaAvecSaisie = new Set((saisies || []).map(s => s.ia_id))
+    // Mêmes critères que le filtre "mon équipe active" utilisé partout ailleurs dans l'app (Login.jsx,
+    // ChallengeItc.jsx, Intercontrats.jsx) : on exclut les comptes techniques (Anthony, P1 of the week),
+    // les CR, les IA archivés (statut 'ancien' — partis de la boîte) et l'équipe SOL (AS) de Sandra
+    // (entite === 'sandra'), qui n'est pas celle d'Anthony et n'a donc rien à faire dans ce rappel.
     const iaSansSaisie = (iaList || [])
   .filter(ia =>
     !iaAvecSaisie.has(ia.id) &&
     ia.nom !== 'Anthony' &&
     ia.nom !== 'P1 of the week' &&
-    ia.type !== 'cr'
+    ia.type !== 'cr' &&
+    ia.statut !== 'ancien' &&
+    ia.entite !== 'sandra'
   )
   .map(ia => ia.nom)
 
