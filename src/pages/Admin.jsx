@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import Saisie from './Saisie'
-import { FAMILLES_METIER } from '../components/FicheItcList'
 
 const AVATAR_COLORS = [
   ['#EDE9FE','#6D28D9'],['#D1FAE5','#065F46'],['#FEF3C7','#92400E'],
@@ -32,34 +31,11 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   const [crAdding, setCrAdding] = useState(false)
   const [crMsg, setCrMsg] = useState('')
 
-  // Liste de référence des collaborateurs en intercontrat, utilisée par le menu "Positionnement collaborateur ITC"
-  // dans Ma saisie et par la fiche ITC du portail Challenge ITC : les commerciaux choisissent dans cette
-  // liste plutôt que de retaper un nom en texte libre, pour que le manager puisse ensuite compter
-  // fiablement le nombre de push par collaborateur.
-  const [itcList, setItcList] = useState([])
-  const [itcAnciens, setItcAnciens] = useState([])
-  const [showItcAnciens, setShowItcAnciens] = useState(false)
-  // prenom/nom_famille/habite/disponibilite/fonction/a_retenir sont visibles par tous les commerciaux
-  // dans la fiche ITC du portail Challenge ITC ; salaire et notes_internes restent réservés à cet écran
-  // Admin (protégé par mot de passe) et ne sont jamais exposés aux commerciaux.
-  // statut ('actif' | 'retenu' | 'arret_maladie') + commentaire_indispo : un collaborateur "retenu"
-  // (ex: retenu sur une mission chez un client) ou "arret_maladie" (en arrêt, indisponible) disparaît
-  // de la liste par défaut vue par les commerciaux (Fiche ITC / Intercontrats disponibles), mais reste
-  // trouvable s'ils recherchent son nom — ils voient alors le commentaire. Différent d'archiver
-  // (statut='ancien', géré séparément par archiveItc) : les deux sont pensés comme temporaire/réversible
-  // depuis cette même fiche (repasser en "Disponible" dès que la personne revient), pas depuis les
-  // boutons archiver/réactiver.
-  const emptyItcForm = () => ({ nom: '', prenom: '', nom_famille: '', habite: '', disponibilite: '', fonction: '', famille_metier: '', a_retenir: '', notes_internes: '', salaire: '', statut: 'actif', commentaire_indispo: '' })
-  const [itcForm, setItcForm] = useState(emptyItcForm())
-  const [editingItcId, setEditingItcId] = useState(null)
-  const [itcAdding, setItcAdding] = useState(false)
-  const [itcMsg, setItcMsg] = useState('')
-  // Le formulaire d'ajout/modif ITC est rendu tout en bas de la section (après la liste), donc cliquer
-  // sur ✎ "Modifier" sans retour visuel donnait l'impression que rien ne se passait — on scrolle
-  // maintenant automatiquement jusqu'au formulaire dès qu'on ouvre une fiche en modification.
-  const itcFormRef = useRef(null)
+  // La gestion des collaborateurs ITC (ajout/modif/archivage) s'est déplacée sur la page "Intercontrats
+  // disponibles" elle-même (vue carte, accès caché 🔐 réservé à Anthony) — plus intuitive que la liste
+  // texte qui était ici. Voir Intercontrats.jsx.
 
-  useEffect(() => { loadIA(); loadItc() }, [])
+  useEffect(() => { loadIA() }, [])
 
   // Exclut systématiquement l'entité de Sandra ("SOL (AS)") : elle gère sa propre équipe en autonomie
   // depuis son écran dédié (AdminEntite), cet écran-ci reste réservé à l'équipe d'Anthony.
@@ -130,79 +106,6 @@ export default function Admin({ onSelectIA, selectedIaId }) {
     if (!window.confirm('Supprimer définitivement cette CR ? Cette action est irréversible.')) return
     await supabase.from('ia').delete().eq('id', id)
     await loadIA()
-  }
-
-  const loadItc = async () => {
-    const { data } = await supabase.from('collaborateurs_itc').select('*').order('nom')
-    const all = data || []
-    setItcList(all.filter(c => c.statut !== 'ancien'))
-    setItcAnciens(all.filter(c => c.statut === 'ancien'))
-  }
-
-  const saveItc = async () => {
-    if (!itcForm.nom.trim()) return setItcMsg('Nom requis')
-    setItcAdding(true)
-    const payload = {
-      nom: itcForm.nom.trim(),
-      prenom: itcForm.prenom.trim() || null,
-      nom_famille: itcForm.nom_famille.trim() || null,
-      habite: itcForm.habite.trim() || null,
-      disponibilite: itcForm.disponibilite.trim() || null,
-      fonction: itcForm.fonction.trim() || null,
-      famille_metier: itcForm.famille_metier || null,
-      a_retenir: itcForm.a_retenir.trim() || null,
-      notes_internes: itcForm.notes_internes.trim() || null,
-      salaire: itcForm.salaire === '' ? null : Number(itcForm.salaire),
-      statut: itcForm.statut,
-      // On ne garde le commentaire que si le collaborateur est bien marqué "retenu" ou "arret_maladie" :
-      // repasser en "Disponible" efface le commentaire pour ne pas laisser traîner une raison obsolète.
-      commentaire_indispo: (itcForm.statut === 'retenu' || itcForm.statut === 'arret_maladie') ? (itcForm.commentaire_indispo.trim() || null) : null,
-    }
-    const { error } = editingItcId
-      ? await supabase.from('collaborateurs_itc').update(payload).eq('id', editingItcId)
-      : await supabase.from('collaborateurs_itc').insert(payload)
-    if (error) setItcMsg('Erreur : ' + error.message)
-    else {
-      setItcForm(emptyItcForm())
-      setEditingItcId(null)
-      setItcMsg(editingItcId ? 'Fiche mise à jour !' : 'Collaborateur ajouté !')
-      await loadItc()
-    }
-    setItcAdding(false)
-    setTimeout(() => setItcMsg(''), 3000)
-  }
-
-  const startEditItc = (c) => {
-    setEditingItcId(c.id)
-    setItcForm({
-      nom: c.nom || '', prenom: c.prenom || '', nom_famille: c.nom_famille || '', habite: c.habite || '',
-      disponibilite: c.disponibilite || '', fonction: c.fonction || '', famille_metier: c.famille_metier || '', a_retenir: c.a_retenir || '',
-      notes_internes: c.notes_internes || '', salaire: c.salaire ?? '',
-      statut: ['retenu', 'arret_maladie'].includes(c.statut) ? c.statut : 'actif', commentaire_indispo: c.commentaire_indispo || '',
-    })
-    // Sans ça, le formulaire se remplit bien mais tout en bas de la section, hors écran : on amène la
-    // page jusqu'à lui pour que ce soit visible immédiatement après le clic sur le crayon.
-    setTimeout(() => itcFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-  }
-
-  const cancelEditItc = () => { setEditingItcId(null); setItcForm(emptyItcForm()) }
-
-  // Archiver : le collaborateur n'est plus en intercontrat / a quitté. Il disparaît du menu de saisie,
-  // mais l'historique de ses positionnements passés est conservé (le champ est du texte, pas une clé étrangère).
-  const archiveItc = async (id) => {
-    await supabase.from('collaborateurs_itc').update({ statut: 'ancien' }).eq('id', id)
-    await loadItc()
-  }
-
-  const reactivateItc = async (id) => {
-    await supabase.from('collaborateurs_itc').update({ statut: 'actif' }).eq('id', id)
-    await loadItc()
-  }
-
-  const removeItc = async (id) => {
-    if (!window.confirm('Supprimer définitivement ce collaborateur de la liste ? Cette action est irréversible.')) return
-    await supabase.from('collaborateurs_itc').delete().eq('id', id)
-    await loadItc()
   }
 
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chargement...</div>
@@ -422,169 +325,8 @@ export default function Admin({ onSelectIA, selectedIaId }) {
         )
       )}
 
-      {/* Section Collaborateurs ITC (liste de référence pour le menu "Positionnement collaborateur ITC" de Ma saisie) */}
-      <div style={{ height: 1, background: 'var(--color-border-tertiary)', margin: '24px 0' }} />
-      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 4, letterSpacing: '-0.3px' }}>
-        🧑‍💻 Collaborateurs en intercontrat
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
-        Liste utilisée par les commerciaux pour déclarer un positionnement — ils choisissent dedans plutôt que de retaper un nom, pour que le comptage par collaborateur reste fiable.
-      </div>
-      <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-        {itcList.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '11px 14px' }}>Aucun collaborateur ITC pour le moment.</div>
-        ) : itcList.map((c, i) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 600 }}>{c.nom}</span>
-              {c.famille_metier && (
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#4338CA', background: '#EEF2FF', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>{c.famille_metier}</span>
-              )}
-              {c.statut === 'retenu' && (
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#B45309', background: '#FEF3C7', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>🔶 Retenu</span>
-              )}
-              {c.statut === 'arret_maladie' && (
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#9F1239', background: '#FFE4E6', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>🤒 Arrêt maladie</span>
-              )}
-              <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                {[c.fonction, c.habite, c.salaire != null ? `${c.salaire} €` : null].filter(Boolean).join(' · ')}
-              </div>
-              {(c.statut === 'retenu' || c.statut === 'arret_maladie') && c.commentaire_indispo && (
-                <div style={{ fontSize: 11, color: c.statut === 'arret_maladie' ? '#9F1239' : '#92400E', marginTop: 3, fontWeight: 600 }}>{c.commentaire_indispo}</div>
-              )}
-            </div>
-            <button onClick={() => startEditItc(c)} title="Modifier la fiche"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
-              <i className="ti ti-pencil" aria-hidden="true"></i>
-            </button>
-            <button onClick={() => archiveItc(c.id)} title="Archiver (n'est plus en intercontrat)"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
-              <i className="ti ti-archive" aria-hidden="true"></i>
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div ref={itcFormRef} style={{ background: editingItcId ? '#FFFBEB' : 'var(--color-background-primary)', border: editingItcId ? '2px solid #F59E0B' : '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: 14, scrollMarginTop: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 10 }}>
-          {editingItcId ? `✎ Modification de la fiche — ${itcForm.nom || '...'}` : '+ Ajouter un collaborateur ITC'}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
-          Nom, prénom, fonction et lieu d'habitation sont visibles par tous les commerciaux dans le portail Challenge ITC. Salaire et notes internes restent réservés à cet écran.
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Nom affiché (ce que les commerciaux saisissent) *</label>
-            <input type="text" value={itcForm.nom} onChange={e => setItcForm(f => ({ ...f, nom: e.target.value }))} placeholder="ex: Jean Dupont" style={{ width: '100%' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Fonction</label>
-            <input type="text" value={itcForm.fonction} onChange={e => setItcForm(f => ({ ...f, fonction: e.target.value }))} placeholder="ex: Chef de Projet" style={{ width: '100%' }} />
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Prénom</label>
-            <input type="text" value={itcForm.prenom} onChange={e => setItcForm(f => ({ ...f, prenom: e.target.value }))} style={{ width: '100%' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Nom de famille</label>
-            <input type="text" value={itcForm.nom_famille} onChange={e => setItcForm(f => ({ ...f, nom_famille: e.target.value }))} style={{ width: '100%' }} />
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Lieu d'habitation</label>
-            <input type="text" value={itcForm.habite} onChange={e => setItcForm(f => ({ ...f, habite: e.target.value }))} placeholder="ex: MAUREPAS (78)" style={{ width: '100%' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Disponibilité</label>
-            <input type="text" value={itcForm.disponibilite} onChange={e => setItcForm(f => ({ ...f, disponibilite: e.target.value }))} placeholder="ex: Immédiate" style={{ width: '100%' }} />
-          </div>
-        </div>
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Famille de métier (pour regrouper la liste ITC par grande famille)</label>
-          <select value={itcForm.famille_metier} onChange={e => setItcForm(f => ({ ...f, famille_metier: e.target.value }))} style={{ width: '100%' }}>
-            <option value="">Non classé</option>
-            {FAMILLES_METIER.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
-        </div>
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Disponibilité pour le challenge</label>
-          <select value={itcForm.statut} onChange={e => setItcForm(f => ({ ...f, statut: e.target.value }))} style={{ width: '100%' }}>
-            <option value="actif">✅ Disponible (visible par tous dans la liste)</option>
-            <option value="retenu">🔶 Retenu sur une mission (caché de la liste, visible si un commercial recherche son nom)</option>
-            <option value="arret_maladie">🤒 En arrêt maladie (caché de la liste, visible si un commercial recherche son nom)</option>
-          </select>
-        </div>
-        {(itcForm.statut === 'retenu' || itcForm.statut === 'arret_maladie') && (
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Commentaire (visible par les commerciaux qui recherchent ce nom)</label>
-            <textarea value={itcForm.commentaire_indispo} onChange={e => setItcForm(f => ({ ...f, commentaire_indispo: e.target.value }))} rows={2}
-              placeholder={itcForm.statut === 'arret_maladie' ? 'ex: Retour prévu le 02/12' : 'ex: Retenu sur mission Renault, démarrage prévu le 15/12'}
-              style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, padding: 8, borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)', boxSizing: 'border-box' }} />
-          </div>
-        )}
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>À retenir (compétences, visible par les commerciaux)</label>
-          <textarea value={itcForm.a_retenir} onChange={e => setItcForm(f => ({ ...f, a_retenir: e.target.value }))} rows={3} style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, padding: 8, borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>🔒 Notes internes (jamais visibles des commerciaux — ex: arrêt maladie)</label>
-          <textarea value={itcForm.notes_internes} onChange={e => setItcForm(f => ({ ...f, notes_internes: e.target.value }))} rows={2} style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, padding: 8, borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ marginBottom: 10 }}>
-          <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>🔒 Salaire (jamais visible des commerciaux)</label>
-          <input type="number" value={itcForm.salaire} onChange={e => setItcForm(f => ({ ...f, salaire: e.target.value }))} placeholder="ex: 45000" style={{ width: '100%' }} />
-        </div>
-        {itcMsg && (
-          <div style={{ fontSize: 12, marginBottom: 10, color: itcMsg.includes('Erreur') ? '#A32D2D' : '#0F6E56', padding: '6px 10px', background: itcMsg.includes('Erreur') ? '#FCEBEB' : '#E1F5EE', borderRadius: 6 }}>
-            {itcMsg}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8 }}>
-          {editingItcId && (
-            <button onClick={cancelEditItc}
-              style={{ padding: '0 16px', background: 'none', border: '1.5px solid var(--color-border-tertiary)', color: 'var(--color-text-secondary)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-              Annuler
-            </button>
-          )}
-          <button onClick={saveItc} disabled={itcAdding}
-            style={{ flex: 1, padding: 12, background: '#4338CA', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            {itcAdding ? 'Enregistrement...' : editingItcId ? 'Enregistrer les modifications' : '+ Ajouter'}
-          </button>
-        </div>
-      </div>
-
-      <div onClick={() => setShowItcAnciens(!showItcAnciens)}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginTop: 20, marginBottom: showItcAnciens ? 14 : 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.3px' }}>
-          🗄️ Anciens collaborateurs ITC {itcAnciens.length > 0 && `(${itcAnciens.length})`}
-        </div>
-        <i className={`ti ti-chevron-${showItcAnciens ? 'up' : 'down'}`} aria-hidden="true" style={{ color: 'var(--color-text-secondary)' }}></i>
-      </div>
-
-      {showItcAnciens && (
-        itcAnciens.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', padding: '8px 0' }}>Aucun collaborateur archivé pour le moment.</div>
-        ) : (
-          <div style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, overflow: 'hidden' }}>
-            {itcAnciens.map((c, i) => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)' }}>
-                <span style={{ flex: 1, fontSize: 14, color: 'var(--color-text-secondary)' }}>{c.nom}</span>
-                <button onClick={() => reactivateItc(c.id)} title="Réactiver"
-                  style={{ background: 'none', border: '1.5px solid #4338CA', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#4338CA', marginRight: 4 }}>
-                  ↩️ Réactiver
-                </button>
-                <button onClick={() => removeItc(c.id)} title="Supprimer définitivement"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: 4, fontSize: 15 }}>
-                  <i className="ti ti-trash" aria-hidden="true"></i>
-                </button>
-              </div>
-            ))}
-          </div>
-        )
-      )}
+      {/* La gestion des collaborateurs ITC (ajout/modif/archivage) se fait désormais depuis la page
+          "Intercontrats disponibles" (vue carte, accès caché 🔐 réservé à Anthony). Voir Intercontrats.jsx. */}
     </div>
   )
 }
