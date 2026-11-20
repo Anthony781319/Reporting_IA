@@ -42,11 +42,13 @@ export default function Admin({ onSelectIA, selectedIaId }) {
   // prenom/nom_famille/habite/disponibilite/fonction/a_retenir sont visibles par tous les commerciaux
   // dans la fiche ITC du portail Challenge ITC ; salaire et notes_internes restent réservés à cet écran
   // Admin (protégé par mot de passe) et ne sont jamais exposés aux commerciaux.
-  // statut ('actif' | 'retenu') + commentaire_indispo : un collaborateur "retenu" (ex: retenu sur une
-  // mission chez un client) disparaît de la liste par défaut vue par les commerciaux (Fiche ITC /
-  // Intercontrats disponibles), mais reste trouvable s'ils recherchent son nom — ils voient alors le
-  // commentaire. Différent d'archiver (statut='ancien', géré séparément par archiveItc) : "retenu" est
-  // pensé comme temporaire/réversible depuis cette même fiche, pas depuis les boutons archiver/réactiver.
+  // statut ('actif' | 'retenu' | 'arret_maladie') + commentaire_indispo : un collaborateur "retenu"
+  // (ex: retenu sur une mission chez un client) ou "arret_maladie" (en arrêt, indisponible) disparaît
+  // de la liste par défaut vue par les commerciaux (Fiche ITC / Intercontrats disponibles), mais reste
+  // trouvable s'ils recherchent son nom — ils voient alors le commentaire. Différent d'archiver
+  // (statut='ancien', géré séparément par archiveItc) : les deux sont pensés comme temporaire/réversible
+  // depuis cette même fiche (repasser en "Disponible" dès que la personne revient), pas depuis les
+  // boutons archiver/réactiver.
   const emptyItcForm = () => ({ nom: '', prenom: '', nom_famille: '', habite: '', disponibilite: '', fonction: '', famille_metier: '', a_retenir: '', notes_internes: '', salaire: '', statut: 'actif', commentaire_indispo: '' })
   const [itcForm, setItcForm] = useState(emptyItcForm())
   const [editingItcId, setEditingItcId] = useState(null)
@@ -152,9 +154,9 @@ export default function Admin({ onSelectIA, selectedIaId }) {
       notes_internes: itcForm.notes_internes.trim() || null,
       salaire: itcForm.salaire === '' ? null : Number(itcForm.salaire),
       statut: itcForm.statut,
-      // On ne garde le commentaire que si le collaborateur est bien marqué "retenu" : repasser en
-      // "Disponible" efface le commentaire pour ne pas laisser traîner une raison obsolète.
-      commentaire_indispo: itcForm.statut === 'retenu' ? (itcForm.commentaire_indispo.trim() || null) : null,
+      // On ne garde le commentaire que si le collaborateur est bien marqué "retenu" ou "arret_maladie" :
+      // repasser en "Disponible" efface le commentaire pour ne pas laisser traîner une raison obsolète.
+      commentaire_indispo: (itcForm.statut === 'retenu' || itcForm.statut === 'arret_maladie') ? (itcForm.commentaire_indispo.trim() || null) : null,
     }
     const { error } = editingItcId
       ? await supabase.from('collaborateurs_itc').update(payload).eq('id', editingItcId)
@@ -176,7 +178,7 @@ export default function Admin({ onSelectIA, selectedIaId }) {
       nom: c.nom || '', prenom: c.prenom || '', nom_famille: c.nom_famille || '', habite: c.habite || '',
       disponibilite: c.disponibilite || '', fonction: c.fonction || '', famille_metier: c.famille_metier || '', a_retenir: c.a_retenir || '',
       notes_internes: c.notes_internes || '', salaire: c.salaire ?? '',
-      statut: c.statut === 'retenu' ? 'retenu' : 'actif', commentaire_indispo: c.commentaire_indispo || '',
+      statut: ['retenu', 'arret_maladie'].includes(c.statut) ? c.statut : 'actif', commentaire_indispo: c.commentaire_indispo || '',
     })
     // Sans ça, le formulaire se remplit bien mais tout en bas de la section, hors écran : on amène la
     // page jusqu'à lui pour que ce soit visible immédiatement après le clic sur le crayon.
@@ -441,11 +443,14 @@ export default function Admin({ onSelectIA, selectedIaId }) {
               {c.statut === 'retenu' && (
                 <span style={{ fontSize: 9.5, fontWeight: 700, color: '#B45309', background: '#FEF3C7', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>🔶 Retenu</span>
               )}
+              {c.statut === 'arret_maladie' && (
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#9F1239', background: '#FFE4E6', borderRadius: 20, padding: '2px 7px', marginLeft: 7 }}>🤒 Arrêt maladie</span>
+              )}
               <div style={{ fontSize: 11.5, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                 {[c.fonction, c.habite, c.salaire != null ? `${c.salaire} €` : null].filter(Boolean).join(' · ')}
               </div>
-              {c.statut === 'retenu' && c.commentaire_indispo && (
-                <div style={{ fontSize: 11, color: '#92400E', marginTop: 3, fontWeight: 600 }}>{c.commentaire_indispo}</div>
+              {(c.statut === 'retenu' || c.statut === 'arret_maladie') && c.commentaire_indispo && (
+                <div style={{ fontSize: 11, color: c.statut === 'arret_maladie' ? '#9F1239' : '#92400E', marginTop: 3, fontWeight: 600 }}>{c.commentaire_indispo}</div>
               )}
             </div>
             <button onClick={() => startEditItc(c)} title="Modifier la fiche"
@@ -509,13 +514,14 @@ export default function Admin({ onSelectIA, selectedIaId }) {
           <select value={itcForm.statut} onChange={e => setItcForm(f => ({ ...f, statut: e.target.value }))} style={{ width: '100%' }}>
             <option value="actif">✅ Disponible (visible par tous dans la liste)</option>
             <option value="retenu">🔶 Retenu sur une mission (caché de la liste, visible si un commercial recherche son nom)</option>
+            <option value="arret_maladie">🤒 En arrêt maladie (caché de la liste, visible si un commercial recherche son nom)</option>
           </select>
         </div>
-        {itcForm.statut === 'retenu' && (
+        {(itcForm.statut === 'retenu' || itcForm.statut === 'arret_maladie') && (
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>Commentaire (visible par les commerciaux qui recherchent ce nom)</label>
             <textarea value={itcForm.commentaire_indispo} onChange={e => setItcForm(f => ({ ...f, commentaire_indispo: e.target.value }))} rows={2}
-              placeholder="ex: Retenu sur mission Renault, démarrage prévu le 15/12"
+              placeholder={itcForm.statut === 'arret_maladie' ? 'ex: Retour prévu le 02/12' : 'ex: Retenu sur mission Renault, démarrage prévu le 15/12'}
               style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, padding: 8, borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)', boxSizing: 'border-box' }} />
           </div>
         )}
