@@ -37,24 +37,31 @@ const STATUT_OPTIONS = [
 const STATUT_LABELS = Object.fromEntries(STATUT_OPTIONS.map(s => [s.value, s]))
 
 // Calcule, pour chaque collaborateur ITC (par nom, insensible à la casse), le nombre de push, de
-// positionnements sur besoin et de présentations qui lui sont associés, ainsi que le détail complet
-// (client, contact visé, date, statut) de chacun — pour qu'on puisse non seulement voir "push x6" mais
-// aussi creuser "c'est quoi les 6 pushes" sans ressortir le Challenge ITC. La liste de positionnements
-// passée en entrée est déjà filtrée par le parent sur la fenêtre du challenge et l'entité souhaitée.
-// Partagé par ChallengeItc.jsx (qui a déjà allWindowPositionnements sous la main) et Intercontrats.jsx
-// (qui fait son propre petit fetch dédié).
+// positionnements sur besoin, de présentations et de "sans suite" qui lui sont associés, ainsi que le
+// détail (client, contact visé, date, statut) de chacun des positionnements encore "vivants" — pour
+// qu'on puisse non seulement voir "push x6" mais aussi creuser "c'est quoi les 6 pushes" sans ressortir
+// le Challenge ITC. La liste de positionnements passée en entrée est déjà filtrée par le parent sur la
+// fenêtre du challenge et l'entité souhaitée. Partagé par ChallengeItc.jsx (qui a déjà
+// allWindowPositionnements sous la main) et Intercontrats.jsx (qui fait son propre petit fetch dédié).
+//
+// Un positionnement marqué "sans_suite" est compté (push/besoin/sansSuite) mais jamais ajouté à
+// `items` : demande d'Antho — une fois sans suite, on veut garder la trace qu'un collaborateur a bien
+// été positionné plusieurs fois sans que ça aboutisse (badge "❌ Sans suite x5"), mais sans polluer le
+// détail dépliable d'anciennes tentatives mortes ; seuls les positionnements encore en cours ou
+// aboutis (en attente, présentation à prévoir/réalisée, signé) y restent.
 export function buildPositionnementStats(positionnements) {
   const stats = new Map()
   for (const p of positionnements || []) {
     if (!p?.collaborateur_itc) continue
     const key = p.collaborateur_itc.trim().toLowerCase()
-    if (!stats.has(key)) stats.set(key, { total: 0, push: 0, besoin: 0, presentations: 0, items: [] })
+    if (!stats.has(key)) stats.set(key, { total: 0, push: 0, besoin: 0, presentations: 0, sansSuite: 0, items: [] })
     const s = stats.get(key)
     s.total += 1
     if (p.type_positionnement === 'push') s.push += 1
     if (p.type_positionnement === 'besoin') s.besoin += 1
     if (p.statut === 'presentation_realisee' || p.statut === 'signe') s.presentations += 1
-    s.items.push(p)
+    if (p.statut === 'sans_suite') s.sansSuite += 1
+    else s.items.push(p)
   }
   // Les plus récents en premier dans le détail déplié.
   for (const s of stats.values()) s.items.sort((a, b) => (b.date_push || '').localeCompare(a.date_push || ''))
@@ -148,13 +155,14 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
       {statsProvided && (
         stats && stats.total > 0 ? (
           <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${border}` }}>
-            <div onClick={allowDetail ? onToggleExpand : undefined} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', cursor: allowDetail ? 'pointer' : 'default' }}>
+            <div onClick={allowDetail && stats.items.length > 0 ? onToggleExpand : undefined} style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', cursor: allowDetail && stats.items.length > 0 ? 'pointer' : 'default' }}>
               {stats.push > 0 && <StatBadge color="#4338CA" bg="#EEF2FF">🚀 Push ×{stats.push}</StatBadge>}
               {stats.besoin > 0 && <StatBadge color="#0F6E56" bg="#E1F5EE">🎯 Besoin ×{stats.besoin}</StatBadge>}
               {stats.presentations > 0 && <StatBadge color="#1E40AF" bg="#DBEAFE">🎤 Présenté ×{stats.presentations}</StatBadge>}
-              {allowDetail && <span style={{ fontSize: 10.5, color: textSecondary, fontWeight: 600, marginLeft: 2 }}>{expanded ? '▲ masquer le détail' : '▼ voir le détail'}</span>}
+              {stats.sansSuite > 0 && <StatBadge color="#9F1239" bg="#FFE4E6">❌ Sans suite ×{stats.sansSuite}</StatBadge>}
+              {allowDetail && stats.items.length > 0 && <span style={{ fontSize: 10.5, color: textSecondary, fontWeight: 600, marginLeft: 2 }}>{expanded ? '▲ masquer le détail' : '▼ voir le détail'}</span>}
             </div>
-            {allowDetail && expanded && (
+            {allowDetail && expanded && stats.items.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
                 {stats.items.map((p, i) => <PositionnementDetailRow key={p.id || i} p={p} border={border} titleColor={titleColor} textSecondary={textSecondary} editable={editable} onStatutChange={onStatutChange} />)}
               </div>
