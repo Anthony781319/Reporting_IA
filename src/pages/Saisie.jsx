@@ -44,7 +44,7 @@ const Section = ({ title, color, bg, icon, plain, children }) => (
 // Rendu "premium clair" : boutons -/+ à contour d'accent (var(--accent) héritée du .ui-panel parent),
 // valeur en anthracite, libellé gris — utilisé par Gestion du Pipe et Résultats.
 const Counter = ({ label, value, onChange }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+  <div className="ui-counter-tile">
     <span style={{ fontSize: 12, fontWeight: 600, color: RDV_TEXT, textAlign: 'center' }}>{label}</span>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <button className="ui-counter-btn" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
@@ -452,11 +452,22 @@ const RdvPremiumStyles = () => (
 
     .ui-counter-btn { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--accent); background: #fff; color: var(--accent); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; transition: background .15s ease; }
     .ui-counter-btn:hover { background: var(--accent-light); }
+    /* Chaque compteur (Gestion du Pipe / Résultats) posé sur une tuile blanche — même recette que
+       .rdv-stat-tile côté RDV Commerciaux/programmés — pour que le fond gris du panneau porte partout
+       des tuiles blanches avec ombre plutôt que des contrôles qui flottent nus dessus. */
+    .ui-counter-tile { background: #fff; border-radius: 12px; padding: 12px 10px; box-shadow: 0 1px 2px rgba(16,24,40,0.06); display: flex; flex-direction: column; align-items: center; gap: 7px; }
 
     .ui-total-footer { margin-top: 14px; padding-top: 12px; border-top: 1px solid ${RDV_BORDER}; }
     .ui-total-strip { display: flex; justify-content: space-between; align-items: center; background: #F8FAFC; border-radius: 8px; padding: 9px 12px; }
     .ui-total-label { font-size: 12.5px; font-weight: 600; color: ${RDV_TEXT}; }
     .ui-total-value { font-size: 19px; font-weight: 800; }
+
+    /* Même bouton "+" que RDV Commerciaux (.rdv-add-btn) mais en couleur var(--accent), pour les
+       sections encapsulées dans un .ui-panel (RDV programmés) plutôt que le .rdv-panel bespoke. */
+    .ui-add-btn { display: flex; align-items: center; gap: 7px; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 15px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 2px rgba(16,24,40,0.1); transition: filter .15s ease; white-space: nowrap; }
+    .ui-add-btn:hover { filter: brightness(0.92); }
+    .ui-add-btn i { font-size: 13px; }
+    .ui-section-header.with-action { justify-content: space-between; }
   `}</style>
 )
 
@@ -468,23 +479,30 @@ const PremiumPanel = ({ accent, accentLight, accentRing, children }) => (
   </div>
 )
 
-const PremiumSectionHeader = ({ icon, title }) => (
-  <div className="ui-section-header">
-    <div className="ui-section-icon"><i className={`ti ${icon}`} aria-hidden="true" /></div>
-    <div className="ui-section-title">{title}</div>
+// action (optionnel) : bouton "+" aligné à droite du header — utilisé par RDV programmés pour
+// ouvrir sa fenêtre d'ajout, même principe que le bouton du header RDV Commerciaux.
+const PremiumSectionHeader = ({ icon, title, action }) => (
+  <div className={`ui-section-header${action ? ' with-action' : ''}`}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="ui-section-icon"><i className={`ti ${icon}`} aria-hidden="true" /></div>
+      <div className="ui-section-title">{title}</div>
+    </div>
+    {action}
   </div>
 )
 
-// Ligne de stats (RDV total + répartition par objet), alimentée par rdvCounts/totalRdv déjà calculés.
-// Toutes les tuiles ont strictement la même taille (.rdv-stat-tile, largeur fixe) — seule la tuile du
-// total ("hero") a un liseré pour se distinguer un peu, une flèche la sépare visuellement des 4 tuiles
-// de détail qui, elles, portent chacune la pastille de couleur (OBJET_COLORS) reprise sur les cartes de
-// RdvRecentList, pour que le code couleur reste cohérent entre le résumé et le détail.
-const RdvKpiRow = ({ total, counts }) => (
+// Ligne de stats (total + répartition par objet), alimentée par des counts déjà calculés. Toutes les
+// tuiles ont strictement la même taille (.rdv-stat-tile, largeur fixe) — seule la tuile du total
+// ("hero") a un liseré pour se distinguer un peu, une flèche la sépare visuellement des 4 tuiles de
+// détail qui, elles, portent chacune la pastille de couleur (OBJET_COLORS) reprise sur les cartes de
+// liste correspondantes, pour que le code couleur reste cohérent entre le résumé et le détail.
+// totalLabel paramétrable pour être réutilisé tel quel par RDV Commerciaux ET RDV programmés (seul le
+// libellé du total change, le calcul par type est identique).
+const RdvKpiRow = ({ total, totalLabel = 'RDV cette semaine', counts }) => (
   <div className="rdv-stat-row">
     <div className="rdv-stat-tile hero">
       <div className="v-row"><span className="v">{total}</span></div>
-      <div className="l">RDV cette semaine</div>
+      <div className="l">{totalLabel}</div>
     </div>
     <div className="rdv-stat-arrow">→</div>
     <div className="rdv-stat-tile">
@@ -563,6 +581,9 @@ function RdvProgrammesPanel({ iaId }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState(false)
+  // Même principe que addRdvOpen côté RDV Commerciaux : la fenêtre ne se ferme jamais toute seule
+  // après un enregistrement réussi, pour pouvoir enchaîner plusieurs RDV sans la rouvrir à chaque fois.
+  const [addOpen, setAddOpen] = useState(false)
 
   const load = async () => {
     const today = todayISO()
@@ -606,78 +627,20 @@ function RdvProgrammesPanel({ iaId }) {
     setList(l => l.filter(r => r.id !== id))
   }
 
+  const progCounts = {
+    decouvertes:   list.filter(r => r.objet_meeting === 'decouverte').length,
+    prospects:     list.filter(r => r.objet_meeting === 'prospect').length,
+    clients:       list.filter(r => r.objet_meeting === 'client').length,
+    presentations: list.filter(r => r.objet_meeting === 'presentation').length,
+  }
+
   return (
     <PremiumPanel accent={RDVPROG_COLOR} accentLight={RDVPROG_ACCENT_LIGHT} accentRing={RDVPROG_ACCENT_RING}>
-      <PremiumSectionHeader icon="ti-calendar-time" title="RDV programmés — 2 prochaines semaines" />
+      <PremiumSectionHeader icon="ti-calendar-time" title="RDV programmés — 2 prochaines semaines" action={
+        <button className="ui-add-btn" onClick={() => setAddOpen(true)}><i className="ti ti-plus" aria-hidden="true" /> Ajouter un RDV</button>
+      } />
 
-      <div className="ui-card">
-        <div className="ui-card-header">
-          <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
-          <div className="ui-card-title">Ajouter un RDV à venir</div>
-        </div>
-
-        <div className="ui-grid-2">
-          <div className="ui-field">
-            <label className="ui-field-label">Nom *</label>
-            <input className="ui-input" type="text" placeholder="Dupont" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} />
-          </div>
-          <div className="ui-field">
-            <label className="ui-field-label">Prénom *</label>
-            <input className="ui-input" type="text" placeholder="Jean" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} />
-          </div>
-        </div>
-
-        <div className="ui-grid-2">
-          <div className="ui-field">
-            <label className="ui-field-label">Fonction</label>
-            <input className="ui-input" type="text" placeholder="DRH, Directeur IT..." value={form.fonction} onChange={e => setForm(f => ({ ...f, fonction: e.target.value }))} />
-          </div>
-          <div className="ui-field">
-            <label className="ui-field-label">Client *</label>
-            <input className="ui-input" type="text" placeholder="Raison sociale" value={form.client} onChange={e => setForm(f => ({ ...f, client: e.target.value }))} />
-          </div>
-        </div>
-
-        <div className="ui-grid-3">
-          <div className="ui-field">
-            <label className="ui-field-label">Typologie *</label>
-            <select className="ui-input" value={form.objet_meeting} onChange={e => setForm(f => ({ ...f, objet_meeting: e.target.value }))}>
-              <option value="">Choisir...</option>
-              {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div className="ui-field">
-            <label className="ui-field-label">Date *</label>
-            <input className="ui-input" type="date" value={form.date_rdv} onChange={e => setForm(f => ({ ...f, date_rdv: e.target.value }))} />
-          </div>
-          <div className="ui-field">
-            <label className="ui-field-label">Heure *</label>
-            <input className="ui-input" type="time" value={form.heure_rdv} onChange={e => setForm(f => ({ ...f, heure_rdv: e.target.value }))} />
-          </div>
-        </div>
-
-        <div className="ui-grid-2">
-          <div className="ui-field">
-            <label className="ui-field-label">Modalité *</label>
-            <select className="ui-input" value={form.modalite} onChange={e => setForm(f => ({ ...f, modalite: e.target.value }))}>
-              <option value="physique">🤝 Physique</option>
-              <option value="teams">💻 Teams</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="ui-cta-row">
-          <span className="rdv-required-note">* Champs obligatoires</span>
-          <button className="ui-btn-primary" onClick={submit} disabled={saving || !complete}>
-            {saving ? 'Enregistrement...' : 'Enregistrer le RDV'}
-          </button>
-        </div>
-        {error && (
-          <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12 }}>
-            ⚠️ {error}
-          </div>
-        )}
-      </div>
+      {loaded && <RdvKpiRow total={list.length} totalLabel="RDV programmés (14j)" counts={progCounts} />}
 
       <div className="rdv-list-title">RDV programmés{loaded ? ` (${list.length})` : ''}</div>
       {loaded && list.length === 0 && (
@@ -689,21 +652,101 @@ function RdvProgrammesPanel({ iaId }) {
       {list.map(r => {
         const color = OBJET_COLORS[r.objet_meeting] || RDVPROG_COLOR
         const objetLabel = RDV_OBJET_OPTIONS.find(o => o.value === r.objet_meeting)?.label || r.objet_meeting
+        const contact = [r.prenom, r.nom].filter(Boolean).join(' ')
         return (
-          <div key={r.id} className="rdv-item">
-            <div className="rdv-item-main">
-              <div className="rdv-item-client">{r.client || '—'}</div>
-              <div className="rdv-item-meta">
-                <b style={{ color }}>{objetLabel}</b> · {r.date_rdv ? new Date(r.date_rdv + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'} à {r.heure_rdv?.slice(0, 5)} · {r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}
+          <div key={r.id} className="rdv-card2">
+            <span className="rdv-card2-bar" style={{ background: color }} />
+            <div className="rdv-card2-main">
+              <span className="rdv-card2-client">{r.client || '—'}</span>
+              <span className="rdv-card2-pill" style={{ background: color + '1A', color }}>{objetLabel}</span>
+              <div className="rdv-card2-meta">
+                {r.date_rdv ? new Date(r.date_rdv + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'} à {r.heure_rdv?.slice(0, 5)} · {r.modalite === 'teams' ? '💻 Teams' : '🤝 Physique'}
+                {(contact || r.fonction) ? ' · ' : ''}
+                {contact}{r.fonction ? ' · ' + r.fonction : ''}
               </div>
-              {(r.prenom || r.nom || r.fonction) && (
-                <div className="rdv-item-contact">{[r.prenom, r.nom].filter(Boolean).join(' ')}{r.fonction ? ' · ' + r.fonction : ''}</div>
-              )}
             </div>
-            <button className="rdv-item-delete" onClick={() => remove(r.id)}>Supprimer</button>
+            <button className="rdv-card2-trash" onClick={() => remove(r.id)} title="Supprimer"><i className="ti ti-trash" aria-hidden="true" /></button>
           </div>
         )
       })}
+
+      {/* Fenêtre "Ajouter un RDV à venir" — même formulaire/logique qu'avant, juste déplacé derrière le
+          bouton du header plutôt que toujours ouvert en haut du panneau. */}
+      {addOpen && (
+        <div className="rdv-modal-overlay" onClick={() => setAddOpen(false)}>
+          <div className="rdv-modal" onClick={e => e.stopPropagation()}>
+            <div className="ui-card-header" style={{ justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <div className="ui-card-icon"><i className="ti ti-plus" aria-hidden="true" /></div>
+                <div className="ui-card-title">Ajouter un RDV à venir</div>
+              </div>
+              <button className="rdv-modal-close" onClick={() => setAddOpen(false)} aria-label="Fermer"><i className="ti ti-x" aria-hidden="true" /></button>
+            </div>
+
+            <div className="ui-grid-2">
+              <div className="ui-field">
+                <label className="ui-field-label">Nom *</label>
+                <input className="ui-input" type="text" placeholder="Dupont" value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))} />
+              </div>
+              <div className="ui-field">
+                <label className="ui-field-label">Prénom *</label>
+                <input className="ui-input" type="text" placeholder="Jean" value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="ui-grid-2">
+              <div className="ui-field">
+                <label className="ui-field-label">Fonction</label>
+                <input className="ui-input" type="text" placeholder="DRH, Directeur IT..." value={form.fonction} onChange={e => setForm(f => ({ ...f, fonction: e.target.value }))} />
+              </div>
+              <div className="ui-field">
+                <label className="ui-field-label">Client *</label>
+                <input className="ui-input" type="text" placeholder="Raison sociale" value={form.client} onChange={e => setForm(f => ({ ...f, client: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="ui-grid-3">
+              <div className="ui-field">
+                <label className="ui-field-label">Typologie *</label>
+                <select className="ui-input" value={form.objet_meeting} onChange={e => setForm(f => ({ ...f, objet_meeting: e.target.value }))}>
+                  <option value="">Choisir...</option>
+                  {RDV_OBJET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="ui-field">
+                <label className="ui-field-label">Date *</label>
+                <input className="ui-input" type="date" value={form.date_rdv} onChange={e => setForm(f => ({ ...f, date_rdv: e.target.value }))} />
+              </div>
+              <div className="ui-field">
+                <label className="ui-field-label">Heure *</label>
+                <input className="ui-input" type="time" value={form.heure_rdv} onChange={e => setForm(f => ({ ...f, heure_rdv: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="ui-grid-2">
+              <div className="ui-field">
+                <label className="ui-field-label">Modalité *</label>
+                <select className="ui-input" value={form.modalite} onChange={e => setForm(f => ({ ...f, modalite: e.target.value }))}>
+                  <option value="physique">🤝 Physique</option>
+                  <option value="teams">💻 Teams</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="ui-cta-row">
+              <span className="rdv-required-note">* Champs obligatoires</span>
+              <button className="ui-btn-primary" onClick={submit} disabled={saving || !complete}>
+                {saving ? 'Enregistrement...' : 'Enregistrer le RDV'}
+              </button>
+            </div>
+            {error && (
+              <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12 }}>
+                ⚠️ {error}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </PremiumPanel>
   )
 }
