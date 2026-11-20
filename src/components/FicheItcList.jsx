@@ -100,7 +100,7 @@ function PositionnementDetailRow({ p, border, titleColor, textSecondary, editabl
   )
 }
 
-function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, onFamilleChange, onDisponibiliteChange, accent, border, titleColor, textSecondary }) {
+function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, onFamilleChange, onDisponibiliteChange, onManage, accent, border, titleColor, textSecondary }) {
   const isHeld = c.statut === 'retenu'
   const isSick = c.statut === 'arret_maladie'
   const isUnavailable = isHeld || isSick
@@ -119,6 +119,12 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
           <button onClick={e => { e.stopPropagation(); onDisponibiliteChange(c.id, 'actif') }} title="Remettre disponible"
             style={{ fontSize: 10, fontWeight: 700, color: '#0F6E56', background: '#D1FAE5', border: 'none', borderRadius: 20, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
             ✅ Remettre disponible
+          </button>
+        )}
+        {editable && onManage && (
+          <button onClick={e => { e.stopPropagation(); onManage(c) }} title="Modifier toute la fiche (nom, salaire, notes internes...)"
+            style={{ marginLeft: 'auto', background: 'none', border: `1.5px solid ${border}`, borderRadius: 20, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 700, color: accent }}>
+            ✎ Gérer
           </button>
         )}
       </div>
@@ -195,11 +201,16 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
 //
 // statut "arret_maladie" : même traitement que "retenu" (caché de la liste par défaut, visible si
 // recherche explicite, commentaire optionnel) mais badge distinct "🤒 Arrêt maladie" pour le
-// distinguer d'un "retenu sur une mission" en un coup d'œil. Se règle uniquement dans Admin (comme
-// "retenu"). onDisponibiliteChange : réservé au Dashboard — bouton "✅ Remettre disponible" sur toute
-// carte "retenu" ou "arret_maladie", pour repasser quelqu'un en "actif" en un clic dès qu'il n'est
-// plus indisponible, sans repasser par Admin.
-export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, onDisponibiliteChange, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
+// distinguer d'un "retenu sur une mission" en un coup d'œil.
+//
+// onDisponibiliteChange : bouton "✅ Remettre disponible" sur toute carte "retenu" ou "arret_maladie",
+// pour repasser quelqu'un en "actif" en un clic dès qu'il n'est plus indisponible.
+//
+// onManage : réservé à la vue privilégiée (accès caché 🔐) de la page "Intercontrats disponibles" —
+// bouton "✎ Gérer" qui ouvre la fiche complète (nom, salaire, notes internes, archivage...) dans
+// Intercontrats.jsx, qui porte toute la logique d'ajout/modification/archivage des collaborateurs ITC
+// (la gestion ne se fait plus du tout dans Admin, supprimée de cet écran).
+export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, onDisponibiliteChange, onManage, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const term = search.trim().toLowerCase()
@@ -253,7 +264,7 @@ export default function FicheItcList({ collaborateurs, positionnementStats, edit
                   stats={positionnementStats?.get((c.nom || '').trim().toLowerCase())}
                   expanded={isExpanded(c.id)}
                   onToggleExpand={() => toggleExpand(c.id)}
-                  editable={editable} onStatutChange={onStatutChange} onFamilleChange={onFamilleChange} onDisponibiliteChange={onDisponibiliteChange}
+                  editable={editable} onStatutChange={onStatutChange} onFamilleChange={onFamilleChange} onDisponibiliteChange={onDisponibiliteChange} onManage={onManage}
                   accent={accent} border={border} titleColor={titleColor} textSecondary={textSecondary} />
               ))}
             </div>
