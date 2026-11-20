@@ -100,16 +100,26 @@ function PositionnementDetailRow({ p, border, titleColor, textSecondary, editabl
   )
 }
 
-function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, onFamilleChange, accent, border, titleColor, textSecondary }) {
+function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, editable, onStatutChange, onFamilleChange, onDisponibiliteChange, accent, border, titleColor, textSecondary }) {
   const isHeld = c.statut === 'retenu'
+  const isSick = c.statut === 'arret_maladie'
+  const isUnavailable = isHeld || isSick
   return (
-    <div style={{ background: '#fff', border: `1.5px solid ${isHeld ? '#FDBA74' : border}`, borderRadius: 12, padding: '12px 14px' }}>
+    <div style={{ background: '#fff', border: `1.5px solid ${isSick ? '#FDA4AF' : isHeld ? '#FDBA74' : border}`, borderRadius: 12, padding: '12px 14px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: titleColor }}>{[c.prenom, c.nom_famille].filter(Boolean).join(' ') || c.nom}</div>
-        {isHeld ? (
+        {isSick ? (
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#9F1239', background: '#FFE4E6', borderRadius: 20, padding: '2px 8px' }}>🤒 Arrêt maladie</span>
+        ) : isHeld ? (
           <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: '#FEF3C7', borderRadius: 20, padding: '2px 8px' }}>🔶 Indisponible</span>
         ) : c.disponibilite && (
           <span style={{ fontSize: 10, fontWeight: 700, color: '#0F6E56', background: '#D1FAE5', borderRadius: 20, padding: '2px 8px' }}>{c.disponibilite}</span>
+        )}
+        {editable && onDisponibiliteChange && isUnavailable && (
+          <button onClick={e => { e.stopPropagation(); onDisponibiliteChange(c.id, 'actif') }} title="Remettre disponible"
+            style={{ fontSize: 10, fontWeight: 700, color: '#0F6E56', background: '#D1FAE5', border: 'none', borderRadius: 20, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+            ✅ Remettre disponible
+          </button>
         )}
       </div>
       {editable && onFamilleChange && (
@@ -122,12 +132,12 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
       )}
       {c.fonction && <div style={{ fontSize: 12.5, color: accent, fontWeight: 600, marginTop: 3, whiteSpace: 'pre-line' }}>{c.fonction}</div>}
       {c.habite && <div style={{ fontSize: 11.5, color: textSecondary, marginTop: 4 }}>📍 {c.habite}</div>}
-      {isHeld && c.commentaire_indispo && (
-        <div style={{ fontSize: 11.5, color: '#92400E', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '7px 9px', marginTop: 6, whiteSpace: 'pre-line', fontWeight: 600 }}>
+      {isUnavailable && c.commentaire_indispo && (
+        <div style={{ fontSize: 11.5, color: isSick ? '#9F1239' : '#92400E', background: isSick ? '#FFF1F2' : '#FFFBEB', border: `1px solid ${isSick ? '#FECDD3' : '#FDE68A'}`, borderRadius: 8, padding: '7px 9px', marginTop: 6, whiteSpace: 'pre-line', fontWeight: 600 }}>
           {c.commentaire_indispo}
         </div>
       )}
-      {!isHeld && c.a_retenir && <div style={{ fontSize: 11.5, color: textSecondary, marginTop: 6, whiteSpace: 'pre-line' }}>{c.a_retenir}</div>}
+      {!isUnavailable && c.a_retenir && <div style={{ fontSize: 11.5, color: textSecondary, marginTop: 6, whiteSpace: 'pre-line' }}>{c.a_retenir}</div>}
 
       {statsProvided && (
         stats && stats.total > 0 ? (
@@ -182,13 +192,20 @@ function CollaborateurCard({ c, statsProvided, stats, expanded, onToggleExpand, 
 // FAMILLES_METIER sur chaque carte pour classer en un clic les collaborateurs "Non classé" (ou changer
 // une famille déjà renseignée), sans repasser par Admin. Le changement met à jour famille_metier
 // directement dans collaborateurs_itc et regroupe aussitôt la carte dans sa nouvelle famille.
-export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
+//
+// statut "arret_maladie" : même traitement que "retenu" (caché de la liste par défaut, visible si
+// recherche explicite, commentaire optionnel) mais badge distinct "🤒 Arrêt maladie" pour le
+// distinguer d'un "retenu sur une mission" en un coup d'œil. Se règle uniquement dans Admin (comme
+// "retenu"). onDisponibiliteChange : réservé au Dashboard — bouton "✅ Remettre disponible" sur toute
+// carte "retenu" ou "arret_maladie", pour repasser quelqu'un en "actif" en un clic dès qu'il n'est
+// plus indisponible, sans repasser par Admin.
+export default function FicheItcList({ collaborateurs, positionnementStats, editable = false, onStatutChange, onFamilleChange, onDisponibiliteChange, accent = '#C2410C', border = '#E5E1DC', titleColor = '#2B2A28', textSecondary = '#6B6A66' }) {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const term = search.trim().toLowerCase()
   // Sans recherche : seuls les "actif" ressortent. Avec une recherche : les "retenu" redeviennent
   // trouvables (mais pas les archivés, déjà exclus en amont par le parent).
-  const pool = term ? collaborateurs : collaborateurs.filter(c => c.statut !== 'retenu')
+  const pool = term ? collaborateurs : collaborateurs.filter(c => c.statut !== 'retenu' && c.statut !== 'arret_maladie')
   const filtered = !term ? pool : pool.filter(c =>
     [c.nom, c.prenom, c.nom_famille, c.fonction, c.habite].filter(Boolean).some(v => v.toLowerCase().includes(term))
   )
@@ -236,7 +253,7 @@ export default function FicheItcList({ collaborateurs, positionnementStats, edit
                   stats={positionnementStats?.get((c.nom || '').trim().toLowerCase())}
                   expanded={isExpanded(c.id)}
                   onToggleExpand={() => toggleExpand(c.id)}
-                  editable={editable} onStatutChange={onStatutChange} onFamilleChange={onFamilleChange}
+                  editable={editable} onStatutChange={onStatutChange} onFamilleChange={onFamilleChange} onDisponibiliteChange={onDisponibiliteChange}
                   accent={accent} border={border} titleColor={titleColor} textSecondary={textSecondary} />
               ))}
             </div>
