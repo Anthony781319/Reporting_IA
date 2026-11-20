@@ -297,6 +297,16 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
     setItcDirectory(l => l.map(c => c.id === id ? { ...c, famille_metier } : c))
   }
 
+  // Bouton "✅ Remettre disponible" du Dashboard : repasse un collaborateur "retenu" ou "arret_maladie"
+  // en "actif" en un clic, sans repasser par Admin, et efface le commentaire devenu obsolète (même
+  // règle que dans Admin : un commentaire ne doit rester que tant que le collaborateur est indisponible).
+  const updateDisponibiliteItc = async (id, statut) => {
+    setError('')
+    const { error: err } = await supabase.from('collaborateurs_itc').update({ statut, commentaire_indispo: null }).eq('id', id)
+    if (err) { setError(`La disponibilité ne s'est pas enregistrée : ${err.message}`); return }
+    setItcDirectory(l => l.map(c => c.id === id ? { ...c, statut, commentaire_indispo: null } : c))
+  }
+
   // ── Classement ──
   const byBm = Object.values(
     allWindowPositionnements.reduce((acc, p) => {
@@ -592,10 +602,10 @@ export default function ChallengeItc({ iaId, iaName, startOnDashboard = false })
       {view === 'dashboard' && (
         <div>
           <div style={{ fontSize: 11.5, color: TEXT_SECONDARY, marginBottom: 12 }}>
-            Tous les collaborateurs en intercontrat avec le détail de leurs positionnements — change le statut directement ici : la mise à jour se répercute dans Ma saisie de l'IA concerné, le classement, et archive automatiquement le collaborateur (donc le retire de la Fiche ITC / Intercontrats disponibles) une fois marqué "Signé / Démarrage". Le menu sous le nom permet aussi de classer ou reclasser la grande famille de métier en un clic (sans passer par Admin).
+            Tous les collaborateurs en intercontrat avec le détail de leurs positionnements — change le statut directement ici : la mise à jour se répercute dans Ma saisie de l'IA concerné, le classement, et archive automatiquement le collaborateur (donc le retire de la Fiche ITC / Intercontrats disponibles) une fois marqué "Signé / Démarrage". Le menu sous le nom permet aussi de classer ou reclasser la grande famille de métier en un clic (sans passer par Admin). Un collaborateur "Retenu" ou "Arrêt maladie" (marqué dans Admin) peut être remis disponible en un clic avec le bouton ✅ qui apparaît à côté de son badge.
           </div>
           <FicheItcList collaborateurs={itcDirectory} positionnementStats={itcPositionnementStats}
-            editable onStatutChange={updateStatut} onFamilleChange={updateFamilleMetier}
+            editable onStatutChange={updateStatut} onFamilleChange={updateFamilleMetier} onDisponibiliteChange={updateDisponibiliteItc}
             accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
         </div>
       )}
