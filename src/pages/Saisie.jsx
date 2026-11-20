@@ -378,14 +378,19 @@ const RdvPremiumStyles = () => (
     .rdv-add-btn:hover { filter: brightness(0.92); }
     .rdv-add-btn i { font-size: 13px; }
 
-    .rdv-stat-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
-    .rdv-stat-hero { display: flex; flex-direction: column; justify-content: center; background: #fff; border-radius: 12px; padding: 10px 18px; min-width: 120px; box-shadow: 0 1px 2px rgba(16,24,40,0.06); border: 1.5px solid ${RDV_COLOR}1F; }
-    .rdv-stat-hero .v { font-size: 24px; font-weight: 800; color: ${RDV_TITLE}; line-height: 1.1; }
-    .rdv-stat-hero .l { font-size: 11px; font-weight: 600; color: ${RDV_TEXT_SECONDARY}; margin-top: 2px; }
-    .rdv-chip { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 12px; padding: 8px 13px; box-shadow: 0 1px 2px rgba(16,24,40,0.05); }
-    .rdv-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .rdv-chip .v { font-size: 15px; font-weight: 800; color: ${RDV_TITLE}; }
-    .rdv-chip .l { font-size: 11px; font-weight: 600; color: ${RDV_TEXT_SECONDARY}; margin-left: 1px; }
+    .rdv-stat-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+    /* Toutes les tuiles (total inclus) partagent exactement la même taille — plus d'ajustement à la
+       longueur du libellé ("Présentation" vs "Clients") — demande d'Antho après avoir vu les rectangles
+       de tailles différentes. Largeur fixe (et non min-width) + hauteur mini pour rester identiques même
+       si un libellé fait deux lignes. */
+    .rdv-stat-tile { display: flex; flex-direction: column; justify-content: center; background: #fff; border-radius: 12px; padding: 10px 14px; width: 128px; min-height: 60px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(16,24,40,0.06); flex-shrink: 0; }
+    .rdv-stat-tile.hero { border: 1.5px solid ${RDV_COLOR}1F; }
+    .rdv-stat-tile .v-row { display: flex; align-items: center; gap: 6px; }
+    .rdv-stat-tile .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .rdv-stat-tile .v { font-size: 22px; font-weight: 800; color: ${RDV_TITLE}; line-height: 1.15; }
+    .rdv-stat-tile .l { font-size: 11px; font-weight: 600; color: ${RDV_TEXT_SECONDARY}; margin-top: 3px; line-height: 1.25; }
+    /* Flèche entre le total et le détail par type, pour bien montrer que l'un se décompose dans l'autre. */
+    .rdv-stat-arrow { display: flex; align-items: center; color: #C0C5CE; font-size: 18px; font-weight: 700; flex-shrink: 0; }
 
     .rdv-card2 { background: #fff; border-radius: 12px; padding: 11px 13px; display: flex; align-items: flex-start; gap: 10px; box-shadow: 0 1px 2px rgba(16,24,40,0.05); position: relative; overflow: hidden; margin-bottom: 8px; }
     .rdv-card2:last-child { margin-bottom: 0; }
@@ -471,16 +476,33 @@ const PremiumSectionHeader = ({ icon, title }) => (
 )
 
 // Ligne de stats (RDV total + répartition par objet), alimentée par rdvCounts/totalRdv déjà calculés.
-// Un gros chiffre "hero" pour le total, puis une chip colorée par type de RDV — même couleur
-// (OBJET_COLORS) que la pastille utilisée sur chaque carte de RdvRecentList, pour que le code couleur
-// soit cohérent entre le résumé et le détail.
+// Toutes les tuiles ont strictement la même taille (.rdv-stat-tile, largeur fixe) — seule la tuile du
+// total ("hero") a un liseré pour se distinguer un peu, une flèche la sépare visuellement des 4 tuiles
+// de détail qui, elles, portent chacune la pastille de couleur (OBJET_COLORS) reprise sur les cartes de
+// RdvRecentList, pour que le code couleur reste cohérent entre le résumé et le détail.
 const RdvKpiRow = ({ total, counts }) => (
   <div className="rdv-stat-row">
-    <div className="rdv-stat-hero"><div className="v">{total}</div><div className="l">RDV cette semaine</div></div>
-    <div className="rdv-chip"><span className="rdv-chip-dot" style={{ background: OBJET_COLORS.decouverte }} /><span className="v">{counts.decouvertes}</span><span className="l">Découvertes</span></div>
-    <div className="rdv-chip"><span className="rdv-chip-dot" style={{ background: OBJET_COLORS.prospect }} /><span className="v">{counts.prospects}</span><span className="l">Prospects</span></div>
-    <div className="rdv-chip"><span className="rdv-chip-dot" style={{ background: OBJET_COLORS.client }} /><span className="v">{counts.clients}</span><span className="l">Clients</span></div>
-    <div className="rdv-chip"><span className="rdv-chip-dot" style={{ background: OBJET_COLORS.presentation }} /><span className="v">{counts.presentations}</span><span className="l">{counts.presentations > 1 ? 'Présentations' : 'Présentation'}</span></div>
+    <div className="rdv-stat-tile hero">
+      <div className="v-row"><span className="v">{total}</span></div>
+      <div className="l">RDV cette semaine</div>
+    </div>
+    <div className="rdv-stat-arrow">→</div>
+    <div className="rdv-stat-tile">
+      <div className="v-row"><span className="dot" style={{ background: OBJET_COLORS.decouverte }} /><span className="v">{counts.decouvertes}</span></div>
+      <div className="l">Découvertes</div>
+    </div>
+    <div className="rdv-stat-tile">
+      <div className="v-row"><span className="dot" style={{ background: OBJET_COLORS.prospect }} /><span className="v">{counts.prospects}</span></div>
+      <div className="l">Prospects</div>
+    </div>
+    <div className="rdv-stat-tile">
+      <div className="v-row"><span className="dot" style={{ background: OBJET_COLORS.client }} /><span className="v">{counts.clients}</span></div>
+      <div className="l">Clients</div>
+    </div>
+    <div className="rdv-stat-tile">
+      <div className="v-row"><span className="dot" style={{ background: OBJET_COLORS.presentation }} /><span className="v">{counts.presentations}</span></div>
+      <div className="l">{counts.presentations > 1 ? 'Présentations' : 'Présentation'}</div>
+    </div>
   </div>
 )
 
