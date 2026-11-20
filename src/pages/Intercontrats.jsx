@@ -31,6 +31,11 @@ const emptyForm = () => ({ nom: '', prenom: '', nom_famille: '', habite: '', dis
 // archivage/réactivation) — ce qui remplace entièrement l'ancienne liste "Collaborateurs ITC" de
 // l'espace Admin (jugée peu pratique, supprimée de cet écran). Tant que ce n'est pas déverrouillé, la
 // page ne charge jamais salaire/notes_internes : seules les colonnes déjà publiques sont en mémoire.
+//
+// allowDetail={false} sur FicheItcList : cette page n'ayant aucun mot de passe en lecture, on continue
+// à y afficher les compteurs de push/besoins (utile pour voir d'un coup d'œil qu'un collaborateur est
+// déjà "joué"), mais jamais le détail dépliable (client, contact visé, date, statut) — commercialement
+// sensible. Pour le détail complet : Dashboard du Challenge ITC (protégé par mot de passe).
 export default function Intercontrats() {
   const [collaborateurs, setCollaborateurs] = useState([])
   const [positionnementStats, setPositionnementStats] = useState(new Map())
@@ -279,7 +284,7 @@ export default function Intercontrats() {
         </div>
       )}
 
-      <FicheItcList collaborateurs={collaborateurs} positionnementStats={positionnementStats}
+      <FicheItcList collaborateurs={collaborateurs} positionnementStats={positionnementStats} allowDetail={false}
         editable={editUnlocked} onFamilleChange={editUnlocked ? updateFamilleMetier : undefined}
         onDisponibiliteChange={editUnlocked ? updateDisponibilite : undefined} onManage={editUnlocked ? openManage : undefined}
         accent={ACCENT} border={BORDER} titleColor={TITLE_COLOR} textSecondary={TEXT_SECONDARY} />
