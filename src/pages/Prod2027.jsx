@@ -10,6 +10,7 @@ const BG_PAGE = '#FAFAF9'
 
 const CATEGORIE_STYLE = {
   'Prod':              { color: '#0F6E56', bg: '#E1F5EE', icon: 'ti-briefcase' },
+  'Prod forfait':       { color: '#1D4ED8', bg: '#DBEAFE', icon: 'ti-file-invoice' },
   'ITC':                { color: '#B45309', bg: '#FEF3E2', icon: 'ti-clock-pause' },
   'Maladie':            { color: '#B91C1C', bg: '#FCEBEB', icon: 'ti-first-aid-kit' },
   'Cas RH':             { color: '#7C3AED', bg: '#F3E8FF', icon: 'ti-alert-triangle' },
@@ -17,6 +18,8 @@ const CATEGORIE_STYLE = {
   'Sortie périmètre':   { color: '#9CA3AF', bg: '#F5F5F4', icon: 'ti-logout-2' },
 }
 const DEFAULT_CAT_STYLE = { color: '#6B6A66', bg: '#F1EFE8', icon: 'ti-user' }
+// Catégories exclues du "Total effectif" (elles restent affichées comme vignettes, juste pas comptées dedans)
+const CATEGORIES_HORS_EFFECTIF = ['Sortie', 'Sortie périmètre']
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const addDaysISO = (dateStr, n) => { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
@@ -32,6 +35,7 @@ export default function Prod2027() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedCategorie, setSelectedCategorie] = useState(null)
   const [managingRow, setManagingRow] = useState(null)
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -67,15 +71,26 @@ export default function Prod2027() {
 
   const stats = useMemo(() => {
     const byCategorie = {}
-    for (const r of rows) { const cat = r.statut?.categorie || '—'; byCategorie[cat] = (byCategorie[cat] || 0) + 1 }
-    return { total: rows.length, byCategorie }
+    let total = 0
+    for (const r of rows) {
+      const cat = r.statut?.categorie || '—'
+      byCategorie[cat] = (byCategorie[cat] || 0) + 1
+      if (!CATEGORIES_HORS_EFFECTIF.includes(cat)) total += 1
+    }
+    return { total, byCategorie }
   }, [rows])
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows
-    const term = search.trim().toLowerCase()
-    return rows.filter(r => `${r.collaborateur?.nom} ${r.collaborateur?.prenom}`.toLowerCase().includes(term))
-  }, [rows, search])
+    let result = rows
+    if (selectedCategorie) result = result.filter(r => (r.statut?.categorie || '—') === selectedCategorie)
+    if (search.trim()) {
+      const term = search.trim().toLowerCase()
+      result = result.filter(r => `${r.collaborateur?.nom} ${r.collaborateur?.prenom}`.toLowerCase().includes(term))
+    }
+    return result
+  }, [rows, search, selectedCategorie])
+
+  const toggleCategorie = (cat) => setSelectedCategorie(prev => (prev === cat ? null : cat))
 
   const openCloture = (row) => {
     setManagingRow(row)
@@ -152,9 +167,10 @@ export default function Prod2027() {
           </div>
         </div>
 
-        {/* Bandeau de chiffres clés, pleine largeur, répartis uniformément */}
+        {/* Bandeau de chiffres clés, pleine largeur, répartis uniformément -- cliquables pour filtrer la liste */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 24 }}>
-          <div style={{ flex: '1 1 160px', background: '#fff', border: '1px solid ' + BORDER, borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <div onClick={() => setSelectedCategorie(null)}
+            style={{ flex: '1 1 160px', background: '#fff', border: '1.5px solid ' + (selectedCategorie === null ? ACCENT : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer' }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: ACCENT_SOFT, color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
               <i className="ti ti-users" aria-hidden="true"></i>
             </div>
@@ -165,8 +181,10 @@ export default function Prod2027() {
           </div>
           {Object.entries(stats.byCategorie).map(([cat, count]) => {
             const st = CATEGORIE_STYLE[cat] || DEFAULT_CAT_STYLE
+            const isSelected = selectedCategorie === cat
             return (
-              <div key={cat} style={{ flex: '1 1 160px', background: '#fff', border: '1px solid ' + BORDER, borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+              <div key={cat} onClick={() => toggleCategorie(cat)}
+                style={{ flex: '1 1 160px', background: '#fff', border: '1.5px solid ' + (isSelected ? st.color : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: isSelected ? `0 0 0 3px ${st.color}22` : '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer', transition: 'all 0.12s' }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: st.bg, color: st.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
                   <i className={`ti ${st.icon}`} aria-hidden="true"></i>
                 </div>
@@ -184,8 +202,18 @@ export default function Prod2027() {
         {/* Tableau pleine largeur */}
         <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
           <div style={{ padding: '16px 22px', borderBottom: '1px solid ' + BORDER, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: TITLE_COLOR }}>Collaborateurs au {formatDateFR(refDate)}</div>
-            <div style={{ fontSize: 12.5, color: TEXT_SECONDARY }}>{filteredRows.length} résultat{filteredRows.length > 1 ? 's' : ''}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: TITLE_COLOR }}>
+              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie}` : ''}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {selectedCategorie && (
+                <button onClick={() => setSelectedCategorie(null)}
+                  style={{ background: 'none', border: 'none', color: ACCENT, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                  Réinitialiser
+                </button>
+              )}
+              <div style={{ fontSize: 12.5, color: TEXT_SECONDARY }}>{filteredRows.length} résultat{filteredRows.length > 1 ? 's' : ''}</div>
+            </div>
           </div>
 
           {loading ? (
