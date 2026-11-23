@@ -138,14 +138,13 @@ export default function App() {
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
-    { id: 'prod-2027', icon: 'ti-users', label: 'Prod 2027' },
+    { id: 'prod-2027',         icon: 'ti-users',          label: 'Prod 2027' },
   ]
   const teamManagerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
   ]
-  const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
   const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }, { id: 'prod-2027', icon: 'ti-users', label: 'Prod 2027' }]
   const userTabs = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
@@ -232,8 +231,7 @@ export default function App() {
         {tab === 'prospection-classement' && <Classement entite={user?.entite || null} />}
         {tab === 'challenge-itc'          && <ChallengeItc iaId={user.id} iaName={user.nom} startOnDashboard={challengeDashboardDirect} />}
         {tab === 'intercontrats'          && <Intercontrats />}
-          {tab === 'prod-2027'              && <Prod2027 />}
-          
+        {tab === 'prod-2027'              && <Prod2027 />}
       </div>
     </div>
   )
