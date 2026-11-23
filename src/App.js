@@ -78,7 +78,6 @@ export default function App() {
       if (password !== PROD2027_PASSWORD) return false
       resetRoles(); setUser(ia); setIsProd2027(true); setTab('prod-2027'); return true
     }
-    }
     if (ia.nom === 'Anthony' && (initialTab === 'admin' || initialTab === 'manager-commerce')) {
       if (password !== ADMIN_PASSWORD) return false
       resetRoles()
