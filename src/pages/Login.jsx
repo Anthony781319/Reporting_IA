@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-// Les deux grands espaces de l'écran d'accueil : INFRA (l'équipe d'Anthony) et SOL (l'équipe de Sandra).
 const SPACES = [
   { id: 'infra', icon: '🏠', label: 'INFRA',    desc: '', bg: '#EEEDFE', color: '#534AB7' },
   { id: 'sol',   icon: '🏢', label: 'SOL (AS)', desc: '', bg: '#CFFAFE', color: '#0E7490' },
 ]
 
-// Portails disponibles une fois dans l'espace INFRA.
-// "intercontrats" est à part : pas de mot de passe NI de sélection de prénom (contrairement à
-// Challenge ITC) — un clic ouvre directement la liste, en lecture seule pour les commerciaux (voir
-// le traitement spécial de son onClick dans l'écran ci-dessous, et handleLogin/initialTab='intercontrats'
-// dans App.js).
 const PORTALS = [
   { id: 'ia',           icon: '💼', label: "Le Commerce",       desc: 'Accès à ton espace reporting',    bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
@@ -19,6 +13,7 @@ const PORTALS = [
   { id: 'prospection',  icon: '🏆', label: 'Prospection du lundi', desc: 'Séance de prospection en direct', bg: '#DCFCE7', color: '#16A34A' },
   { id: 'challenge-itc', icon: '🚀', label: 'Challenge ITC',    desc: '1er nov → 31 déc : positionnements & push ITC', bg: '#FFF7ED', color: '#C2410C' },
   { id: 'intercontrats', icon: '📋', label: 'Intercontrats disponibles', desc: 'ITC actuel et à venir — ouverture directe, sans mot de passe', bg: '#CCFBF1', color: '#0F766E' },
+  { id: 'prod-2027',    icon: '📈', label: 'Prod 2027',         desc: 'Effectif 2027 — statuts & historique', bg: '#E0E7FF', color: '#4338CA' },
   { id: 'admin',        icon: '⚙️', label: 'Admin',             desc: "Gestion de l'équipe",              bg: '#F3E8FF', color: '#7C3AED' },
 ]
 
@@ -30,7 +25,6 @@ const MANAGER_OPTIONS = [
   { id: 'rh',       icon: '👥', label: 'Dashboard RH',       desc: 'Suivi recrutement & candidats',         bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
 ]
 
-// Rôles disponibles une fois dans l'espace SOL (AS).
 const SOL_OPTIONS = [
   { id: 'ia',        icon: '💼', label: 'Je suis IA',                       desc: 'Accès à mon espace reporting' },
   { id: 'cr',        icon: '👥', label: 'Je suis chargé(e) de recrutement', desc: 'Accès à mon espace recrutement' },
@@ -129,7 +123,6 @@ export default function Login({ onLogin }) {
     }
   }, [portal, space])
 
-  // Retour depuis un portail INFRA (Commerce, Recrutement, Manager, Prospection, Admin) vers la liste INFRA.
   const handleBack = () => {
     setPortal(null)
     setSelected(null)
@@ -146,7 +139,6 @@ export default function Login({ onLogin }) {
     setShowContacts(false)
   }
 
-  // Retour depuis la liste INFRA ou depuis le choix de rôle SOL vers l'écran des 2 espaces.
   const handleBackToSpaces = () => {
     setSpace(null)
     setPortal(null)
@@ -181,11 +173,6 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
-  // Portail "Challenge ITC" : juste une sélection de prénom, pas de mot de passe (accès volontairement
-  // léger pour ne pas freiner la saisie pendant le challenge) — sauf si la carte spéciale "🔐 Dashboard"
-  // est choisie à la place d'un prénom (demande d'Antho : le Dashboard doit rester ici, pas sur le
-  // menu INFRA, et ne jamais apparaître comme une option pour les autres IA), auquel cas un mot de
-  // passe est demandé et ouvre ChallengeItc directement sur son onglet Dashboard.
   const handleSubmitChallenge = () => {
     if (!selected) return setError('Sélectionne ton prénom')
     if (selected.id === '__dashboard__') {
@@ -209,8 +196,6 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
-  // Connexion CR pour l'entité Sandra (SOL (AS)) : même principe que handleSubmitCR, mais avec le
-  // tag entite:'sandra' porté sur l'objet, pour que App.js puisse scoper son reporting à son équipe.
   const handleSubmitSolCR = () => {
     if (!selected) return setError('Sélectionne ton prénom')
     if (!password) return setError('Entre ton mot de passe')
@@ -224,9 +209,6 @@ export default function Login({ onLogin }) {
     if (!ok) setRhError('Mot de passe incorrect')
   }
 
-  // Récupère la vraie fiche ia (avec son id réel en base) avant de connecter un manager qui a aussi
-  // accès à l'onglet "Ma saisie" — sans ça, iaId est undefined et l'onglet reste bloqué sur l'écran
-  // "Va dans l'onglet Admin".
   const handleRomainLogin = async () => {
     if (!romainPassword) return setRomainError('Entre le mot de passe')
     const { data: iaRecord } = await supabase.from('ia').select('*').eq('nom', 'Romain').maybeSingle()
@@ -266,9 +248,14 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
-  // ───────────────────────────────────────────
-  // Écran d'accueil : choix de l'espace (INFRA / SOL)
-  // ───────────────────────────────────────────
+  // Portail "Prod 2027" : totalement à part (sa propre tuile, son propre écran mot de passe), même
+  // mot de passe que Admin.
+  const handleProd2027Login = () => {
+    if (!password) return setError('Entre ton mot de passe')
+    const ok = onLogin({ nom: 'Anthony' }, password, 'prod-2027')
+    if (!ok) setError('Mot de passe incorrect')
+  }
+
   if (!space) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -294,13 +281,6 @@ export default function Login({ onLogin }) {
     )
   }
 
-  // ───────────────────────────────────────────
-  // Espace INFRA : grille des modules (Commerce, Recrutement, Manager, Prospection, Challenge ITC,
-  // Intercontrats disponibles, Admin) — présentée en grille plutôt qu'en liste verticale empilée, pour
-  // mieux exploiter la largeur de l'écran (demande d'Antho). "Intercontrats disponibles" est un cas
-  // particulier : son clic n'ouvre pas un sous-écran, il connecte directement en lecture seule (voir
-  // l'onClick ci-dessous et le commentaire sur PORTALS plus haut).
-  // ───────────────────────────────────────────
   if (space === 'infra' && !portal) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
@@ -361,11 +341,6 @@ export default function Login({ onLogin }) {
 
   if (portal === 'challenge-itc') {
     const filteredList = iaList.filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr' && ia.entite !== 'sandra')
-    // Carte spéciale "🔐 Dashboard", ajoutée après les prénoms sur CET écran précisément (et nulle
-    // part ailleurs) — demande explicite d'Antho : "le chemin c'est tu rentres dans Challenge ITC, là
-    // il y a je suis, et tu rajoutes l'onglet dashboard". Les autres IA ne doivent jamais la voir comme
-    // une option utile pour eux ; elle reste juste visuellement distincte (violet, cadenas) dans la
-    // même grille, protégée par mot de passe contrairement aux prénoms.
     const isDashboardSelected = selected && selected.id === '__dashboard__'
     return (
       <div style={loginWrap}>
@@ -585,9 +560,23 @@ export default function Login({ onLogin }) {
     )
   }
 
-  // ───────────────────────────────────────────
-  // Espace SOL (AS) : choix du rôle (IA / CR / Dashboard de Sandra), puis écran associé
-  // ───────────────────────────────────────────
+  if (portal === 'prod-2027') {
+    return (
+      <div style={loginWrap}>
+        <BackButton onClick={handleBack} />
+        <Header icon="📈" title="Prod 2027" />
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <div style={labelStyle}>Mot de passe</div>
+          <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && handleProd2027Login()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
+          {error && <ErrorMsg msg={error} />}
+          <button onClick={handleProd2027Login} style={{ width: '100%', padding: 13, background: '#4338CA', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+            Se connecter
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (space === 'sol') {
     const solIaList = iaList.filter(ia => ia.entite === 'sandra' && ia.type !== 'cr' && ia.statut !== 'ancien')
     const solCrList = iaList.filter(ia => ia.entite === 'sandra' && ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
@@ -686,7 +675,6 @@ export default function Login({ onLogin }) {
       )
     }
 
-    // solRole === 'dashboard' : accès direct de Sandra à son dashboard (ex-sous-option de "Manager")
     return (
       <div style={loginWrap}>
         <BackButton onClick={backToRoleChoice} />
