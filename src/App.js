@@ -171,7 +171,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app${tab === 'p1' || tab === 'challenge-itc' || tab === 'intercontrats' || tab === 'saisie-cr' ? ' wide' : ''}`}>
+    <div className={`app${tab === 'p1' || tab === 'challenge-itc' || tab === 'intercontrats' || tab === 'saisie-cr' || tab === 'prod-2027' ? ' wide' : ''}`}>
       <div className="nav">
         <div className="nav-title">
           <i className="ti ti-chart-bar" aria-hidden="true"></i>
