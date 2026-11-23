@@ -25,8 +25,16 @@ const CATEGORIES_SANS_DETAIL_CONTRAT = ['ITC', 'Maladie', 'Cas RH']
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const addDaysISO = (dateStr, n) => { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+const diffDaysISO = (fromISO, toISO) => Math.round((new Date(toISO + 'T00:00:00') - new Date(fromISO + 'T00:00:00')) / 86400000)
 const formatDateFR = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}` }
 const initials = (nom, prenom) => `${(nom || '?')[0] || ''}${(prenom || '')[0] || ''}`.toUpperCase()
+// Couleur de la date de fin selon l'urgence (jours restants depuis la date de référence affichée)
+const dateFinStyle = (joursRestants) => {
+  if (joursRestants === null) return { color: '#9CA3AF' }
+  if (joursRestants <= 7) return { color: '#B91C1C', fontWeight: 700 }
+  if (joursRestants <= 30) return { color: '#B45309', fontWeight: 600 }
+  return { color: '#6B6A66' }
+}
 
 export default function Prod2027() {
   const [refDate, setRefDate] = useState(todayISO())
@@ -38,6 +46,8 @@ export default function Prod2027() {
   const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedCategorie, setSelectedCategorie] = useState(null)
+  const [alerteSeuil, setAlerteSeuil] = useState(30)
+  const [showAlertesOnly, setShowAlertesOnly] = useState(false)
   const [managingRow, setManagingRow] = useState(null)
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -85,20 +95,33 @@ export default function Prod2027() {
         if (isSalarie) totalSalarie += 1; else totalSousTraitant += 1
       }
     }
-    return { total, totalSalarie, totalSousTraitant, byCategorie }
-  }, [rows])
+    // Fins de période proches de la date affichée (toujours >= refDate, vu le filtre de chargement)
+    let alertesUrgentes = 0, alertesProches = 0
+    for (const r of rows) {
+      if (!r.date_fin) continue
+      const j = diffDaysISO(refDate, r.date_fin)
+      if (j <= 7) alertesUrgentes += 1
+      else if (j <= alerteSeuil) alertesProches += 1
+    }
+    return { total, totalSalarie, totalSousTraitant, byCategorie, alertesUrgentes, alertesProches, alertesTotal: alertesUrgentes + alertesProches }
+  }, [rows, alerteSeuil, refDate])
 
   const filteredRows = useMemo(() => {
     let result = rows
     if (selectedCategorie) result = result.filter(r => (r.statut?.categorie || '—') === selectedCategorie)
+    if (showAlertesOnly) result = result.filter(r => r.date_fin && diffDaysISO(refDate, r.date_fin) <= alerteSeuil)
     if (search.trim()) {
       const term = search.trim().toLowerCase()
       result = result.filter(r => `${r.collaborateur?.nom} ${r.collaborateur?.prenom}`.toLowerCase().includes(term))
     }
-    return result
-  }, [rows, search, selectedCategorie])
+    return [...result].sort((a, b) => {
+      if (showAlertesOnly) return (a.date_fin || '9999-99-99').localeCompare(b.date_fin || '9999-99-99')
+      return (a.collaborateur?.nom || '').localeCompare(b.collaborateur?.nom || '')
+    })
+  }, [rows, search, selectedCategorie, showAlertesOnly, alerteSeuil, refDate])
 
   const toggleCategorie = (cat) => setSelectedCategorie(prev => (prev === cat ? null : cat))
+  const toggleAlertesOnly = () => setShowAlertesOnly(prev => !prev)
 
   const openCloture = (row) => {
     setManagingRow(row)
@@ -224,6 +247,37 @@ export default function Prod2027() {
           })}
         </div>
 
+        {/* Alerte fins de période proches -- bandeau visible, cliquable pour filtrer, avec seuil réglable */}
+        <div onClick={toggleAlertesOnly}
+          style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 14, padding: '14px 20px', borderRadius: 14, cursor: 'pointer',
+            border: '1.5px solid ' + (showAlertesOnly ? '#B45309' : (stats.alertesTotal > 0 ? '#FBD9A8' : BORDER)),
+            background: showAlertesOnly ? '#FEF3E2' : (stats.alertesTotal > 0 ? '#FFFAF0' : '#fff'),
+            boxShadow: showAlertesOnly ? '0 0 0 3px #B4530922' : '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: stats.alertesUrgentes > 0 ? '#FCEBEB' : '#FEF3E2', color: stats.alertesUrgentes > 0 ? '#B91C1C' : '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+            <i className="ti ti-alert-triangle" aria-hidden="true"></i>
+          </div>
+          <div style={{ flex: '1 1 220px' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: TITLE_COLOR }}>
+              {stats.alertesTotal} fin{stats.alertesTotal > 1 ? 's' : ''} de période à venir
+              {stats.alertesUrgentes > 0 && <span style={{ color: '#B91C1C' }}> — dont {stats.alertesUrgentes} à moins de 7 jours</span>}
+            </div>
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
+              {showAlertesOnly ? 'Clique pour revenir à la liste complète' : 'Clique pour voir uniquement ces collaborateurs'}
+            </div>
+          </div>
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: TEXT_SECONDARY }}>
+            Alerter si fin dans les
+            <select value={alerteSeuil} onChange={e => setAlerteSeuil(Number(e.target.value))}
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + BORDER, fontSize: 12.5, background: '#fff' }}>
+              <option value={7}>7 jours</option>
+              <option value={15}>15 jours</option>
+              <option value={30}>30 jours</option>
+              <option value={60}>60 jours</option>
+              <option value={90}>90 jours</option>
+            </select>
+          </div>
+        </div>
+
         {/* Sorties : peu d'intérêt au quotidien, affichées en discret sous les vignettes principales */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginBottom: 24, fontSize: 12 }}>
           <span style={{ color: TEXT_SECONDARY }}>Hors effectif :</span>
@@ -245,11 +299,11 @@ export default function Prod2027() {
         <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
           <div style={{ padding: '16px 22px', borderBottom: '1px solid ' + BORDER, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: TITLE_COLOR }}>
-              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie}` : ''}
+              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie}` : ''}{showAlertesOnly ? ` — fins de période ≤ ${alerteSeuil}j` : ''}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {selectedCategorie && (
-                <button onClick={() => setSelectedCategorie(null)}
+              {(selectedCategorie || showAlertesOnly) && (
+                <button onClick={() => { setSelectedCategorie(null); setShowAlertesOnly(false) }}
                   style={{ background: 'none', border: 'none', color: ACCENT, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
                   Réinitialiser
                 </button>
@@ -272,12 +326,14 @@ export default function Prod2027() {
                   <th style={{ padding: '10px 16px', fontSize: 11.5, fontWeight: 600, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4 }}>Manager</th>
                   <th style={{ padding: '10px 16px', fontSize: 11.5, fontWeight: 600, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4 }}>Client</th>
                   <th style={{ padding: '10px 16px', fontSize: 11.5, fontWeight: 600, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4 }}>Depuis le</th>
+                  <th style={{ padding: '10px 16px', fontSize: 11.5, fontWeight: 600, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4 }}>Fin de période</th>
                   <th style={{ padding: '10px 22px', fontSize: 11.5, fontWeight: 600, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4 }}>Commentaire</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.map((r, i) => {
                   const st = CATEGORIE_STYLE[r.statut?.categorie] || DEFAULT_CAT_STYLE
+                  const joursRestants = r.date_fin ? diffDaysISO(refDate, r.date_fin) : null
                   return (
                     <tr key={r.id} onClick={() => openCloture(r)}
                       style={{ borderTop: '1px solid ' + BORDER, cursor: 'pointer', background: i % 2 === 1 ? '#FCFCFB' : '#fff', transition: 'background 0.1s' }}
@@ -300,6 +356,15 @@ export default function Prod2027() {
                       <td style={{ padding: '13px 16px', color: TEXT_SECONDARY }}>{r.manager?.nom || '—'}</td>
                       <td style={{ padding: '13px 16px', color: TEXT_SECONDARY }}>{r.client?.nom || '—'}</td>
                       <td style={{ padding: '13px 16px', color: TEXT_SECONDARY, whiteSpace: 'nowrap' }}>{formatDateFR(r.date_debut)}</td>
+                      <td style={{ padding: '13px 16px', whiteSpace: 'nowrap', ...dateFinStyle(joursRestants) }}>
+                        {r.date_fin ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {joursRestants <= 7 && <i className="ti ti-alert-triangle" aria-hidden="true" style={{ fontSize: 12 }}></i>}
+                            {formatDateFR(r.date_fin)}
+                            {joursRestants <= alerteSeuil && <span style={{ fontSize: 10.5, fontWeight: 500 }}>&nbsp;({joursRestants}j)</span>}
+                          </span>
+                        ) : '—'}
+                      </td>
                       <td style={{ padding: '13px 22px', color: TEXT_SECONDARY, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.commentaire || ''}</td>
                     </tr>
                   )
