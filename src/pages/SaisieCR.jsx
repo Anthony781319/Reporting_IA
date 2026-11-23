@@ -32,7 +32,7 @@ export default function SaisieCR({ crNom, entite }) {
   const [addRdvOpen, setAddRdvOpen] = useState(false)
 
   const [presList, setPresList] = useState([])
-  const [presForm, setPresForm] = useState({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
+  const [presForm, setPresForm] = useState({ identite_candidat: '', profil: '', date_presentation: '', ias_concernees: [] })
   const [addPresOpen, setAddPresOpen] = useState(false)
 
   const [sigList, setSigList] = useState([])
@@ -123,16 +123,31 @@ export default function SaisieCR({ crNom, entite }) {
 
   const addPres = async () => {
     if (!presForm.identite_candidat) return
-    const { data, error } = await supabase.from('cr_presentations').insert({ cr_nom: crNom, semaine, annee, ...presForm }).select().single()
+    const { data, error } = await supabase.from('cr_presentations').insert({
+      cr_nom: crNom, semaine, annee,
+      identite_candidat: presForm.identite_candidat,
+      profil: presForm.profil,
+      date_presentation: presForm.date_presentation,
+      ia_concerne: presForm.ias_concernees.join(', '),
+    }).select().single()
     if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setPresList([...presList, data])
-    setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
+    setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ias_concernees: [] })
     showToast('✅ Présentation ajoutée !')
   }
 
   const deletePres = async (id) => {
     await supabase.from('cr_presentations').delete().eq('id', id)
     setPresList(presList.filter(p => p.id !== id))
+  }
+
+  const togglePresIA = (nom) => {
+    const current = presForm.ias_concernees
+    if (current.includes(nom)) {
+      setPresForm({ ...presForm, ias_concernees: current.filter(n => n !== nom) })
+    } else {
+      setPresForm({ ...presForm, ias_concernees: [...current, nom] })
+    }
   }
 
   const addSig = async () => {
@@ -192,7 +207,7 @@ export default function SaisieCR({ crNom, entite }) {
   const sigOk  = sigList.length === nbSignatures
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
+    <div style={{ padding: '24px 16px' }}>
       <PremiumStyles />
 
       {toast && (
@@ -216,8 +231,13 @@ export default function SaisieCR({ crNom, entite }) {
         </div>
       </div>
 
+      {/* Grille 2 colonnes sur écran large (repasse à 1 colonne sous 420px de large par panneau) — pour
+          exploiter la largeur disponible plutôt que d'empiler les 4 panneaux en une seule colonne
+          étroite, chaque panneau de cette page restant assez court en contenu pour tenir côte à côte. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 20 }}>
+
       {/* ── Rendez-vous (entretiens + candidats validés + détail) ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div>
         <PremiumPanel accent={RDV_COLOR} accentLight={RDV_LIGHT} accentRing={RDV_RING}>
           <PremiumSectionHeader icon="ti-calendar-event" title="Rendez-vous" action={
             <button className="ui-add-btn" disabled={rdvOk} style={rdvOk ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
@@ -306,7 +326,7 @@ export default function SaisieCR({ crNom, entite }) {
       </div>
 
       {/* ── CV envoyés aux IAs ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div>
         <PremiumPanel accent={CV_COLOR} accentLight={CV_LIGHT} accentRing={CV_RING}>
           <PremiumSectionHeader icon="ti-send" title="CV envoyés aux IAs" action={
             <button className="ui-add-btn" style={{ background: CV_COLOR, ...(cvOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={cvOk}
@@ -423,7 +443,7 @@ export default function SaisieCR({ crNom, entite }) {
       </div>
 
       {/* ── Présentations ── */}
-      <div style={{ marginBottom: 20 }}>
+      <div>
         <PremiumPanel accent={PRES_COLOR} accentLight={PRES_LIGHT} accentRing={PRES_RING}>
           <PremiumSectionHeader icon="ti-clipboard-list" title="Présentations" action={
             <button className="ui-add-btn" style={{ background: PRES_COLOR, ...(presOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={presOk}
@@ -464,7 +484,7 @@ export default function SaisieCR({ crNom, entite }) {
                 <div className="rdv-card2-meta">
                   {p.date_presentation && `📅 ${p.date_presentation}`}
                   {p.date_presentation && p.ia_concerne ? '  ·  ' : ''}
-                  {p.ia_concerne && `👤 ${p.ia_concerne}`}
+                  {(p.ia_concerne ? p.ia_concerne.split(', ') : []).map(ia => `👤 ${ia}`).join('  ·  ')}
                 </div>
               </div>
               <button className="rdv-card2-trash" onClick={() => deletePres(p.id)} title="Supprimer"><i className="ti ti-trash" aria-hidden="true" /></button>
@@ -490,13 +510,26 @@ export default function SaisieCR({ crNom, entite }) {
                   <label className="ui-field-label">Profil</label>
                   <input className="ui-input" type="text" value={presForm.profil} onChange={e => setPresForm({ ...presForm, profil: e.target.value })} />
                 </div>
-                <div className="ui-field" style={{ marginBottom: 12 }}>
-                  <label className="ui-field-label">IA concerné</label>
-                  <input className="ui-input" type="text" value={presForm.ia_concerne} onChange={e => setPresForm({ ...presForm, ia_concerne: e.target.value })} />
-                </div>
                 <div className="ui-field" style={{ marginBottom: 14 }}>
                   <label className="ui-field-label">Date de présentation</label>
                   <input className="ui-input" type="date" value={presForm.date_presentation} onChange={e => setPresForm({ ...presForm, date_presentation: e.target.value })} />
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label className="ui-field-label">IA(s) concerné(s)</label>
+                  {/* iaList est déjà cloisonnée par entite (cf. useEffect plus haut) : une CR de l'espace
+                      INFRA ne voit ici que les commerciaux d'Anthony, jamais ceux de la BU de Sandra. */}
+                  <div className="ui-check-grid">
+                    {iaList.map(ia => {
+                      const checked = presForm.ias_concernees.includes(ia.nom)
+                      return (
+                        <div key={ia.id} className={`ui-check-item${checked ? ' checked' : ''}`} onClick={() => togglePresIA(ia.nom)}>
+                          <div className={`ui-check-box${checked ? ' checked' : ''}`}>{checked && '✓'}</div>
+                          <span className={`ui-check-label${checked ? ' checked' : ''}`}>{ia.nom}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
 
                 <div className="ui-cta-row">
@@ -594,6 +627,7 @@ export default function SaisieCR({ crNom, entite }) {
         </PremiumPanel>
       </div>
 
+      </div>
     </div>
   )
 }
