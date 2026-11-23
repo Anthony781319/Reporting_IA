@@ -310,7 +310,7 @@ export default function Login({ onLogin }) {
           <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>INFRA</div>
           <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 6 }}>Quel est ton espace ?</div>
         </div>
-        <div style={{ width: '100%', maxWidth: 440, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <div style={{ width: '100%', maxWidth: 800, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           {PORTALS.map(p => (
             <div key={p.id} onClick={() => p.id === 'intercontrats' ? onLogin({ nom: 'Intercontrats' }, '', 'intercontrats') : setPortal(p.id)}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 10, padding: '20px 14px', borderRadius: 16, cursor: 'pointer', border: '1.5px solid ' + p.color + '40', background: p.bg, transition: 'all 0.15s' }}>
