@@ -71,13 +71,19 @@ export default function Prod2027() {
 
   const stats = useMemo(() => {
     const byCategorie = {}
-    let total = 0
+    let total = 0, totalSalarie = 0, totalSousTraitant = 0
     for (const r of rows) {
       const cat = r.statut?.categorie || '—'
-      byCategorie[cat] = (byCategorie[cat] || 0) + 1
-      if (!CATEGORIES_HORS_EFFECTIF.includes(cat)) total += 1
+      const isSalarie = r.collaborateur?.type_contrat === 'salarié'
+      if (!byCategorie[cat]) byCategorie[cat] = { count: 0, salarie: 0, sousTraitant: 0 }
+      byCategorie[cat].count += 1
+      if (isSalarie) byCategorie[cat].salarie += 1; else byCategorie[cat].sousTraitant += 1
+      if (!CATEGORIES_HORS_EFFECTIF.includes(cat)) {
+        total += 1
+        if (isSalarie) totalSalarie += 1; else totalSousTraitant += 1
+      }
     }
-    return { total, byCategorie }
+    return { total, totalSalarie, totalSousTraitant, byCategorie }
   }, [rows])
 
   const filteredRows = useMemo(() => {
@@ -168,31 +174,48 @@ export default function Prod2027() {
         </div>
 
         {/* Bandeau de chiffres clés, pleine largeur, répartis uniformément -- cliquables pour filtrer la liste */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
           <div onClick={() => setSelectedCategorie(null)}
-            style={{ flex: '1 1 160px', background: '#fff', border: '1.5px solid ' + (selectedCategorie === null ? ACCENT : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer' }}>
+            style={{ flex: '1 1 180px', background: '#fff', border: '1.5px solid ' + (selectedCategorie === null ? ACCENT : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer' }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: ACCENT_SOFT, color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
               <i className="ti ti-users" aria-hidden="true"></i>
             </div>
             <div>
               <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{stats.total}</div>
               <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Total effectif</div>
+              <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont {stats.totalSalarie} salarié{stats.totalSalarie > 1 ? 's' : ''} · {stats.totalSousTraitant} sous-traitant{stats.totalSousTraitant > 1 ? 's' : ''}</div>
             </div>
           </div>
-          {Object.entries(stats.byCategorie).map(([cat, count]) => {
+          {Object.entries(stats.byCategorie).filter(([cat]) => !CATEGORIES_HORS_EFFECTIF.includes(cat)).map(([cat, d]) => {
             const st = CATEGORIE_STYLE[cat] || DEFAULT_CAT_STYLE
             const isSelected = selectedCategorie === cat
             return (
               <div key={cat} onClick={() => toggleCategorie(cat)}
-                style={{ flex: '1 1 160px', background: '#fff', border: '1.5px solid ' + (isSelected ? st.color : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: isSelected ? `0 0 0 3px ${st.color}22` : '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer', transition: 'all 0.12s' }}>
+                style={{ flex: '1 1 180px', background: '#fff', border: '1.5px solid ' + (isSelected ? st.color : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: isSelected ? `0 0 0 3px ${st.color}22` : '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer', transition: 'all 0.12s' }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: st.bg, color: st.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
                   <i className={`ti ${st.icon}`} aria-hidden="true"></i>
                 </div>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{count}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{d.count}</div>
                   <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>{cat}</div>
+                  <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont {d.salarie} salarié{d.salarie > 1 ? 's' : ''} · {d.sousTraitant} sous-traitant{d.sousTraitant > 1 ? 's' : ''}</div>
                 </div>
               </div>
+            )
+          })}
+        </div>
+
+        {/* Sorties : peu d'intérêt au quotidien, affichées en discret sous les vignettes principales */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginBottom: 24, fontSize: 12 }}>
+          <span style={{ color: TEXT_SECONDARY }}>Hors effectif :</span>
+          {Object.entries(stats.byCategorie).filter(([cat]) => CATEGORIES_HORS_EFFECTIF.includes(cat)).map(([cat, d]) => {
+            const st = CATEGORIE_STYLE[cat] || DEFAULT_CAT_STYLE
+            const isSelected = selectedCategorie === cat
+            return (
+              <button key={cat} onClick={() => toggleCategorie(cat)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, border: '1px solid ' + (isSelected ? st.color : BORDER), background: isSelected ? st.bg : '#fff', color: isSelected ? st.color : TEXT_SECONDARY, fontSize: 12, cursor: 'pointer' }}>
+                {cat} <strong>{d.count}</strong>
+              </button>
             )
           })}
         </div>
