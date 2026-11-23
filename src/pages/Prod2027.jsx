@@ -169,6 +169,20 @@ export default function Prod2027() {
     setSaving(false)
   }
 
+  const deletePeriode = async () => {
+    if (!managingRow?.id) return
+    const nomComplet = `${form.nom} ${form.prenom}`.trim()
+    const detail = `${managingRow.statut?.nom || 'ce statut'} (depuis le ${formatDateFR(managingRow.date_debut)})`
+    if (!window.confirm(`Supprimer uniquement la période "${detail}" de ${nomComplet} ?\n\nSon historique précédent (les périodes d'avant) sera conservé. Seule cette ligne disparaît. Cette action est irréversible.`)) return
+    setSaving(true); setSaveMsg('')
+    try {
+      const { error } = await supabase.from('periodes').delete().eq('id', managingRow.id)
+      if (error) throw error
+      await loadPeriodes(refDate); closeModal()
+    } catch (e) { setSaveMsg(`Erreur : ${e.message}`) }
+    setSaving(false)
+  }
+
   const deleteCollaborateur = async () => {
     if (!managingRow?.collaborateur_id) return
     const nomComplet = `${form.nom} ${form.prenom}`.trim()
@@ -470,12 +484,20 @@ export default function Prod2027() {
 
             {saveMsg && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '9px 12px', borderRadius: 9, marginBottom: 14, fontSize: 13 }}>{saveMsg}</div>}
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: form.isNew ? 'flex-end' : 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: form.isNew ? 'flex-end' : 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
               {!form.isNew && (
-                <button onClick={deleteCollaborateur} disabled={saving}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#A32D2D', border: '1px solid #F3C9C9', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
-                  <i className="ti ti-trash" aria-hidden="true"></i> Supprimer ce collaborateur
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={deletePeriode} disabled={saving}
+                    title="Supprime uniquement cette ligne de statut ; l'historique précédent de la personne est conservé"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#B45309', border: '1px solid #FBD9A8', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+                    <i className="ti ti-trash" aria-hidden="true"></i> Supprimer cette période
+                  </button>
+                  <button onClick={deleteCollaborateur} disabled={saving}
+                    title="Supprime la fiche et tout l'historique de la personne"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#A32D2D', border: '1px solid #F3C9C9', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+                    <i className="ti ti-trash" aria-hidden="true"></i> Supprimer tout le collaborateur
+                  </button>
+                </div>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={closeModal} style={{ padding: '10px 18px', background: '#fff', color: TEXT_SECONDARY, border: '1px solid ' + BORDER, borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>
