@@ -19,6 +19,7 @@ import Prod2027 from './pages/Prod2027'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
+const PROD2027_PASSWORD = 'M02pass2mer2$1'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
@@ -74,8 +75,9 @@ export default function App() {
       resetRoles(); setUser(ia); setIsIntercontrats(true); setTab('intercontrats'); return true
     }
     if (ia.nom === 'Anthony' && initialTab === 'prod-2027') {
-      if (password !== ADMIN_PASSWORD) return false
+      if (password !== PROD2027_PASSWORD) return false
       resetRoles(); setUser(ia); setIsProd2027(true); setTab('prod-2027'); return true
+    }
     }
     if (ia.nom === 'Anthony' && (initialTab === 'admin' || initialTab === 'manager-commerce')) {
       if (password !== ADMIN_PASSWORD) return false
