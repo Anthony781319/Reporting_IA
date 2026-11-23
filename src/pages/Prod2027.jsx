@@ -20,6 +20,8 @@ const CATEGORIE_STYLE = {
 const DEFAULT_CAT_STYLE = { color: '#6B6A66', bg: '#F1EFE8', icon: 'ti-user' }
 // Catégories exclues du "Total effectif" (elles restent affichées comme vignettes, juste pas comptées dedans)
 const CATEGORIES_HORS_EFFECTIF = ['Sortie', 'Sortie périmètre']
+// Catégories 100% salariés par nature -- pas besoin du détail salarié/sous-traitant dessus
+const CATEGORIES_SANS_DETAIL_CONTRAT = ['ITC', 'Maladie', 'Cas RH']
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const addDaysISO = (dateStr, n) => { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
@@ -198,7 +200,9 @@ export default function Prod2027() {
                 <div>
                   <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{d.count}</div>
                   <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>{cat}</div>
-                  <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont {d.salarie} salarié{d.salarie > 1 ? 's' : ''} · {d.sousTraitant} sous-traitant{d.sousTraitant > 1 ? 's' : ''}</div>
+                  {!CATEGORIES_SANS_DETAIL_CONTRAT.includes(cat) && (
+                    <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont {d.salarie} salarié{d.salarie > 1 ? 's' : ''} · {d.sousTraitant} sous-traitant{d.sousTraitant > 1 ? 's' : ''}</div>
+                  )}
                 </div>
               </div>
             )
