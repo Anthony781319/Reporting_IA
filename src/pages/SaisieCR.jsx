@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { PremiumStyles, PremiumPanel, PremiumSectionHeader } from '../styles/PremiumUI'
 
 const currentWeek = () => {
   const now = new Date()
@@ -7,7 +8,15 @@ const currentWeek = () => {
   return Math.ceil((((now - start) / 86400000) + start.getDay() + 1) / 7)
 }
 
-export default function SaisieCR({ crNom }) {
+// Mêmes teintes que l'ancienne version de cette page (un panneau clair par bloc, un accent par
+// bloc) — harmonisées avec le traitement visuel déjà en place côté Commerce (Saisie.jsx) : panneau
+// gris uniforme, tuiles de stats, liste en mini-cartes, saisie déportée dans une fenêtre modale.
+const RDV_COLOR = '#534AB7', RDV_LIGHT = '#EEEDFE', RDV_RING = 'rgba(83,74,183,0.18)'
+const CV_COLOR = '#2E7D32', CV_LIGHT = '#E8F5E9', CV_RING = 'rgba(46,125,50,0.18)'
+const PRES_COLOR = '#633806', PRES_LIGHT = '#FAEEDA', PRES_RING = 'rgba(99,56,6,0.18)'
+const SIG_COLOR = '#72243E', SIG_LIGHT = '#FBEAF0', SIG_RING = 'rgba(114,36,62,0.18)'
+
+export default function SaisieCR({ crNom, entite }) {
   const annee = new Date().getFullYear()
   const semaineActuelle = currentWeek()
   const [semaine, setSemaine] = useState(semaineActuelle)
@@ -20,21 +29,20 @@ export default function SaisieCR({ crNom }) {
 
   const [rdvList, setRdvList] = useState([])
   const [rdvForm, setRdvForm] = useState({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
-  const [showRdvForm, setShowRdvForm] = useState(false)
+  const [addRdvOpen, setAddRdvOpen] = useState(false)
 
   const [presList, setPresList] = useState([])
   const [presForm, setPresForm] = useState({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
-  const [showPresForm, setShowPresForm] = useState(false)
+  const [addPresOpen, setAddPresOpen] = useState(false)
 
   const [sigList, setSigList] = useState([])
   const [sigForm, setSigForm] = useState({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
-  const [showSigForm, setShowSigForm] = useState(false)
+  const [addSigOpen, setAddSigOpen] = useState(false)
 
   const [cvList, setCvList] = useState([])
   const [cvForm, setCvForm] = useState({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
-  const [showCvForm, setShowCvForm] = useState(false)
+  const [addCvOpen, setAddCvOpen] = useState(false)
 
-  const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
 
   const nbCandidatsValides = rdvList.filter(r => r.valide).length
@@ -42,15 +50,21 @@ export default function SaisieCR({ crNom }) {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   useEffect(() => {
+    // Même règle de cloisonnement que Login.jsx : une CR de l'espace INFRA ne doit voir que les IA
+    // d'Anthony (entite !== 'sandra'), jamais celles de la BU de Sandra (SOL), et inversement pour une
+    // CR de SOL — sinon la liste "IAs concernées" mélange les deux équipes commerciales.
     supabase.from('ia').select('*').order('nom').then(({ data }) => {
-      setIaList((data || []).filter(ia => ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr'))
+      setIaList((data || []).filter(ia =>
+        ia.nom !== 'Anthony' && ia.nom !== 'P1 of the week' && ia.statut !== 'ancien' && ia.type !== 'cr' &&
+        (entite === 'sandra' ? ia.entite === 'sandra' : ia.entite !== 'sandra')
+      ))
     })
   }, [])
 
   useEffect(() => {
     const load = async () => {
       setRdvList([]); setPresList([]); setSigList([]); setCvList([])
-      setShowRdvForm(false); setShowPresForm(false); setShowSigForm(false); setShowCvForm(false)
+      setAddRdvOpen(false); setAddPresOpen(false); setAddSigOpen(false); setAddCvOpen(false)
 
       const [{ data: rep }, { data: rdv }, { data: pres }, { data: sig }, { data: cv }] = await Promise.all([
         supabase.from('cr_reporting').select('*').eq('cr_nom', crNom).eq('semaine', semaine).eq('annee', annee).single(),
@@ -90,13 +104,15 @@ export default function SaisieCR({ crNom }) {
     save()
   }, [nbEntretiens, nbCandidatsValides, nbCvEnvoyes, nbPresentations, nbSignatures, crNom, semaine, annee])
 
+  // Les fenêtres d'ajout ne se ferment plus toutes seules après un enregistrement réussi (seul le ✕ ou
+  // un clic sur le fond les ferme) — même principe que RDV Commerciaux/programmés côté Commerce, pour
+  // pouvoir enchaîner plusieurs candidats sans rouvrir la fenêtre à chaque fois.
   const addRdv = async () => {
     if (!rdvForm.identite_candidat) return
     const { data, error } = await supabase.from('cr_rendez_vous').insert({ cr_nom: crNom, semaine, annee, ...rdvForm }).select().single()
     if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setRdvList([...rdvList, data])
     setRdvForm({ identite_candidat: '', profil: '', valide: false, positionne_sur_besoins: '' })
-    setShowRdvForm(false)
     showToast('✅ Rendez-vous ajouté !')
   }
 
@@ -111,7 +127,6 @@ export default function SaisieCR({ crNom }) {
     if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setPresList([...presList, data])
     setPresForm({ identite_candidat: '', profil: '', date_presentation: '', ia_concerne: '' })
-    setShowPresForm(false)
     showToast('✅ Présentation ajoutée !')
   }
 
@@ -126,7 +141,6 @@ export default function SaisieCR({ crNom }) {
     if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setSigList([...sigList, data])
     setSigForm({ identite_candidat: '', profil: '', salaire_envisage: '', date_signature: '' })
-    setShowSigForm(false)
     showToast('✅ Signature ajoutée !')
   }
 
@@ -164,7 +178,6 @@ export default function SaisieCR({ crNom }) {
     if (error || !data) { showToast(error?.message ? `❌ ${error.message}` : '❌ Erreur lors de l\'ajout'); return }
     setCvList([...cvList, { ...data, ias_concernees: cvForm.ias_concernees.join(', ') }])
     setCvForm({ identite_candidat: '', profil: '', ias_concernees: [], type_envoi: 'push', besoin_concerne: '' })
-    setShowCvForm(false)
     showToast('✅ CV ajouté !')
   }
 
@@ -180,6 +193,7 @@ export default function SaisieCR({ crNom }) {
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 16px' }}>
+      <PremiumStyles />
 
       {toast && (
         <div style={{ position: 'fixed', top: 20, right: 20, background: '#1a1a2e', color: '#fff', padding: '10px 18px', borderRadius: 10, fontSize: 13, zIndex: 999 }}>
@@ -187,7 +201,7 @@ export default function SaisieCR({ crNom }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>👋 Bonjour {crNom}</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>{annee}</p>
@@ -202,306 +216,387 @@ export default function SaisieCR({ crNom }) {
         </div>
       </div>
 
-      {/* ── BLOC 1 : Rendez-vous ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #534AB7' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#EEEDFE' }}>📅</div>
-          <div>
-            <div style={blockTitle}>Rendez-vous</div>
-            <div style={blockSub}>Entretiens & candidats validés</div>
-          </div>
-        </div>
-        <div style={grid2}>
-          <Counter label="Entretiens réalisés" value={nbEntretiens} onChange={setNbEntretiens} color="#534AB7" />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>Candidats validés</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#534AB7' }}>{nbCandidatsValides}</div>
-            <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', marginTop: 4, fontStyle: 'italic' }}>auto (depuis détail)</div>
-          </div>
-        </div>
-        {!rdvOk && (
-          <div style={warningBox}>
-            ⚠️ {rdvList.length}/{nbEntretiens} entretien{nbEntretiens !== 1 ? 's' : ''} détaillé{nbEntretiens !== 1 ? 's' : ''} — complète le détail ci-dessous pour valider.
-          </div>
-        )}
-      </div>
+      {/* ── Rendez-vous (entretiens + candidats validés + détail) ── */}
+      <div style={{ marginBottom: 20 }}>
+        <PremiumPanel accent={RDV_COLOR} accentLight={RDV_LIGHT} accentRing={RDV_RING}>
+          <PremiumSectionHeader icon="ti-calendar-event" title="Rendez-vous" action={
+            <button className="ui-add-btn" disabled={rdvOk} style={rdvOk ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              onClick={() => !rdvOk && setAddRdvOpen(true)}>
+              <i className="ti ti-plus" aria-hidden="true" /> Ajouter un rendez-vous
+            </button>
+          } />
 
-      {/* ── BLOC 3a : Détail Rendez-vous ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #0C447C' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#E6F1FB' }}>🗂</div>
-          <div>
-            <div style={blockTitle}>Détail — Rendez-vous</div>
-            <div style={blockSub}>{rdvList.length} / {nbEntretiens} entrée{nbEntretiens !== 1 ? 's' : ''} cette semaine</div>
-          </div>
-        </div>
-        {rdvList.map(r => (
-          <div key={r.id} style={detailCard}>
-            <div style={detailRow}>
-              <span style={candidatName}>{r.identite_candidat}</span>
-              <span style={profilBadge}>{r.profil}</span>
-            </div>
-            <div style={detailRow}>
-              <span style={{ ...statusBadge, background: r.valide ? '#E1F5EE' : '#FCEBEB', color: r.valide ? '#085041' : '#A32D2D' }}>
-                {r.valide ? '✅ Validé' : '❌ Non validé'}
-              </span>
-              {r.positionne_sur_besoins && <span style={infoBadge}>📌 {r.positionne_sur_besoins}</span>}
-            </div>
-            <button onClick={() => deleteRdv(r.id)} style={btnDelete}>Supprimer</button>
-          </div>
-        ))}
-        {showRdvForm ? (
-          <div style={formBox}>
-            <Input label="Identité du candidat" value={rdvForm.identite_candidat} onChange={v => setRdvForm({ ...rdvForm, identite_candidat: v })} />
-            <Input label="Profil" value={rdvForm.profil} onChange={v => setRdvForm({ ...rdvForm, profil: v })} />
-            <Input label="Positionné sur besoins" value={rdvForm.positionne_sur_besoins} onChange={v => setRdvForm({ ...rdvForm, positionne_sur_besoins: v })} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <input type="checkbox" id="valide" checked={rdvForm.valide} onChange={e => setRdvForm({ ...rdvForm, valide: e.target.checked })} />
-              <label htmlFor="valide" style={{ fontSize: 13 }}>Candidat validé</label>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addRdv} style={{ ...btnSave, background: '#0C447C' }}>Ajouter</button>
-              <button onClick={() => setShowRdvForm(false)} style={btnCancel}>Annuler</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => rdvOk ? null : setShowRdvForm(true)} disabled={rdvOk}
-            style={{ ...btnAdd, borderColor: '#0C447C', color: rdvOk ? '#A0A0A0' : '#0C447C', cursor: rdvOk ? 'not-allowed' : 'pointer', opacity: rdvOk ? 0.5 : 1 }}>
-            {rdvOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter un rendez-vous'}
-          </button>
-        )}
-      </div>
-
-      {/* ── BLOC 2 : CV envoyés (fusionné avec CV proposés) ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #2E7D32' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#E8F5E9' }}>📨</div>
-          <div>
-            <div style={blockTitle}>CV envoyés aux IAs</div>
-            <div style={blockSub}>{cvList.length} / {nbCvEnvoyes} candidat{nbCvEnvoyes !== 1 ? 's' : ''} proposé{nbCvEnvoyes !== 1 ? 's' : ''} cette semaine</div>
-          </div>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <Counter label="CV envoyés" value={nbCvEnvoyes} onChange={setNbCvEnvoyes} color="#2E7D32" />
-        </div>
-        {!cvOk && (
-          <div style={warningBox}>
-            ⚠️ {cvList.length}/{nbCvEnvoyes} CV détaillé{nbCvEnvoyes !== 1 ? 's' : ''} — complète le détail ci-dessous.
-          </div>
-        )}
-
-        {cvList.map(c => (
-          <div key={c.id} style={detailCard}>
-            <div style={detailRow}>
-              <span style={candidatName}>{c.identite_candidat}</span>
-              <span style={profilBadge}>{c.profil}</span>
-              <span style={{ ...infoBadge, background: c.type_envoi === 'besoin' ? '#FFF3E0' : '#E3F2FD', color: c.type_envoi === 'besoin' ? '#92400E' : '#0C447C', border: `1px solid ${c.type_envoi === 'besoin' ? '#FDBA74' : '#90CAF9'}` }}>
-                {c.type_envoi === 'besoin' ? `📌 Besoin : ${c.besoin_concerne}` : '🚀 Push'}
-              </span>
-            </div>
-            <div style={detailRow}>
-              {(c.ias_concernees ? c.ias_concernees.split(', ') : []).map(ia => (
-                <span key={ia} style={{ ...infoBadge, background: '#E8F5E9', color: '#2E7D32', border: '1px solid #A5D6A7' }}>👤 {ia}</span>
-              ))}
-            </div>
-            <button onClick={() => deleteCv(c.id)} style={btnDelete}>Supprimer</button>
-          </div>
-        ))}
-
-        {showCvForm ? (
-          <div style={formBox}>
-            <Input label="Identité du candidat" value={cvForm.identite_candidat} onChange={v => setCvForm({ ...cvForm, identite_candidat: v })} />
-            <Input label="Profil" value={cvForm.profil} onChange={v => setCvForm({ ...cvForm, profil: v })} />
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>Type d'envoi</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                {[['push', '🚀 Push'], ['besoin', '📌 Positionnement besoin']].map(([id, label]) => {
-                  const checked = cvForm.type_envoi === id
-                  return (
-                    <div key={id} onClick={() => setCvForm({ ...cvForm, type_envoi: id })}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', border: checked ? '2px solid #2E7D32' : '1px solid var(--color-border-tertiary)', background: checked ? '#E8F5E9' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
-                    >
-                      <span style={{ fontSize: 12, fontWeight: checked ? 600 : 400, color: checked ? '#2E7D32' : 'var(--color-text-primary)' }}>{label}</span>
-                    </div>
-                  )
-                })}
+          <div className="rdv-stat-row">
+            <div className="ui-counter-tile" style={{ width: 128, minHeight: 60, boxSizing: 'border-box' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Entretiens réalisés</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="ui-counter-btn" onClick={() => setNbEntretiens(Math.max(0, nbEntretiens - 1))}>−</button>
+                <span style={{ fontSize: 16, fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{nbEntretiens}</span>
+                <button className="ui-counter-btn" onClick={() => setNbEntretiens(nbEntretiens + 1)}>+</button>
               </div>
             </div>
-            {cvForm.type_envoi === 'besoin' && (
-              <Input label="Besoin concerné" value={cvForm.besoin_concerne} onChange={v => setCvForm({ ...cvForm, besoin_concerne: v })} />
-            )}
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>IAs concernées</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
-                {iaList.map(ia => {
-                  const checked = cvForm.ias_concernees.includes(ia.nom)
-                  return (
-                    <div key={ia.id} onClick={() => toggleIA(ia.nom)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', border: checked ? '2px solid #2E7D32' : '1px solid var(--color-border-tertiary)', background: checked ? '#E8F5E9' : 'var(--color-background-primary)', transition: 'all 0.15s' }}
-                    >
-                      <div style={{ width: 18, height: 18, borderRadius: 4, border: checked ? '2px solid #2E7D32' : '2px solid var(--color-border-tertiary)', background: checked ? '#2E7D32' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {checked && <span style={{ color: '#fff', fontSize: 11 }}>✓</span>}
-                      </div>
-                      <span style={{ fontSize: 12, fontWeight: checked ? 500 : 400, color: checked ? '#2E7D32' : 'var(--color-text-primary)' }}>{ia.nom}</span>
-                    </div>
-                  )
-                })}
+            <div className="rdv-stat-tile">
+              <div className="v-row"><span className="v">{nbCandidatsValides}</span></div>
+              <div className="l">Candidats validés (auto)</div>
+            </div>
+          </div>
+
+          {!rdvOk && (
+            <div style={warningBox}>
+              ⚠️ {rdvList.length}/{nbEntretiens} entretien{nbEntretiens !== 1 ? 's' : ''} détaillé{nbEntretiens !== 1 ? 's' : ''} — complète le détail ci-dessous pour valider.
+            </div>
+          )}
+
+          <div className="rdv-list-title">Détail des entretiens{rdvList.length > 0 ? ` (${rdvList.length})` : ''}</div>
+          {rdvList.length === 0 ? (
+            <div className="rdv-empty">
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Aucun entretien détaillé cette semaine</div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>Ajoutez le premier via le bouton ci-dessus.</div>
+            </div>
+          ) : rdvList.map(r => (
+            <div key={r.id} className="rdv-card2">
+              <span className="rdv-card2-bar" style={{ background: r.valide ? '#0F6E56' : '#A32D2D' }} />
+              <div className="rdv-card2-main">
+                <span className="rdv-card2-client">{r.identite_candidat}</span>
+                {r.profil && <span className="rdv-card2-pill" style={{ background: '#F3F4F6', color: '#374151' }}>{r.profil}</span>}
+                <span className="rdv-card2-pill" style={{ background: r.valide ? '#E1F5EE' : '#FCEBEB', color: r.valide ? '#085041' : '#A32D2D' }}>
+                  {r.valide ? '✅ Validé' : '❌ Non validé'}
+                </span>
+                {r.positionne_sur_besoins && <div className="rdv-card2-meta">📌 {r.positionne_sur_besoins}</div>}
+              </div>
+              <button className="rdv-card2-trash" onClick={() => deleteRdv(r.id)} title="Supprimer"><i className="ti ti-trash" aria-hidden="true" /></button>
+            </div>
+          ))}
+
+          {addRdvOpen && (
+            <div className="rdv-modal-overlay" onClick={() => setAddRdvOpen(false)}>
+              <div className="rdv-modal" onClick={e => e.stopPropagation()}>
+                <div className="ui-card-header" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div className="ui-card-icon" style={{ background: RDV_LIGHT }}><i className="ti ti-plus" style={{ color: RDV_COLOR }} aria-hidden="true" /></div>
+                    <div className="ui-card-title">Ajouter un rendez-vous</div>
+                  </div>
+                  <button className="rdv-modal-close" onClick={() => setAddRdvOpen(false)} aria-label="Fermer"><i className="ti ti-x" aria-hidden="true" /></button>
+                </div>
+
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Identité du candidat *</label>
+                  <input className="ui-input" type="text" value={rdvForm.identite_candidat} onChange={e => setRdvForm({ ...rdvForm, identite_candidat: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Profil</label>
+                  <input className="ui-input" type="text" value={rdvForm.profil} onChange={e => setRdvForm({ ...rdvForm, profil: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Positionné sur besoins</label>
+                  <input className="ui-input" type="text" value={rdvForm.positionne_sur_besoins} onChange={e => setRdvForm({ ...rdvForm, positionne_sur_besoins: e.target.value })} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <input type="checkbox" id="valide" checked={rdvForm.valide} onChange={e => setRdvForm({ ...rdvForm, valide: e.target.checked })} />
+                  <label htmlFor="valide" style={{ fontSize: 13 }}>Candidat validé</label>
+                </div>
+
+                <div className="ui-cta-row">
+                  <button className="ui-btn-primary" style={{ background: RDV_COLOR }} onClick={addRdv} disabled={!rdvForm.identite_candidat}>Ajouter</button>
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addCv} style={{ ...btnSave, background: '#2E7D32' }}>Ajouter</button>
-              <button onClick={() => setShowCvForm(false)} style={btnCancel}>Annuler</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => cvOk ? null : setShowCvForm(true)} disabled={cvOk}
-            style={{ ...btnAdd, borderColor: '#2E7D32', color: cvOk ? '#A0A0A0' : '#2E7D32', cursor: cvOk ? 'not-allowed' : 'pointer', opacity: cvOk ? 0.5 : 1 }}>
-            {cvOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter un CV proposé'}
-          </button>
-        )}
+          )}
+        </PremiumPanel>
       </div>
 
-      {/* ── BLOC 3b : Présentations ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #633806' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#FAEEDA' }}>📋</div>
-          <div>
-            <div style={blockTitle}>Présentations</div>
-            <div style={blockSub}>{presList.length} / {nbPresentations} entrée{nbPresentations !== 1 ? 's' : ''} cette semaine</div>
-          </div>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <Counter label="Présentations" value={nbPresentations} onChange={setNbPresentations} color="#633806" />
-        </div>
-        {!presOk && (
-          <div style={warningBox}>
-            ⚠️ {presList.length}/{nbPresentations} présentation{nbPresentations !== 1 ? 's' : ''} détaillée{nbPresentations !== 1 ? 's' : ''} — complète le détail ci-dessous.
-          </div>
-        )}
-        {presList.map(p => (
-          <div key={p.id} style={detailCard}>
-            <div style={detailRow}>
-              <span style={candidatName}>{p.identite_candidat}</span>
-              <span style={profilBadge}>{p.profil}</span>
-            </div>
-            <div style={detailRow}>
-              {p.date_presentation && <span style={infoBadge}>📅 {p.date_presentation}</span>}
-              {p.ia_concerne && <span style={infoBadge}>👤 {p.ia_concerne}</span>}
-            </div>
-            <button onClick={() => deletePres(p.id)} style={btnDelete}>Supprimer</button>
-          </div>
-        ))}
-        {showPresForm ? (
-          <div style={formBox}>
-            <Input label="Identité du candidat" value={presForm.identite_candidat} onChange={v => setPresForm({ ...presForm, identite_candidat: v })} />
-            <Input label="Profil" value={presForm.profil} onChange={v => setPresForm({ ...presForm, profil: v })} />
-            <Input label="IA concerné" value={presForm.ia_concerne} onChange={v => setPresForm({ ...presForm, ia_concerne: v })} />
-            <Input label="Date de présentation" type="date" value={presForm.date_presentation} onChange={v => setPresForm({ ...presForm, date_presentation: v })} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addPres} style={{ ...btnSave, background: '#633806' }}>Ajouter</button>
-              <button onClick={() => setShowPresForm(false)} style={btnCancel}>Annuler</button>
+      {/* ── CV envoyés aux IAs ── */}
+      <div style={{ marginBottom: 20 }}>
+        <PremiumPanel accent={CV_COLOR} accentLight={CV_LIGHT} accentRing={CV_RING}>
+          <PremiumSectionHeader icon="ti-send" title="CV envoyés aux IAs" action={
+            <button className="ui-add-btn" style={{ background: CV_COLOR, ...(cvOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={cvOk}
+              onClick={() => !cvOk && setAddCvOpen(true)}>
+              <i className="ti ti-plus" aria-hidden="true" /> Ajouter un CV proposé
+            </button>
+          } />
+
+          <div className="rdv-stat-row">
+            <div className="ui-counter-tile" style={{ width: 128, minHeight: 60, boxSizing: 'border-box' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)' }}>CV envoyés</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="ui-counter-btn" onClick={() => setNbCvEnvoyes(Math.max(0, nbCvEnvoyes - 1))}>−</button>
+                <span style={{ fontSize: 16, fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{nbCvEnvoyes}</span>
+                <button className="ui-counter-btn" onClick={() => setNbCvEnvoyes(nbCvEnvoyes + 1)}>+</button>
+              </div>
             </div>
           </div>
-        ) : (
-          <button onClick={() => presOk ? null : setShowPresForm(true)} disabled={presOk}
-            style={{ ...btnAdd, borderColor: '#633806', color: presOk ? '#A0A0A0' : '#633806', cursor: presOk ? 'not-allowed' : 'pointer', opacity: presOk ? 0.5 : 1 }}>
-            {presOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter une présentation'}
-          </button>
-        )}
+
+          {!cvOk && (
+            <div style={warningBox}>
+              ⚠️ {cvList.length}/{nbCvEnvoyes} CV détaillé{nbCvEnvoyes !== 1 ? 's' : ''} — complète le détail ci-dessous.
+            </div>
+          )}
+
+          <div className="rdv-list-title">Détail des CV{cvList.length > 0 ? ` (${cvList.length})` : ''}</div>
+          {cvList.length === 0 ? (
+            <div className="rdv-empty">
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Aucun CV détaillé cette semaine</div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>Ajoutez le premier via le bouton ci-dessus.</div>
+            </div>
+          ) : cvList.map(c => (
+            <div key={c.id} className="rdv-card2">
+              <span className="rdv-card2-bar" style={{ background: c.type_envoi === 'besoin' ? '#92400E' : '#0C447C' }} />
+              <div className="rdv-card2-main">
+                <span className="rdv-card2-client">{c.identite_candidat}</span>
+                {c.profil && <span className="rdv-card2-pill" style={{ background: '#F3F4F6', color: '#374151' }}>{c.profil}</span>}
+                <span className="rdv-card2-pill" style={{ background: c.type_envoi === 'besoin' ? '#FFF3E0' : '#E3F2FD', color: c.type_envoi === 'besoin' ? '#92400E' : '#0C447C' }}>
+                  {c.type_envoi === 'besoin' ? `📌 Besoin : ${c.besoin_concerne}` : '🚀 Push'}
+                </span>
+                <div className="rdv-card2-meta">
+                  {(c.ias_concernees ? c.ias_concernees.split(', ') : []).map(ia => `👤 ${ia}`).join('  ·  ')}
+                </div>
+              </div>
+              <button className="rdv-card2-trash" onClick={() => deleteCv(c.id)} title="Supprimer"><i className="ti ti-trash" aria-hidden="true" /></button>
+            </div>
+          ))}
+
+          {addCvOpen && (
+            <div className="rdv-modal-overlay" onClick={() => setAddCvOpen(false)}>
+              <div className="rdv-modal" onClick={e => e.stopPropagation()}>
+                <div className="ui-card-header" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div className="ui-card-icon" style={{ background: CV_LIGHT }}><i className="ti ti-plus" style={{ color: CV_COLOR }} aria-hidden="true" /></div>
+                    <div className="ui-card-title">Ajouter un CV proposé</div>
+                  </div>
+                  <button className="rdv-modal-close" onClick={() => setAddCvOpen(false)} aria-label="Fermer"><i className="ti ti-x" aria-hidden="true" /></button>
+                </div>
+
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Identité du candidat *</label>
+                  <input className="ui-input" type="text" value={cvForm.identite_candidat} onChange={e => setCvForm({ ...cvForm, identite_candidat: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Profil</label>
+                  <input className="ui-input" type="text" value={cvForm.profil} onChange={e => setCvForm({ ...cvForm, profil: e.target.value })} />
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Type d'envoi</label>
+                  <div className="ui-toggle-row">
+                    {[['push', '🚀 Push'], ['besoin', '📌 Positionnement besoin']].map(([id, label]) => {
+                      const checked = cvForm.type_envoi === id
+                      return (
+                        <div key={id} className={`ui-toggle-item${checked ? ' checked' : ''}`} onClick={() => setCvForm({ ...cvForm, type_envoi: id })}>
+                          {label}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {cvForm.type_envoi === 'besoin' && (
+                  <div className="ui-field" style={{ marginBottom: 12 }}>
+                    <label className="ui-field-label">Besoin concerné</label>
+                    <input className="ui-input" type="text" value={cvForm.besoin_concerne} onChange={e => setCvForm({ ...cvForm, besoin_concerne: e.target.value })} />
+                  </div>
+                )}
+
+                <div style={{ marginBottom: 14 }}>
+                  <label className="ui-field-label">IAs concernées</label>
+                  {/* iaList est déjà cloisonnée par entite (cf. useEffect plus haut) : une CR de l'espace
+                      INFRA ne voit ici que les commerciaux d'Anthony, jamais ceux de la BU de Sandra. */}
+                  <div className="ui-check-grid">
+                    {iaList.map(ia => {
+                      const checked = cvForm.ias_concernees.includes(ia.nom)
+                      return (
+                        <div key={ia.id} className={`ui-check-item${checked ? ' checked' : ''}`} onClick={() => toggleIA(ia.nom)}>
+                          <div className={`ui-check-box${checked ? ' checked' : ''}`}>{checked && '✓'}</div>
+                          <span className={`ui-check-label${checked ? ' checked' : ''}`}>{ia.nom}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="ui-cta-row">
+                  <button className="ui-btn-primary" style={{ background: CV_COLOR }} onClick={addCv} disabled={!cvForm.identite_candidat || cvForm.ias_concernees.length === 0}>Ajouter</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </PremiumPanel>
       </div>
 
-      {/* ── BLOC 3c : Signatures ── */}
-      <div style={{ ...blockCard, borderTop: '4px solid #72243E' }}>
-        <div style={blockHeader}>
-          <div style={{ ...blockIcon, background: '#FBEAF0' }}>✍️</div>
-          <div>
-            <div style={blockTitle}>Signatures</div>
-            <div style={blockSub}>{sigList.length} / {nbSignatures} entrée{nbSignatures !== 1 ? 's' : ''} cette semaine</div>
-          </div>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <Counter label="Signatures" value={nbSignatures} onChange={setNbSignatures} color="#72243E" />
-        </div>
-        {!sigOk && (
-          <div style={warningBox}>
-            ⚠️ {sigList.length}/{nbSignatures} signature{nbSignatures !== 1 ? 's' : ''} détaillée{nbSignatures !== 1 ? 's' : ''} — complète le détail ci-dessous.
-          </div>
-        )}
-        {sigList.map(s => (
-          <div key={s.id} style={detailCard}>
-            <div style={detailRow}>
-              <span style={candidatName}>{s.identite_candidat}</span>
-              <span style={profilBadge}>{s.profil}</span>
-            </div>
-            <div style={detailRow}>
-              {s.salaire_envisage && <span style={infoBadge}>💰 {s.salaire_envisage}</span>}
-              {s.date_signature && <span style={infoBadge}>📅 {s.date_signature}</span>}
-            </div>
-            <button onClick={() => deleteSig(s.id)} style={btnDelete}>Supprimer</button>
-          </div>
-        ))}
-        {showSigForm ? (
-          <div style={formBox}>
-            <Input label="Identité du candidat" value={sigForm.identite_candidat} onChange={v => setSigForm({ ...sigForm, identite_candidat: v })} />
-            <Input label="Profil" value={sigForm.profil} onChange={v => setSigForm({ ...sigForm, profil: v })} />
-            <Input label="Salaire envisagé" value={sigForm.salaire_envisage} onChange={v => setSigForm({ ...sigForm, salaire_envisage: v })} />
-            <Input label="Date de signature" type="date" value={sigForm.date_signature} onChange={v => setSigForm({ ...sigForm, date_signature: v })} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={addSig} style={{ ...btnSave, background: '#72243E' }}>Ajouter</button>
-              <button onClick={() => setShowSigForm(false)} style={btnCancel}>Annuler</button>
+      {/* ── Présentations ── */}
+      <div style={{ marginBottom: 20 }}>
+        <PremiumPanel accent={PRES_COLOR} accentLight={PRES_LIGHT} accentRing={PRES_RING}>
+          <PremiumSectionHeader icon="ti-clipboard-list" title="Présentations" action={
+            <button className="ui-add-btn" style={{ background: PRES_COLOR, ...(presOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={presOk}
+              onClick={() => !presOk && setAddPresOpen(true)}>
+              <i className="ti ti-plus" aria-hidden="true" /> Ajouter une présentation
+            </button>
+          } />
+
+          <div className="rdv-stat-row">
+            <div className="ui-counter-tile" style={{ width: 128, minHeight: 60, boxSizing: 'border-box' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Présentations</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="ui-counter-btn" onClick={() => setNbPresentations(Math.max(0, nbPresentations - 1))}>−</button>
+                <span style={{ fontSize: 16, fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{nbPresentations}</span>
+                <button className="ui-counter-btn" onClick={() => setNbPresentations(nbPresentations + 1)}>+</button>
+              </div>
             </div>
           </div>
-        ) : (
-          <button onClick={() => sigOk ? null : setShowSigForm(true)} disabled={sigOk}
-            style={{ ...btnAdd, borderColor: '#72243E', color: sigOk ? '#A0A0A0' : '#72243E', cursor: sigOk ? 'not-allowed' : 'pointer', opacity: sigOk ? 0.5 : 1 }}>
-            {sigOk ? '✓ Détail complet — augmente le compteur pour en ajouter' : '+ Ajouter une signature'}
-          </button>
-        )}
+
+          {!presOk && (
+            <div style={warningBox}>
+              ⚠️ {presList.length}/{nbPresentations} présentation{nbPresentations !== 1 ? 's' : ''} détaillée{nbPresentations !== 1 ? 's' : ''} — complète le détail ci-dessous.
+            </div>
+          )}
+
+          <div className="rdv-list-title">Détail des présentations{presList.length > 0 ? ` (${presList.length})` : ''}</div>
+          {presList.length === 0 ? (
+            <div className="rdv-empty">
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Aucune présentation détaillée cette semaine</div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>Ajoutez la première via le bouton ci-dessus.</div>
+            </div>
+          ) : presList.map(p => (
+            <div key={p.id} className="rdv-card2">
+              <span className="rdv-card2-bar" style={{ background: PRES_COLOR }} />
+              <div className="rdv-card2-main">
+                <span className="rdv-card2-client">{p.identite_candidat}</span>
+                {p.profil && <span className="rdv-card2-pill" style={{ background: '#F3F4F6', color: '#374151' }}>{p.profil}</span>}
+                <div className="rdv-card2-meta">
+                  {p.date_presentation && `📅 ${p.date_presentation}`}
+                  {p.date_presentation && p.ia_concerne ? '  ·  ' : ''}
+                  {p.ia_concerne && `👤 ${p.ia_concerne}`}
+                </div>
+              </div>
+              <button className="rdv-card2-trash" onClick={() => deletePres(p.id)} title="Supprimer"><i className="ti ti-trash" aria-hidden="true" /></button>
+            </div>
+          ))}
+
+          {addPresOpen && (
+            <div className="rdv-modal-overlay" onClick={() => setAddPresOpen(false)}>
+              <div className="rdv-modal" onClick={e => e.stopPropagation()}>
+                <div className="ui-card-header" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div className="ui-card-icon" style={{ background: PRES_LIGHT }}><i className="ti ti-plus" style={{ color: PRES_COLOR }} aria-hidden="true" /></div>
+                    <div className="ui-card-title">Ajouter une présentation</div>
+                  </div>
+                  <button className="rdv-modal-close" onClick={() => setAddPresOpen(false)} aria-label="Fermer"><i className="ti ti-x" aria-hidden="true" /></button>
+                </div>
+
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Identité du candidat *</label>
+                  <input className="ui-input" type="text" value={presForm.identite_candidat} onChange={e => setPresForm({ ...presForm, identite_candidat: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Profil</label>
+                  <input className="ui-input" type="text" value={presForm.profil} onChange={e => setPresForm({ ...presForm, profil: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">IA concerné</label>
+                  <input className="ui-input" type="text" value={presForm.ia_concerne} onChange={e => setPresForm({ ...presForm, ia_concerne: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 14 }}>
+                  <label className="ui-field-label">Date de présentation</label>
+                  <input className="ui-input" type="date" value={presForm.date_presentation} onChange={e => setPresForm({ ...presForm, date_presentation: e.target.value })} />
+                </div>
+
+                <div className="ui-cta-row">
+                  <button className="ui-btn-primary" style={{ background: PRES_COLOR }} onClick={addPres} disabled={!presForm.identite_candidat}>Ajouter</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </PremiumPanel>
+      </div>
+
+      {/* ── Signatures ── */}
+      <div>
+        <PremiumPanel accent={SIG_COLOR} accentLight={SIG_LIGHT} accentRing={SIG_RING}>
+          <PremiumSectionHeader icon="ti-signature" title="Signatures" action={
+            <button className="ui-add-btn" style={{ background: SIG_COLOR, ...(sigOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }} disabled={sigOk}
+              onClick={() => !sigOk && setAddSigOpen(true)}>
+              <i className="ti ti-plus" aria-hidden="true" /> Ajouter une signature
+            </button>
+          } />
+
+          <div className="rdv-stat-row">
+            <div className="ui-counter-tile" style={{ width: 128, minHeight: 60, boxSizing: 'border-box' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)' }}>Signatures</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="ui-counter-btn" onClick={() => setNbSignatures(Math.max(0, nbSignatures - 1))}>−</button>
+                <span style={{ fontSize: 16, fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{nbSignatures}</span>
+                <button className="ui-counter-btn" onClick={() => setNbSignatures(nbSignatures + 1)}>+</button>
+              </div>
+            </div>
+          </div>
+
+          {!sigOk && (
+            <div style={warningBox}>
+              ⚠️ {sigList.length}/{nbSignatures} signature{nbSignatures !== 1 ? 's' : ''} détaillée{nbSignatures !== 1 ? 's' : ''} — complète le détail ci-dessous.
+            </div>
+          )}
+
+          <div className="rdv-list-title">Détail des signatures{sigList.length > 0 ? ` (${sigList.length})` : ''}</div>
+          {sigList.length === 0 ? (
+            <div className="rdv-empty">
+              <div style={{ fontSize: 13, fontWeight: 600 }}>Aucune signature détaillée cette semaine</div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>Ajoutez la première via le bouton ci-dessus.</div>
+            </div>
+          ) : sigList.map(s => (
+            <div key={s.id} className="rdv-card2">
+              <span className="rdv-card2-bar" style={{ background: SIG_COLOR }} />
+              <div className="rdv-card2-main">
+                <span className="rdv-card2-client">{s.identite_candidat}</span>
+                {s.profil && <span className="rdv-card2-pill" style={{ background: '#F3F4F6', color: '#374151' }}>{s.profil}</span>}
+                <div className="rdv-card2-meta">
+                  {s.salaire_envisage && `💰 ${s.salaire_envisage}`}
+                  {s.salaire_envisage && s.date_signature ? '  ·  ' : ''}
+                  {s.date_signature && `📅 ${s.date_signature}`}
+                </div>
+              </div>
+              <button className="rdv-card2-trash" onClick={() => deleteSig(s.id)} title="Supprimer"><i className="ti ti-trash" aria-hidden="true" /></button>
+            </div>
+          ))}
+
+          {addSigOpen && (
+            <div className="rdv-modal-overlay" onClick={() => setAddSigOpen(false)}>
+              <div className="rdv-modal" onClick={e => e.stopPropagation()}>
+                <div className="ui-card-header" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div className="ui-card-icon" style={{ background: SIG_LIGHT }}><i className="ti ti-plus" style={{ color: SIG_COLOR }} aria-hidden="true" /></div>
+                    <div className="ui-card-title">Ajouter une signature</div>
+                  </div>
+                  <button className="rdv-modal-close" onClick={() => setAddSigOpen(false)} aria-label="Fermer"><i className="ti ti-x" aria-hidden="true" /></button>
+                </div>
+
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Identité du candidat *</label>
+                  <input className="ui-input" type="text" value={sigForm.identite_candidat} onChange={e => setSigForm({ ...sigForm, identite_candidat: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Profil</label>
+                  <input className="ui-input" type="text" value={sigForm.profil} onChange={e => setSigForm({ ...sigForm, profil: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 12 }}>
+                  <label className="ui-field-label">Salaire envisagé</label>
+                  <input className="ui-input" type="text" value={sigForm.salaire_envisage} onChange={e => setSigForm({ ...sigForm, salaire_envisage: e.target.value })} />
+                </div>
+                <div className="ui-field" style={{ marginBottom: 14 }}>
+                  <label className="ui-field-label">Date de signature</label>
+                  <input className="ui-input" type="date" value={sigForm.date_signature} onChange={e => setSigForm({ ...sigForm, date_signature: e.target.value })} />
+                </div>
+
+                <div className="ui-cta-row">
+                  <button className="ui-btn-primary" style={{ background: SIG_COLOR }} onClick={addSig} disabled={!sigForm.identite_candidat}>Ajouter</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </PremiumPanel>
       </div>
 
     </div>
   )
 }
 
-function Counter({ label, value, onChange, color }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <button onClick={() => onChange(Math.max(0, value - 1))} style={{ ...btnCounter, borderColor: color }}>−</button>
-        <span style={{ fontSize: 22, fontWeight: 700, minWidth: 32, textAlign: 'center', color }}>{value}</span>
-        <button onClick={() => onChange(value + 1)} style={{ ...btnCounter, borderColor: color }}>+</button>
-      </div>
-    </div>
-  )
-}
-
-function Input({ label, value, onChange, type = 'text' }) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 4 }}>{label}</div>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
-    </div>
-  )
-}
-
-const blockCard = { background: 'var(--color-background-primary)', borderRadius: 14, padding: '20px', marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }
-const blockHeader = { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }
-const blockIcon = { width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }
-const blockTitle = { fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)' }
-const blockSub = { fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }
-const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 4 }
-const detailCard = { background: 'var(--color-background-secondary)', borderRadius: 10, padding: '12px 14px', marginBottom: 8, fontSize: 13 }
-const detailRow = { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }
-const candidatName = { fontWeight: 600, fontSize: 13 }
-const profilBadge = { fontSize: 12, color: 'var(--color-text-secondary)', background: 'var(--color-background-primary)', padding: '2px 8px', borderRadius: 6, border: '1px solid var(--color-border-tertiary)' }
-const statusBadge = { borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 500 }
-const infoBadge = { background: 'var(--color-background-primary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 6, padding: '2px 8px', fontSize: 11 }
-const formBox = { background: 'var(--color-background-secondary)', borderRadius: 10, padding: '16px', marginBottom: 8, marginTop: 8 }
 const warningBox = { background: '#FEF3C7', color: '#92400E', borderRadius: 8, padding: '10px 14px', fontSize: 12, marginBottom: 16, fontWeight: 500 }
-const btnSave = { padding: '10px 18px', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }
-const btnCancel = { padding: '10px 18px', background: 'none', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }
-const btnAdd = { width: '100%', padding: '10px', background: 'none', border: '1px dashed', borderRadius: 8, fontSize: 13, cursor: 'pointer', marginTop: 4, fontWeight: 500 }
-const btnDelete = { marginTop: 6, padding: '4px 10px', background: 'none', border: '1px solid #f5c6c6', borderRadius: 6, fontSize: 11, color: '#A32D2D', cursor: 'pointer' }
-const btnCounter = { width: 28, height: 28, borderRadius: '50%', border: '1px solid', background: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const btnNav = { padding: '8px 14px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-tertiary)', borderRadius: 10, cursor: 'pointer', fontSize: 14 }
