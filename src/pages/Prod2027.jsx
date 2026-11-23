@@ -146,6 +146,21 @@ export default function Prod2027() {
     setSaving(false)
   }
 
+  const deleteCollaborateur = async () => {
+    if (!managingRow?.collaborateur_id) return
+    const nomComplet = `${form.nom} ${form.prenom}`.trim()
+    if (!window.confirm(`Supprimer définitivement ${nomComplet} et tout son historique de statuts ? Cette action est irréversible.`)) return
+    setSaving(true); setSaveMsg('')
+    try {
+      const { error: delPeriodesErr } = await supabase.from('periodes').delete().eq('collaborateur_id', managingRow.collaborateur_id)
+      if (delPeriodesErr) throw delPeriodesErr
+      const { error: delCollabErr } = await supabase.from('collaborateurs').delete().eq('id', managingRow.collaborateur_id)
+      if (delCollabErr) throw delCollabErr
+      await loadPeriodes(refDate); closeModal()
+    } catch (e) { setSaveMsg(`Erreur : ${e.message}`) }
+    setSaving(false)
+  }
+
   return (
     <div style={{ width: '100%', minHeight: '100%', background: BG_PAGE, padding: '28px 36px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto' }}>
@@ -390,14 +405,22 @@ export default function Prod2027() {
 
             {saveMsg && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '9px 12px', borderRadius: 9, marginBottom: 14, fontSize: 13 }}>{saveMsg}</div>}
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={closeModal} style={{ padding: '10px 18px', background: '#fff', color: TEXT_SECONDARY, border: '1px solid ' + BORDER, borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>
-                Annuler
-              </button>
-              <button onClick={save} disabled={!canSave || saving}
-                style={{ padding: '10px 18px', background: canSave ? ACCENT : '#D9D6D0', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: canSave ? 'pointer' : 'default' }}>
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
+            <div style={{ display: 'flex', gap: 10, justifyContent: form.isNew ? 'flex-end' : 'space-between', alignItems: 'center' }}>
+              {!form.isNew && (
+                <button onClick={deleteCollaborateur} disabled={saving}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#A32D2D', border: '1px solid #F3C9C9', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+                  <i className="ti ti-trash" aria-hidden="true"></i> Supprimer ce collaborateur
+                </button>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={closeModal} style={{ padding: '10px 18px', background: '#fff', color: TEXT_SECONDARY, border: '1px solid ' + BORDER, borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>
+                  Annuler
+                </button>
+                <button onClick={save} disabled={!canSave || saving}
+                  style={{ padding: '10px 18px', background: canSave ? ACCENT : '#D9D6D0', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: canSave ? 'pointer' : 'default' }}>
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
