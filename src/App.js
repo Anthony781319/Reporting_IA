@@ -21,19 +21,11 @@ import './App.css'
 const ADMIN_PASSWORD = 'go'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
-// Accès manager restreint : Romain gère Luxhana, Virginie, Andrea et Laila en plus de sa propre saisie.
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
 const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Laila', 'Romain']
-// Accès manager Stéphane : accès complet comme Anthony (Dashboard, Bilan équipe, Ma saisie, Year to
-// Date, 1:1), mais Year to Date et 1:1 restent limités à son équipe.
 const STEPHANE_MANAGER_PASSWORD = 'Stéphane'
 const STEPHANE_TEAM = ['Antoine', 'Nassim', 'Karim', 'Sarah', 'Stéphane']
-// Accès à la base de contacts (répertoire clients/prospects issu des saisies des IA).
 const CONTACTS_PASSWORD = 'crm'
-// Accès manager dédié à l'entité de Sandra ("SOL (AS)") : équipe totalement étanche de celle d'Anthony
-// (IA + CR propres, avec entite='sandra' sur leurs lignes de la table ia), accès via un mot de passe
-// dédié comme Romain, mais avec le panneau Recrutement visible (contrairement à Romain) puisque Sandra
-// gère aussi ses propres CR.
 const SANDRA_PASSWORD = 'attoun'
 const SANDRA_ENTITE = 'sandra'
 const SANDRA_LABEL = 'SOL (AS)'
@@ -51,22 +43,16 @@ export default function App() {
   const [isSandraManager, setIsSandraManager] = useState(false)
   const [isStephaneManager, setIsStephaneManager] = useState(false)
   const [isChallengeItc, setIsChallengeItc] = useState(false)
-  // Accès direct au Dashboard du Challenge ITC (voir Login.jsx, portail "challenge-itc-dashboard") :
-  // ChallengeItc s'ouvre alors avec son onglet Dashboard déjà sélectionné et déverrouillé, le mot de
-  // passe ayant déjà été vérifié ici au moment de la connexion.
   const [challengeDashboardDirect, setChallengeDashboardDirect] = useState(false)
   const [isIntercontrats, setIsIntercontrats] = useState(false)
+  const [isProd2027, setIsProd2027] = useState(false)
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false); setIsChallengeItc(false); setChallengeDashboardDirect(false); setIsIntercontrats(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false); setIsChallengeItc(false); setChallengeDashboardDirect(false); setIsIntercontrats(false); setIsProd2027(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
-    // Les tuiles manager (RH, Commerce/Admin, Romain, Contacts, Sandra) sont marquées par un
-    // initialTab dédié : si la tuile correspond mais le mot de passe est faux, on retourne false
-    // immédiatement au lieu de laisser retomber sur la règle générique en bas (ia.nom === mot de
-    // passe), qui connecterait sinon silencieusement la personne en simple IA sans son rôle manager.
     if (ia.nom === 'RH' && initialTab === 'manager-rh') {
       if (password !== RH_PASSWORD) return false
       resetRoles(); setUser(ia); setIsRH(true); setTab('dashboard-rh'); return true
@@ -77,23 +63,19 @@ export default function App() {
     if (ia.nom === 'P1 of the week' && password === P1_PASSWORD) {
       resetRoles(); setUser(ia); setIsP1(true); setTab('p1'); return true
     }
-    // Portail "Challenge ITC" : pas de mot de passe, juste une sélection de prénom (voir Login.jsx) —
-    // léger exprès pour ne pas freiner la saisie pendant le challenge.
     if (initialTab === 'challenge-itc') {
       resetRoles(); setUser(ia); setIsChallengeItc(true); setTab('challenge-itc'); return true
     }
-    // Accès direct au Dashboard du Challenge ITC depuis le menu INFRA (voir Login.jsx), sans passer par
-    // la sélection de prénom — même mot de passe que Admin (demande d'Antho : "le dashboard je le veux
-    // là"). ChallengeItc s'ouvre avec son onglet Dashboard déjà déverrouillé.
     if (initialTab === 'challenge-itc-dashboard') {
       if (password !== ADMIN_PASSWORD) return false
       resetRoles(); setUser(ia); setIsChallengeItc(true); setChallengeDashboardDirect(true); setTab('challenge-itc'); return true
     }
-    // Portail public "Intercontrats disponibles" : accès direct depuis l'écran INFRA, sans même
-    // sélectionner un prénom (lecture seule pour les commerciaux — seul Anthony via Admin peut changer
-    // un statut) — voir Login.jsx.
     if (initialTab === 'intercontrats') {
       resetRoles(); setUser(ia); setIsIntercontrats(true); setTab('intercontrats'); return true
+    }
+    if (ia.nom === 'Anthony' && initialTab === 'prod-2027') {
+      if (password !== ADMIN_PASSWORD) return false
+      resetRoles(); setUser(ia); setIsProd2027(true); setTab('prod-2027'); return true
     }
     if (ia.nom === 'Anthony' && (initialTab === 'admin' || initialTab === 'manager-commerce')) {
       if (password !== ADMIN_PASSWORD) return false
@@ -138,14 +120,14 @@ export default function App() {
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
     { id: 'ytd',               icon: 'ti-chart-bar',      label: 'Year to Date' },
     { id: 'entretiens',        icon: 'ti-messages',       label: '1:1' },
-    { id: 'prod-2027',         icon: 'ti-users',          label: 'Prod 2027' },
   ]
   const teamManagerTabs = [
     { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
     { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
     { id: 'saisie',            icon: 'ti-edit',           label: 'Ma saisie' },
   ]
-  const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }, { id: 'prod-2027', icon: 'ti-users', label: 'Prod 2027' }]
+  const adminOnlyTabs = [{ id: 'admin', icon: 'ti-settings', label: 'Admin' }]
+  const prod2027Tabs = [{ id: 'prod-2027', icon: 'ti-users', label: 'Prod 2027' }]
   const userTabs = [{ id: 'saisie', icon: 'ti-edit', label: 'Ma saisie' }]
   const p1Tabs   = [{ id: 'p1',           icon: 'ti-target',    label: 'P1 of the week' }]
   const crTabs   = [{ id: 'saisie-cr',    icon: 'ti-edit',      label: 'Mon reporting' }]
@@ -163,9 +145,8 @@ export default function App() {
     { id: 'admin-sol',         icon: 'ti-settings',       label: 'Équipe' },
   ]
 
-  const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : isChallengeItc ? challengeItcTabs : isIntercontrats ? intercontratsTabs : userTabs
+  const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isProd2027 ? prod2027Tabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : isChallengeItc ? challengeItcTabs : isIntercontrats ? intercontratsTabs : userTabs
 
-  // Scope (liste de membres) à appliquer à Year to Date et 1:1 pour un manager restreint à son équipe.
   const managerScope = isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null
 
   const getAvatar = () => {
@@ -178,6 +159,7 @@ export default function App() {
     if (isSandraManager) return 'Dashboard SOL (AS)'
     if (isManager) return 'Reporting IA'
     if (isAdminOnly) return 'Admin'
+    if (isProd2027) return 'Prod 2027'
     if (isP1) return 'P1 of the week'
     if (isCR || isRH) return 'Espace Recrutement'
     if (isContacts) return 'Base Contacts'
