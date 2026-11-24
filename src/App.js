@@ -12,7 +12,6 @@ import BilanEquipe from './pages/BilanEquipe'
 import Contacts from './pages/Contacts'
 import Classement from './pages/Classement'
 import ProspectionSaisie from './pages/ProspectionSaisie'
-import AdminEntite from './pages/AdminEntite'
 import ChallengeItc from './pages/ChallengeItc'
 import Intercontrats from './pages/Intercontrats'
 import Prod2027 from './pages/Prod2027'
@@ -27,9 +26,6 @@ const ROMAIN_TEAM = ['Luxhana', 'Virginie', 'Andrea', 'Laila', 'Romain']
 const STEPHANE_MANAGER_PASSWORD = 'Stéphane'
 const STEPHANE_TEAM = ['Antoine', 'Nassim', 'Karim', 'Sarah', 'Stéphane']
 const CONTACTS_PASSWORD = 'crm'
-const SANDRA_PASSWORD = 'attoun'
-const SANDRA_ENTITE = 'sandra'
-const SANDRA_LABEL = 'SOL (AS)'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -41,7 +37,6 @@ export default function App() {
   const [isRH, setIsRH] = useState(false)
   const [isContacts, setIsContacts] = useState(false)
   const [isProspection, setIsProspection] = useState(false)
-  const [isSandraManager, setIsSandraManager] = useState(false)
   const [isStephaneManager, setIsStephaneManager] = useState(false)
   const [isChallengeItc, setIsChallengeItc] = useState(false)
   const [challengeDashboardDirect, setChallengeDashboardDirect] = useState(false)
@@ -50,7 +45,7 @@ export default function App() {
   const [tab, setTab] = useState('saisie')
 
    const resetRoles = () => {
-    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsSandraManager(false); setIsStephaneManager(false); setIsChallengeItc(false); setChallengeDashboardDirect(false); setIsIntercontrats(false); setIsProd2027(false)
+    setIsManager(false); setIsTeamManager(false); setIsAdminOnly(false); setIsP1(false); setIsCR(false); setIsRH(false); setIsContacts(false); setIsProspection(false); setIsStephaneManager(false); setIsChallengeItc(false); setChallengeDashboardDirect(false); setIsIntercontrats(false); setIsProd2027(false)
   }
 
   const handleLogin = (ia, password, initialTab) => {
@@ -98,10 +93,6 @@ export default function App() {
       if (password !== CONTACTS_PASSWORD) return false
       resetRoles(); setUser(ia); setIsContacts(true); setTab('contacts'); return true
     }
-    if (ia.nom === 'Sandra' && initialTab === 'manager-sandra') {
-      if (password !== SANDRA_PASSWORD) return false
-      resetRoles(); setUser(ia); setIsSandraManager(true); setTab('dashboard-manager'); return true
-    }
     if (initialTab === 'prospection' && password.toLowerCase() === ia.nom.toLowerCase()) {
       resetRoles(); setUser(ia); setIsProspection(true); setTab('prospection-saisie'); return true
     }
@@ -140,13 +131,8 @@ export default function App() {
   ]
   const challengeItcTabs = [{ id: 'challenge-itc', icon: 'ti-rocket', label: 'Challenge ITC' }]
   const intercontratsTabs = [{ id: 'intercontrats', icon: 'ti-list-details', label: 'Intercontrats' }]
-  const sandraManagerTabs = [
-    { id: 'dashboard-manager', icon: 'ti-layout-columns', label: 'Dashboard' },
-    { id: 'bilan-equipe',      icon: 'ti-chart-bar',      label: 'Bilan équipe' },
-    { id: 'admin-sol',         icon: 'ti-settings',       label: 'Équipe' },
-  ]
 
-  const tabs = isTeamManager ? teamManagerTabs : isSandraManager ? sandraManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isProd2027 ? prod2027Tabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : isChallengeItc ? challengeItcTabs : isIntercontrats ? intercontratsTabs : userTabs
+  const tabs = isTeamManager ? teamManagerTabs : isManager ? managerTabs : isAdminOnly ? adminOnlyTabs : isProd2027 ? prod2027Tabs : isP1 ? p1Tabs : isCR ? crTabs : isRH ? rhTabs : isContacts ? contactsTabs : isProspection ? prospectionTabs : isChallengeItc ? challengeItcTabs : isIntercontrats ? intercontratsTabs : userTabs
 
   const managerScope = isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null
 
@@ -157,7 +143,6 @@ export default function App() {
   }
 
   const getTitle = () => {
-    if (isSandraManager) return 'Dashboard SOL (AS)'
     if (isManager) return 'Reporting IA'
     if (isAdminOnly) return 'Admin'
     if (isProd2027) return 'Prod 2027'
@@ -199,12 +184,11 @@ export default function App() {
       )}
 
       <div className="content">
-        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : isStephaneManager ? { label: user.nom, members: STEPHANE_TEAM } : isSandraManager ? { label: SANDRA_LABEL, entite: SANDRA_ENTITE, showRecrutement: true } : null} />}
-        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null} scopeEntite={isSandraManager ? SANDRA_ENTITE : null} />}
+        {tab === 'dashboard-manager' && <DashboardManager restrictedScope={isTeamManager ? { label: user.nom, members: ROMAIN_TEAM } : isStephaneManager ? { label: user.nom, members: STEPHANE_TEAM } : null} />}
+        {tab === 'bilan-equipe'      && <BilanEquipe scopeMembers={isTeamManager ? ROMAIN_TEAM : isStephaneManager ? STEPHANE_TEAM : null} />}
         {tab === 'saisie'            && <Saisie iaId={user.id} iaName={user.nom} />}
         {tab === 'ytd'               && <Dashboard ytdOnly={true} scopeMembers={managerScope} />}
         {tab === 'admin'             && <Admin onSelectIA={(id, nom) => {}} selectedIaId={user.id} />}
-        {tab === 'admin-sol'         && <AdminEntite entite={SANDRA_ENTITE} entiteLabel={SANDRA_LABEL} />}
         {tab === 'p1'                && <P1Page />}
         {tab === 'saisie-cr'         && <SaisieCR crNom={user.nom} entite={user.entite} />}
         {tab === 'dashboard-rh'      && <DashboardRH />}
