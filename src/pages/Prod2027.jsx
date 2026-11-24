@@ -117,10 +117,12 @@ export default function Prod2027() {
   const loadDemarrages = async (date, seuilJours) => {
     setLoadingDemarrages(true)
     const dateLimite = addDaysISO(date, seuilJours)
+    // Un "démarrage" ne concerne que la Prod et la Prod forfait -- !inner sur statuts pour pouvoir filtrer dessus
     const { data, error } = await supabase.from('periodes')
-      .select('*, collaborateur:collaborateurs(id,nom,prenom,type_contrat), statut:statuts(id,nom,categorie,date_fin_obligatoire), manager:managers(id,nom), client:clients(id,nom)')
+      .select('*, collaborateur:collaborateurs(id,nom,prenom,type_contrat), statut:statuts!inner(id,nom,categorie,date_fin_obligatoire), manager:managers(id,nom), client:clients(id,nom)')
       .gt('date_debut', date)
       .lte('date_debut', dateLimite)
+      .in('statut.categorie', ['Prod', 'Prod forfait'])
       .order('date_debut', { ascending: true })
     if (!error) setDemarragesPrevus(data || [])
     setLoadingDemarrages(false)
@@ -938,7 +940,7 @@ export default function Prod2027() {
               <button onClick={() => setShowDemarragesModal(false)} style={{ background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
             </div>
             <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 20 }}>
-              Périodes déjà enregistrées qui commencent dans les {alerteSeuil} prochains jours (pas encore actives). Clique sur une ligne pour la vérifier ou l'ajuster.
+              Périodes de Prod ou Prod forfait déjà enregistrées, qui commencent dans les {alerteSeuil} prochains jours (pas encore actives). Clique sur une ligne pour la vérifier ou l'ajuster.
             </div>
 
             {loadingDemarrages ? (
