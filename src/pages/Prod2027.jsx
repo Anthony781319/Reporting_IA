@@ -55,6 +55,9 @@ export default function Prod2027() {
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [creatingClient, setCreatingClient] = useState(false)
+  const [historiqueFor, setHistoriqueFor] = useState(null)
+  const [historiquePeriodes, setHistoriquePeriodes] = useState([])
+  const [loadingHistorique, setLoadingHistorique] = useState(false)
 
   const loadRefData = async () => {
     const [{ data: s }, { data: m }, { data: c }] = await Promise.all([
@@ -125,6 +128,19 @@ export default function Prod2027() {
 
   const toggleCategorie = (cat) => setSelectedCategorie(prev => (prev === cat ? null : cat))
   const toggleAlertesOnly = () => setShowAlertesOnly(prev => !prev)
+
+  const openHistorique = async (row) => {
+    setHistoriqueFor({ collaborateur_id: row.collaborateur_id, nom: row.collaborateur?.nom || '', prenom: row.collaborateur?.prenom || '' })
+    setHistoriquePeriodes([]); setLoadingHistorique(true)
+    const { data, error } = await supabase.from('periodes')
+      .select('*, collaborateur:collaborateurs(id,nom,prenom,type_contrat), statut:statuts(id,nom,categorie,date_fin_obligatoire), manager:managers(id,nom), client:clients(id,nom)')
+      .eq('collaborateur_id', row.collaborateur_id)
+      .order('date_debut', { ascending: false })
+    if (!error) setHistoriquePeriodes(data || [])
+    setLoadingHistorique(false)
+  }
+  const closeHistorique = () => { setHistoriqueFor(null); setHistoriquePeriodes([]) }
+  const openPeriodeDepuisHistorique = (periodeRow) => { closeHistorique(); openCloture(periodeRow) }
 
   const openCloture = (row) => {
     setManagingRow(row)
@@ -402,6 +418,12 @@ export default function Prod2027() {
                             {initials(r.collaborateur?.nom, r.collaborateur?.prenom)}
                           </div>
                           <span style={{ fontWeight: 600, color: TITLE_COLOR }}>{r.collaborateur?.nom} {r.collaborateur?.prenom}</span>
+                          <button onClick={e => { e.stopPropagation(); openHistorique(r) }} title="Voir tout l'historique de ce collaborateur"
+                            style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', padding: 3, borderRadius: 6 }}
+                            onMouseEnter={e => { e.currentTarget.style.background = BORDER }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                            <i className="ti ti-history" aria-hidden="true" style={{ fontSize: 15 }}></i>
+                          </button>
                         </div>
                       </td>
                       <td style={{ padding: '13px 16px', color: TEXT_SECONDARY }}>{r.collaborateur?.type_contrat}</td>
@@ -638,6 +660,51 @@ export default function Prod2027() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {historiqueFor && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 18, padding: 28, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: TITLE_COLOR }}>{historiqueFor.nom} {historiqueFor.prenom}</div>
+              <button onClick={closeHistorique} style={{ background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
+            </div>
+            <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 20 }}>
+              Historique complet des statuts, du plus récent au plus ancien. Clique sur une ligne pour la modifier.
+            </div>
+
+            {loadingHistorique ? (
+              <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 30 }}>Chargement...</div>
+            ) : historiquePeriodes.length === 0 ? (
+              <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 30 }}>Aucune période trouvée.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {historiquePeriodes.map(p => {
+                  const st = CATEGORIE_STYLE[p.statut?.categorie] || DEFAULT_CAT_STYLE
+                  return (
+                    <div key={p.id} onClick={() => openPeriodeDepuisHistorique(p)}
+                      style={{ border: '1px solid ' + BORDER, borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = ACCENT_SOFT }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: st.bg, color: st.color }}>
+                          {p.statut?.nom}
+                        </span>
+                        <span style={{ fontSize: 12.5, color: TEXT_SECONDARY, fontWeight: 600 }}>
+                          {formatDateFR(p.date_debut)} → {p.date_fin ? formatDateFR(p.date_fin) : 'en cours'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: TEXT_SECONDARY }}>
+                        {p.manager?.nom || '—'} · {p.client?.nom || '—'}
+                      </div>
+                      {p.commentaire && <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 4, fontStyle: 'italic' }}>{p.commentaire}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
