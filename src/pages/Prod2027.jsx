@@ -11,7 +11,9 @@ const BG_PAGE = '#FAFAF9'
 const CATEGORIE_STYLE = {
   'Prod':              { color: '#0F6E56', bg: '#E1F5EE', icon: 'ti-briefcase' },
   'Prod forfait':       { color: '#1D4ED8', bg: '#DBEAFE', icon: 'ti-file-invoice' },
-  'ITC':                { color: '#B45309', bg: '#FEF3E2', icon: 'ti-clock-pause' },
+  'ITC disponible':     { color: '#B45309', bg: '#FEF3E2', icon: 'ti-clock-pause' },
+  'ITC redémarrage':    { color: '#0E7490', bg: '#E0F2FE', icon: 'ti-repeat' },
+  'ITC sortie':         { color: '#C2410C', bg: '#FFEDD5', icon: 'ti-logout' },
   'Maladie':            { color: '#B91C1C', bg: '#FCEBEB', icon: 'ti-first-aid-kit' },
   'Cas RH':             { color: '#7C3AED', bg: '#F3E8FF', icon: 'ti-alert-triangle' },
   'Sortie':             { color: '#6B7280', bg: '#F1F0EE', icon: 'ti-door-exit' },
@@ -23,7 +25,25 @@ const CATEGORIES_HORS_EFFECTIF = ['Sortie', 'Sortie périmètre']
 // Catégories comptées dans le "Total effectif" (liste explicite, pour ne jamais inclure Sortie / Sortie périmètre par erreur)
 const CATEGORIES_EFFECTIF = ['Prod', 'Prod forfait', 'ITC', 'Maladie', 'Cas RH']
 // Catégories 100% salariés par nature -- pas besoin du détail salarié/sous-traitant dessus
-const CATEGORIES_SANS_DETAIL_CONTRAT = ['ITC', 'Maladie', 'Cas RH']
+const CATEGORIES_SANS_DETAIL_CONTRAT = ['ITC disponible', 'ITC redémarrage', 'ITC sortie', 'Maladie', 'Cas RH']
+// Au sein de la catégorie ITC, sous-type affiché en tuile séparée selon des mots-clés du nom du statut
+// (comparaison insensible à la casse, sans dépendre d'un caractère d'apostrophe précis)
+const itcSousTuile = (statutNom) => {
+  const n = (statutNom || '').toLowerCase()
+  if (n.includes('redémarrage') || n.includes('redemarrage')) return 'ITC redémarrage'
+  if (n.includes('sortie')) return 'ITC sortie'
+  return 'ITC disponible'
+}
+// Clé de regroupement utilisée pour les tuiles et le filtre cliquable -- identique à la catégorie,
+// sauf pour ITC qui est éclaté en 3 tuiles distinctes (disponible / redémarrage / sortie)
+const tuileKey = (r) => {
+  const cat = r.statut?.categorie || '—'
+  return cat === 'ITC' ? itcSousTuile(r.statut?.nom) : cat
+}
+// "Intercontrats qui coûtent" : disponibles + en redémarrage (signés mais pas encore repartis) + en sortie d'effectif
+// (pas encore sortis) + KRH. Seule la maladie, dans ce même ensemble élargi, ne coûte pas (prise en charge hors Consort).
+const TUILES_QUI_COUTENT = ['ITC disponible', 'ITC redémarrage', 'ITC sortie', 'Cas RH']
+const TUILES_NE_COUTENT_PAS = ['Maladie']
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const addDaysISO = (dateStr, n) => { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
@@ -108,17 +128,22 @@ export default function Prod2027() {
   const stats = useMemo(() => {
     const byCategorie = {}
     let total = 0, totalSalarie = 0, totalSousTraitant = 0
+    let improductifsCoute = 0, improductifsNeCoutePas = 0
     for (const r of rows) {
       const cat = r.statut?.categorie || '—'
+      const tk = tuileKey(r)
       const isSalarie = r.collaborateur?.type_contrat === 'salarié'
-      if (!byCategorie[cat]) byCategorie[cat] = { count: 0, salarie: 0, sousTraitant: 0 }
-      byCategorie[cat].count += 1
-      if (isSalarie) byCategorie[cat].salarie += 1; else byCategorie[cat].sousTraitant += 1
+      if (!byCategorie[tk]) byCategorie[tk] = { count: 0, salarie: 0, sousTraitant: 0 }
+      byCategorie[tk].count += 1
+      if (isSalarie) byCategorie[tk].salarie += 1; else byCategorie[tk].sousTraitant += 1
       if (CATEGORIES_EFFECTIF.includes(cat)) {
         total += 1
         if (isSalarie) totalSalarie += 1; else totalSousTraitant += 1
       }
+      if (TUILES_QUI_COUTENT.includes(tk)) improductifsCoute += 1
+      else if (TUILES_NE_COUTENT_PAS.includes(tk)) improductifsNeCoutePas += 1
     }
+    const improductifsTotal = improductifsCoute + improductifsNeCoutePas
     // Fins de période proches de la date affichée (toujours >= refDate, vu le filtre de chargement)
     let alertesUrgentes = 0, alertesProches = 0
     for (const r of rows) {
@@ -127,12 +152,20 @@ export default function Prod2027() {
       if (j <= 7) alertesUrgentes += 1
       else if (j <= alerteSeuil) alertesProches += 1
     }
-    return { total, totalSalarie, totalSousTraitant, byCategorie, alertesUrgentes, alertesProches, alertesTotal: alertesUrgentes + alertesProches }
+    return {
+      total, totalSalarie, totalSousTraitant, byCategorie,
+      alertesUrgentes, alertesProches, alertesTotal: alertesUrgentes + alertesProches,
+      improductifsCoute, improductifsNeCoutePas, improductifsTotal,
+    }
   }, [rows, alerteSeuil, refDate])
 
   const filteredRows = useMemo(() => {
     let result = rows
-    if (selectedCategorie) result = result.filter(r => (r.statut?.categorie || '—') === selectedCategorie)
+    if (selectedCategorie === '__IMPRODUCTIFS__') {
+      result = result.filter(r => TUILES_QUI_COUTENT.includes(tuileKey(r)) || TUILES_NE_COUTENT_PAS.includes(tuileKey(r)))
+    } else if (selectedCategorie) {
+      result = result.filter(r => tuileKey(r) === selectedCategorie)
+    }
     if (showAlertesOnly) result = result.filter(r => r.date_fin && diffDaysISO(refDate, r.date_fin) <= alerteSeuil)
     if (search.trim()) {
       const term = search.trim().toLowerCase()
@@ -360,6 +393,27 @@ export default function Prod2027() {
           </div>
         )}
 
+        {/* Indicateur phare : les improductifs qui coûtent (ITC disponible + en redémarrage + en sortie d'effectif + KRH),
+            avec la maladie à part puisqu'elle ne coûte pas. Mis en avant au-dessus des autres tuiles. */}
+        <div onClick={() => toggleCategorie('__IMPRODUCTIFS__')}
+          style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, padding: '18px 22px', borderRadius: 16, cursor: 'pointer',
+            border: '1.5px solid ' + (selectedCategorie === '__IMPRODUCTIFS__' ? '#9A3412' : '#FDBA74'),
+            background: selectedCategorie === '__IMPRODUCTIFS__' ? '#FFEDD5' : '#FFF7ED',
+            boxShadow: selectedCategorie === '__IMPRODUCTIFS__' ? '0 0 0 3px #9A341222' : '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <div style={{ width: 46, height: 46, borderRadius: 13, background: '#FFEDD5', color: '#9A3412', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 }}>
+            <i className="ti ti-coin" aria-hidden="true"></i>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 26, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{stats.improductifsTotal}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: TITLE_COLOR }}>Improductifs (ITC + KRH + Maladie)</div>
+            </div>
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
+              dont <strong style={{ color: '#9A3412' }}>{stats.improductifsCoute} qui coûtent</strong> (ITC disponible, en redémarrage, en sortie d'effectif, KRH) · {stats.improductifsNeCoutePas} en maladie (ne coûte pas)
+            </div>
+          </div>
+        </div>
+
         {/* Bandeau de chiffres clés, pleine largeur, répartis uniformément -- cliquables pour filtrer la liste */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
           <div onClick={() => setSelectedCategorie(null)}
@@ -446,7 +500,7 @@ export default function Prod2027() {
         <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
           <div style={{ padding: '16px 22px', borderBottom: '1px solid ' + BORDER, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: TITLE_COLOR }}>
-              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie}` : ''}{showAlertesOnly ? ` — fins de période ≤ ${alerteSeuil}j` : ''}
+              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie === '__IMPRODUCTIFS__' ? 'Improductifs (ITC + KRH + Maladie)' : selectedCategorie}` : ''}{showAlertesOnly ? ` — fins de période ≤ ${alerteSeuil}j` : ''}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {(selectedCategorie || showAlertesOnly) && (
