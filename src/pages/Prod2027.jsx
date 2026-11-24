@@ -20,6 +20,8 @@ const CATEGORIE_STYLE = {
 const DEFAULT_CAT_STYLE = { color: '#6B6A66', bg: '#F1EFE8', icon: 'ti-user' }
 // Catégories exclues du "Total effectif" (elles restent affichées comme vignettes, juste pas comptées dedans)
 const CATEGORIES_HORS_EFFECTIF = ['Sortie', 'Sortie périmètre']
+// Catégories comptées dans le "Total effectif" (liste explicite, pour ne jamais inclure Sortie / Sortie périmètre par erreur)
+const CATEGORIES_EFFECTIF = ['Prod', 'Prod forfait', 'ITC', 'Maladie', 'Cas RH']
 // Catégories 100% salariés par nature -- pas besoin du détail salarié/sous-traitant dessus
 const CATEGORIES_SANS_DETAIL_CONTRAT = ['ITC', 'Maladie', 'Cas RH']
 
@@ -52,6 +54,7 @@ export default function Prod2027() {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [creatingClient, setCreatingClient] = useState(false)
 
   const loadRefData = async () => {
     const [{ data: s }, { data: m }, { data: c }] = await Promise.all([
@@ -90,7 +93,7 @@ export default function Prod2027() {
       if (!byCategorie[cat]) byCategorie[cat] = { count: 0, salarie: 0, sousTraitant: 0 }
       byCategorie[cat].count += 1
       if (isSalarie) byCategorie[cat].salarie += 1; else byCategorie[cat].sousTraitant += 1
-      if (!CATEGORIES_HORS_EFFECTIF.includes(cat)) {
+      if (CATEGORIES_EFFECTIF.includes(cat)) {
         total += 1
         if (isSalarie) totalSalarie += 1; else totalSousTraitant += 1
       }
@@ -125,9 +128,18 @@ export default function Prod2027() {
 
   const openCloture = (row) => {
     setManagingRow(row)
-    setForm({ isNew: false, nom: row.collaborateur?.nom || '', prenom: row.collaborateur?.prenom || '',
-      ancienne_date_fin: refDate, statut_id: '', manager_id: row.manager?.id || '', client_id: row.client?.id || '',
-      date_debut: addDaysISO(refDate, 1), date_fin: '', commentaire: '' })
+    setForm({
+      isNew: false,
+      mode: 'edit', // 'edit' = modifie cette période telle quelle ; 'nouveau' = clôture + ouvre une nouvelle période
+      nom: row.collaborateur?.nom || '', prenom: row.collaborateur?.prenom || '',
+      // Champs de la période actuelle, modifiables directement en mode "edit"
+      statut_id: row.statut_id || '', manager_id: row.manager_id || '', client_id: row.client_id || '',
+      date_debut: row.date_debut || '', date_fin: row.date_fin || '', commentaire: row.commentaire || '',
+      // Champs utilisés uniquement en mode "nouveau" (clôture + nouvelle période)
+      ancienne_date_fin: refDate,
+      new_statut_id: '', new_manager_id: '', new_client_id: '',
+      new_date_debut: addDaysISO(refDate, 1), new_date_fin: '', new_commentaire: '',
+    })
     setSaveMsg('')
   }
 
@@ -140,33 +152,64 @@ export default function Prod2027() {
 
   const closeModal = () => { setManagingRow(null); setForm(null); setSaveMsg('') }
   const selectedStatut = statuts.find(s => s.id === form?.statut_id)
-  const canSave = !!(form && form.statut_id && form.date_debut && form.nom.trim() &&
-    (!selectedStatut?.date_fin_obligatoire || form.date_fin))
+  const selectedStatutNouveau = statuts.find(s => s.id === form?.new_statut_id)
+  const canSave = !!form && (
+    form.isNew
+      ? !!(form.statut_id && form.date_debut && form.nom.trim() && (!selectedStatut?.date_fin_obligatoire || form.date_fin))
+      : form.mode === 'edit'
+        ? !!(form.statut_id && form.date_debut && (!selectedStatut?.date_fin_obligatoire || form.date_fin))
+        : !!(form.new_statut_id && form.new_date_debut && form.ancienne_date_fin && (!selectedStatutNouveau?.date_fin_obligatoire || form.new_date_fin))
+  )
 
   const save = async () => {
     if (!canSave) return
     setSaving(true); setSaveMsg('')
     try {
-      let collaborateurId = managingRow?.collaborateur_id
       if (form.isNew) {
         const { data: newCollab, error: collabErr } = await supabase.from('collaborateurs')
           .insert({ nom: form.nom.trim(), prenom: form.prenom.trim(), type_contrat: form.type_contrat }).select().single()
         if (collabErr) throw collabErr
-        collaborateurId = newCollab.id
+        const { error: insErr } = await supabase.from('periodes').insert({
+          collaborateur_id: newCollab.id, statut_id: form.statut_id,
+          manager_id: form.manager_id || null, client_id: form.client_id || null,
+          date_debut: form.date_debut, date_fin: form.date_fin || null, commentaire: form.commentaire.trim() || null,
+        })
+        if (insErr) throw insErr
+      } else if (form.mode === 'edit') {
+        // Modifie directement cette période (pas de clôture, pas de nouvelle ligne)
+        const { error: updErr } = await supabase.from('periodes').update({
+          statut_id: form.statut_id, manager_id: form.manager_id || null, client_id: form.client_id || null,
+          date_debut: form.date_debut, date_fin: form.date_fin || null, commentaire: form.commentaire.trim() || null,
+        }).eq('id', managingRow.id)
+        if (updErr) throw updErr
       } else {
+        // Clôture la période en cours et ouvre une nouvelle période
         const { error: closeErr } = await supabase.from('periodes').update({ date_fin: form.ancienne_date_fin }).eq('id', managingRow.id)
         if (closeErr) throw closeErr
-        collaborateurId = managingRow.collaborateur_id
+        const { error: insErr } = await supabase.from('periodes').insert({
+          collaborateur_id: managingRow.collaborateur_id, statut_id: form.new_statut_id,
+          manager_id: form.new_manager_id || null, client_id: form.new_client_id || null,
+          date_debut: form.new_date_debut, date_fin: form.new_date_fin || null, commentaire: form.new_commentaire.trim() || null,
+        })
+        if (insErr) throw insErr
       }
-      const { error: insErr } = await supabase.from('periodes').insert({
-        collaborateur_id: collaborateurId, statut_id: form.statut_id,
-        manager_id: form.manager_id || null, client_id: form.client_id || null,
-        date_debut: form.date_debut, date_fin: form.date_fin || null, commentaire: form.commentaire.trim() || null,
-      })
-      if (insErr) throw insErr
       await loadPeriodes(refDate); closeModal()
     } catch (e) { setSaveMsg(`Erreur : ${e.message}`) }
     setSaving(false)
+  }
+
+  const createClient = async (target) => { // target: 'edit' | 'nouveau' -- quel champ client remplir une fois créé
+    const nom = window.prompt('Nom du nouveau client :')
+    if (!nom || !nom.trim()) return
+    setCreatingClient(true); setSaveMsg('')
+    try {
+      const { data, error } = await supabase.from('clients').insert({ nom: nom.trim() }).select().single()
+      if (error) throw error
+      setClients(prev => [...prev, data].sort((a, b) => a.nom.localeCompare(b.nom)))
+      if (target === 'edit') setForm(f => ({ ...f, client_id: data.id }))
+      else setForm(f => ({ ...f, new_client_id: data.id }))
+    } catch (e) { setSaveMsg(`Erreur création client : ${e.message}`) }
+    setCreatingClient(false)
   }
 
   const deletePeriode = async () => {
@@ -393,11 +436,30 @@ export default function Prod2027() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ fontSize: 17, fontWeight: 700, color: TITLE_COLOR, marginBottom: 4 }}>
-              {form.isNew ? 'Ajouter un collaborateur' : `Nouveau statut — ${form.nom} ${form.prenom}`}
+              {form.isNew ? 'Ajouter un collaborateur' : `${form.nom} ${form.prenom}`}
             </div>
-            <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 20 }}>
-              {form.isNew ? 'Crée une fiche et sa première période de statut.' : "Clôture la période en cours et ouvre la nouvelle."}
+            <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: form.isNew ? 20 : 14 }}>
+              {form.isNew
+                ? 'Crée une fiche et sa première période de statut.'
+                : form.mode === 'edit' ? "Modifie directement les informations de cette période (statut, manager, client, dates, commentaire)." : "Clôture la période en cours et ouvre une nouvelle période."}
             </div>
+
+            {!form.isNew && (
+              <div style={{ display: 'flex', gap: 6, marginBottom: 18, background: '#F1EFE8', borderRadius: 10, padding: 4 }}>
+                <button onClick={() => setForm(f => ({ ...f, mode: 'edit' }))}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 7, border: 'none', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                    background: form.mode === 'edit' ? '#fff' : 'transparent', color: form.mode === 'edit' ? TITLE_COLOR : TEXT_SECONDARY,
+                    boxShadow: form.mode === 'edit' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
+                  Modifier cette période
+                </button>
+                <button onClick={() => setForm(f => ({ ...f, mode: 'nouveau' }))}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 7, border: 'none', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                    background: form.mode === 'nouveau' ? '#fff' : 'transparent', color: form.mode === 'nouveau' ? TITLE_COLOR : TEXT_SECONDARY,
+                    boxShadow: form.mode === 'nouveau' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
+                  Clôturer / nouveau statut
+                </button>
+              </div>
+            )}
 
             {form.isNew && (
               <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
@@ -425,62 +487,129 @@ export default function Prod2027() {
               </div>
             )}
 
-            {!form.isNew && (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Fin de la période actuelle</div>
-                <input type="date" value={form.ancienne_date_fin} onChange={e => setForm({ ...form, ancienne_date_fin: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
-              </div>
+            {(form.isNew || form.mode === 'edit') && (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Statut</div>
+                  <select value={form.statut_id} onChange={e => setForm({ ...form, statut_id: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                    <option value="">— Choisir —</option>
+                    {statuts.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Manager</div>
+                    <select value={form.manager_id} onChange={e => setForm({ ...form, manager_id: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                      <option value="">—</option>
+                      {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Client</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}
+                        style={{ flex: 1, width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                        <option value="">—</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                      </select>
+                      <button type="button" onClick={() => createClient('edit')} disabled={creatingClient} title="Créer un nouveau client"
+                        style={{ padding: '0 12px', borderRadius: 9, border: '1px solid ' + BORDER, background: '#fff', color: ACCENT, fontSize: 16, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Date de début</div>
+                    <input type="date" value={form.date_debut} onChange={e => setForm({ ...form, date_debut: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>
+                      Date de fin {selectedStatut?.date_fin_obligatoire ? '(obligatoire)' : '(optionnelle)'}
+                    </div>
+                    <input type="date" value={form.date_fin} onChange={e => setForm({ ...form, date_fin: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Commentaire</div>
+                  <textarea value={form.commentaire} onChange={e => setForm({ ...form, commentaire: e.target.value })} rows={2}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                </div>
+              </>
             )}
 
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Nouveau statut</div>
-              <select value={form.statut_id} onChange={e => setForm({ ...form, statut_id: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
-                <option value="">— Choisir —</option>
-                {statuts.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Manager</div>
-                <select value={form.manager_id} onChange={e => setForm({ ...form, manager_id: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
-                  <option value="">—</option>
-                  {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Client</div>
-                <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
-                  <option value="">—</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Date de début</div>
-                <input type="date" value={form.date_debut} onChange={e => setForm({ ...form, date_debut: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>
-                  Date de fin {selectedStatut?.date_fin_obligatoire ? '(obligatoire)' : '(optionnelle)'}
+            {!form.isNew && form.mode === 'nouveau' && (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Fin de la période actuelle</div>
+                  <input type="date" value={form.ancienne_date_fin} onChange={e => setForm({ ...form, ancienne_date_fin: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
                 </div>
-                <input type="date" value={form.date_fin} onChange={e => setForm({ ...form, date_fin: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
-              </div>
-            </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Commentaire</div>
-              <textarea value={form.commentaire} onChange={e => setForm({ ...form, commentaire: e.target.value })} rows={2}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
-            </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Nouveau statut</div>
+                  <select value={form.new_statut_id} onChange={e => setForm({ ...form, new_statut_id: e.target.value })}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                    <option value="">— Choisir —</option>
+                    {statuts.map(s => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Manager</div>
+                    <select value={form.new_manager_id} onChange={e => setForm({ ...form, new_manager_id: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                      <option value="">—</option>
+                      {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Client</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select value={form.new_client_id} onChange={e => setForm({ ...form, new_client_id: e.target.value })}
+                        style={{ flex: 1, width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                        <option value="">—</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                      </select>
+                      <button type="button" onClick={() => createClient('nouveau')} disabled={creatingClient} title="Créer un nouveau client"
+                        style={{ padding: '0 12px', borderRadius: 9, border: '1px solid ' + BORDER, background: '#fff', color: ACCENT, fontSize: 16, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Date de début</div>
+                    <input type="date" value={form.new_date_debut} onChange={e => setForm({ ...form, new_date_debut: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>
+                      Date de fin {selectedStatutNouveau?.date_fin_obligatoire ? '(obligatoire)' : '(optionnelle)'}
+                    </div>
+                    <input type="date" value={form.new_date_fin} onChange={e => setForm({ ...form, new_date_fin: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Commentaire</div>
+                  <textarea value={form.new_commentaire} onChange={e => setForm({ ...form, new_commentaire: e.target.value })} rows={2}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                </div>
+              </>
+            )}
 
             {saveMsg && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '9px 12px', borderRadius: 9, marginBottom: 14, fontSize: 13 }}>{saveMsg}</div>}
 
