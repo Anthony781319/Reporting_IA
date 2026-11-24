@@ -58,6 +58,8 @@ export default function Prod2027() {
   const [historiqueFor, setHistoriqueFor] = useState(null)
   const [historiquePeriodes, setHistoriquePeriodes] = useState([])
   const [loadingHistorique, setLoadingHistorique] = useState(false)
+  // Recherche "tout le monde" -- indépendante de la date affichée, pour retrouver quelqu'un sans statut actif à refDate
+  const [globalResults, setGlobalResults] = useState([])
 
   const loadRefData = async () => {
     const [{ data: s }, { data: m }, { data: c }] = await Promise.all([
@@ -86,6 +88,22 @@ export default function Prod2027() {
 
   useEffect(() => { loadRefData() }, [])
   useEffect(() => { loadPeriodes(refDate) }, [refDate])
+
+  // Recherche globale sur TOUS les collaborateurs (actifs ou non à la date affichée), avec un petit délai
+  useEffect(() => {
+    const term = search.trim()
+    if (term.length < 2) { setGlobalResults([]); return }
+    let cancelled = false
+    const handle = setTimeout(async () => {
+      const { data } = await supabase.from('collaborateurs')
+        .select('id,nom,prenom,type_contrat')
+        .or(`nom.ilike.%${term}%,prenom.ilike.%${term}%`)
+        .order('nom')
+        .limit(15)
+      if (!cancelled) setGlobalResults(data || [])
+    }, 300)
+    return () => { cancelled = true; clearTimeout(handle) }
+  }, [search])
 
   const stats = useMemo(() => {
     const byCategorie = {}
@@ -129,18 +147,41 @@ export default function Prod2027() {
   const toggleCategorie = (cat) => setSelectedCategorie(prev => (prev === cat ? null : cat))
   const toggleAlertesOnly = () => setShowAlertesOnly(prev => !prev)
 
-  const openHistorique = async (row) => {
-    setHistoriqueFor({ collaborateur_id: row.collaborateur_id, nom: row.collaborateur?.nom || '', prenom: row.collaborateur?.prenom || '' })
+  // Personnes trouvées par la recherche globale mais absentes de la liste active à refDate
+  // (ex : période clôturée hier, personne qui n'a pas encore de nouveau statut)
+  const resultatsHorsPeriode = useMemo(() => {
+    const idsActifs = new Set(rows.map(r => r.collaborateur_id))
+    return globalResults.filter(g => !idsActifs.has(g.id))
+  }, [globalResults, rows])
+
+  // collabRef : { collaborateur_id, nom, prenom } -- marche aussi bien pour quelqu'un d'actif à refDate que pour quelqu'un retrouvé via la recherche globale
+  const openHistorique = async (collabRef) => {
+    setHistoriqueFor(collabRef)
     setHistoriquePeriodes([]); setLoadingHistorique(true)
     const { data, error } = await supabase.from('periodes')
       .select('*, collaborateur:collaborateurs(id,nom,prenom,type_contrat), statut:statuts(id,nom,categorie,date_fin_obligatoire), manager:managers(id,nom), client:clients(id,nom)')
-      .eq('collaborateur_id', row.collaborateur_id)
+      .eq('collaborateur_id', collabRef.collaborateur_id)
       .order('date_debut', { ascending: false })
     if (!error) setHistoriquePeriodes(data || [])
     setLoadingHistorique(false)
   }
   const closeHistorique = () => { setHistoriqueFor(null); setHistoriquePeriodes([]) }
   const openPeriodeDepuisHistorique = (periodeRow) => { closeHistorique(); openCloture(periodeRow) }
+
+  // Depuis la recherche globale : la personne n'a peut-être aucune période active à refDate (ex : période clôturée hier, pas encore de suite)
+  // -- on lui crée directement une toute première/nouvelle période via le mode "nouveau statut" du formulaire.
+  const openNouvellePeriodePourCollaborateur = (collab) => {
+    setManagingRow({ collaborateur_id: collab.id, nom: collab.nom, prenom: collab.prenom })
+    setForm({
+      isNew: false, mode: 'nouveau',
+      nom: collab.nom || '', prenom: collab.prenom || '',
+      statut_id: '', manager_id: '', client_id: '', date_debut: '', date_fin: '', commentaire: '',
+      ancienne_date_fin: refDate,
+      new_statut_id: '', new_manager_id: '', new_client_id: '',
+      new_date_debut: refDate, new_date_fin: '', new_commentaire: '',
+    })
+    setSaveMsg('')
+  }
 
   const openCloture = (row) => {
     setManagingRow(row)
@@ -152,9 +193,11 @@ export default function Prod2027() {
       statut_id: row.statut_id || '', manager_id: row.manager_id || '', client_id: row.client_id || '',
       date_debut: row.date_debut || '', date_fin: row.date_fin || '', commentaire: row.commentaire || '',
       // Champs utilisés uniquement en mode "nouveau" (clôture + nouvelle période)
-      ancienne_date_fin: refDate,
+      // -- si cette période est déjà clôturée (date_fin déjà posée), on part de sa vraie date de fin plutôt que de refDate,
+      // pour ne pas écraser une date de clôture déjà correcte.
+      ancienne_date_fin: row.date_fin || refDate,
       new_statut_id: '', new_manager_id: '', new_client_id: '',
-      new_date_debut: addDaysISO(refDate, 1), new_date_fin: '', new_commentaire: '',
+      new_date_debut: addDaysISO(row.date_fin || refDate, 1), new_date_fin: '', new_commentaire: '',
     })
     setSaveMsg('')
   }
@@ -199,9 +242,13 @@ export default function Prod2027() {
         }).eq('id', managingRow.id)
         if (updErr) throw updErr
       } else {
-        // Clôture la période en cours et ouvre une nouvelle période
-        const { error: closeErr } = await supabase.from('periodes').update({ date_fin: form.ancienne_date_fin }).eq('id', managingRow.id)
-        if (closeErr) throw closeErr
+        // Clôture la période en cours (si elle existe) et ouvre une nouvelle période.
+        // Pas de période en cours à clôturer quand on crée directement une première/nouvelle période
+        // pour quelqu'un retrouvé via la recherche globale (managingRow.id absent dans ce cas).
+        if (managingRow.id) {
+          const { error: closeErr } = await supabase.from('periodes').update({ date_fin: form.ancienne_date_fin }).eq('id', managingRow.id)
+          if (closeErr) throw closeErr
+        }
         const { error: insErr } = await supabase.from('periodes').insert({
           collaborateur_id: managingRow.collaborateur_id, statut_id: form.new_statut_id,
           manager_id: form.new_manager_id || null, client_id: form.new_client_id || null,
@@ -285,6 +332,33 @@ export default function Prod2027() {
             </button>
           </div>
         </div>
+
+        {/* Résultats trouvés par la recherche mais sans statut actif à la date affichée (ex : période clôturée, pas encore de suite) */}
+        {resultatsHorsPeriode.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16, padding: '12px 18px', borderRadius: 12, border: '1.5px solid #FBD9A8', background: '#FFFAF0' }}>
+            <i className="ti ti-user-search" aria-hidden="true" style={{ color: '#B45309', fontSize: 17, marginTop: 2 }}></i>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 8 }}>
+                Également trouvé, mais sans statut actif au {formatDateFR(refDate)} (période close sans suite, par exemple) :
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {resultatsHorsPeriode.map(g => (
+                  <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid ' + BORDER, borderRadius: 999, padding: '5px 6px 5px 12px' }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: TITLE_COLOR }}>{g.nom} {g.prenom}</span>
+                    <button onClick={() => openHistorique({ collaborateur_id: g.id, nom: g.nom, prenom: g.prenom })}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 999, border: 'none', background: '#F1EFE8', color: TEXT_SECONDARY, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                      <i className="ti ti-history" aria-hidden="true" style={{ fontSize: 12 }}></i> Historique
+                    </button>
+                    <button onClick={() => openNouvellePeriodePourCollaborateur(g)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 9px', borderRadius: 999, border: 'none', background: ACCENT_SOFT, color: ACCENT, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                      <i className="ti ti-plus" aria-hidden="true" style={{ fontSize: 12 }}></i> Nouvelle période
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Bandeau de chiffres clés, pleine largeur, répartis uniformément -- cliquables pour filtrer la liste */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
@@ -418,7 +492,7 @@ export default function Prod2027() {
                             {initials(r.collaborateur?.nom, r.collaborateur?.prenom)}
                           </div>
                           <span style={{ fontWeight: 600, color: TITLE_COLOR }}>{r.collaborateur?.nom} {r.collaborateur?.prenom}</span>
-                          <button onClick={e => { e.stopPropagation(); openHistorique(r) }} title="Voir tout l'historique de ce collaborateur"
+                          <button onClick={e => { e.stopPropagation(); openHistorique({ collaborateur_id: r.collaborateur_id, nom: r.collaborateur?.nom || '', prenom: r.collaborateur?.prenom || '' }) }} title="Voir tout l'historique de ce collaborateur"
                             style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', padding: 3, borderRadius: 6 }}
                             onMouseEnter={e => { e.currentTarget.style.background = BORDER }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
@@ -570,11 +644,17 @@ export default function Prod2027() {
 
             {!form.isNew && form.mode === 'nouveau' && (
               <>
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Fin de la période actuelle</div>
-                  <input type="date" value={form.ancienne_date_fin} onChange={e => setForm({ ...form, ancienne_date_fin: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
-                </div>
+                {managingRow?.id ? (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Fin de la période actuelle</div>
+                    <input type="date" value={form.ancienne_date_fin} onChange={e => setForm({ ...form, ancienne_date_fin: e.target.value })}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER, boxSizing: 'border-box' }} />
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 14, fontStyle: 'italic' }}>
+                    {form.nom} {form.prenom} n'a aucun statut actif en ce moment : cette nouvelle période sera simplement ajoutée à son dossier.
+                  </div>
+                )}
 
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Nouveau statut</div>
@@ -638,11 +718,13 @@ export default function Prod2027() {
             <div style={{ display: 'flex', gap: 10, justifyContent: form.isNew ? 'flex-end' : 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
               {!form.isNew && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={deletePeriode} disabled={saving}
-                    title="Supprime uniquement cette ligne de statut ; l'historique précédent de la personne est conservé"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#B45309', border: '1px solid #FBD9A8', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
-                    <i className="ti ti-trash" aria-hidden="true"></i> Supprimer cette période
-                  </button>
+                  {managingRow?.id && (
+                    <button onClick={deletePeriode} disabled={saving}
+                      title="Supprime uniquement cette ligne de statut ; l'historique précédent de la personne est conservé"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#B45309', border: '1px solid #FBD9A8', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+                      <i className="ti ti-trash" aria-hidden="true"></i> Supprimer cette période
+                    </button>
+                  )}
                   <button onClick={deleteCollaborateur} disabled={saving}
                     title="Supprime la fiche et tout l'historique de la personne"
                     style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#A32D2D', border: '1px solid #F3C9C9', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
