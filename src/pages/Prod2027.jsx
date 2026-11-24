@@ -169,6 +169,10 @@ export default function Prod2027() {
       result = result.filter(r => tuileKey(r) === 'Prod' || tuileKey(r) === 'Prod forfait')
     } else if (selectedCategorie) {
       result = result.filter(r => tuileKey(r) === selectedCategorie)
+    } else {
+      // Vue par défaut (Total effectif, rien de sélectionné) : les Sortie / Sortie périmètre restent
+      // consultables uniquement à l'acte, via leur propre badge dans "Hors effectif"
+      result = result.filter(r => !CATEGORIES_HORS_EFFECTIF.includes(tuileKey(r)))
     }
     if (showAlertesOnly) result = result.filter(r => r.date_fin && diffDaysISO(refDate, r.date_fin) <= alerteSeuil)
     if (search.trim()) {
