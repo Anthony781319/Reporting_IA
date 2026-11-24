@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-const SPACES = [
-  { id: 'infra', icon: '🏠', label: 'INFRA',    desc: '', bg: '#EEEDFE', color: '#534AB7' },
-]
-
 const PORTALS = [
   { id: 'ia',           icon: '💼', label: "Le Commerce",       desc: 'Accès à ton espace reporting',    bg: '#EEEDFE', color: '#534AB7' },
   { id: 'recrutement',  icon: '👥', label: 'Recrutement',       desc: 'Accès à ton espace recrutement',  bg: '#E1F5EE', color: '#0F6E56' },
@@ -83,7 +79,7 @@ function Loader() {
 }
 
 export default function Login({ onLogin }) {
-  const [space, setSpace] = useState(null)
+  const [space] = useState('infra')
   const [portal, setPortal] = useState(null)
   const [iaList, setIaList] = useState([])
   const [selected, setSelected] = useState(null)
@@ -114,23 +110,6 @@ export default function Login({ onLogin }) {
   }, [portal])
 
   const handleBack = () => {
-    setPortal(null)
-    setSelected(null)
-    setPassword('')
-    setRhPassword('')
-    setRomainPassword('')
-    setContactsPassword('')
-    setError('')
-    setRhError('')
-    setRomainError('')
-    setContactsError('')
-    setShowRH(false)
-    setShowRomain(false)
-    setShowContacts(false)
-  }
-
-  const handleBackToSpaces = () => {
-    setSpace(null)
     setPortal(null)
     setSelected(null)
     setPassword('')
@@ -230,35 +209,9 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
-  if (!space) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ marginBottom: 40, textAlign: 'center' }}>
-          <i className="ti ti-chart-bar" aria-hidden="true" style={{ fontSize: 40, color: '#534AB7' }}></i>
-          <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>Reporting</div>
-          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 6 }}>Quel est ton espace ?</div>
-        </div>
-        <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {SPACES.map(p => (
-            <div key={p.id} onClick={() => setSpace(p.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid ' + p.color + '40', background: p.bg, transition: 'all 0.15s' }}>
-              <div style={{ fontSize: 24, width: 48, height: 48, borderRadius: 12, background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{p.icon}</div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: p.color }}>{p.label}</div>
-                <div style={{ fontSize: 12, color: p.color + 'AA', marginTop: 2 }}>{p.desc}</div>
-              </div>
-              <div style={{ marginLeft: 'auto', color: p.color, fontSize: 18 }}>›</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   if (space === 'infra' && !portal) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
-        <BackButton onClick={handleBackToSpaces} />
         <div style={{ marginBottom: 32, textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🏠</div>
           <div style={{ fontSize: 22, fontWeight: 600, marginTop: 10 }}>INFRA</div>
