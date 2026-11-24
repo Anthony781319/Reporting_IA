@@ -44,6 +44,8 @@ const tuileKey = (r) => {
 // (pas encore sortis) + KRH. Seule la maladie, dans ce même ensemble élargi, ne coûte pas (prise en charge hors Consort).
 const TUILES_QUI_COUTENT = ['ITC disponible', 'ITC redémarrage', 'ITC sortie', 'Cas RH']
 const TUILES_NE_COUTENT_PAS = ['Maladie']
+// Les 4 tuiles regroupées à la suite du bandeau "Improductifs", dans cet ordre précis
+const TUILES_BANDEAU_IMPRODUCTIFS = ['ITC disponible', 'ITC redémarrage', 'Maladie', 'Cas RH']
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const addDaysISO = (dateStr, n) => { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
@@ -163,6 +165,8 @@ export default function Prod2027() {
     let result = rows
     if (selectedCategorie === '__IMPRODUCTIFS__') {
       result = result.filter(r => TUILES_QUI_COUTENT.includes(tuileKey(r)) || TUILES_NE_COUTENT_PAS.includes(tuileKey(r)))
+    } else if (selectedCategorie === '__PRODUCTION__') {
+      result = result.filter(r => tuileKey(r) === 'Prod' || tuileKey(r) === 'Prod forfait')
     } else if (selectedCategorie) {
       result = result.filter(r => tuileKey(r) === selectedCategorie)
     }
@@ -393,41 +397,73 @@ export default function Prod2027() {
           </div>
         )}
 
-        {/* Indicateur phare : les improductifs qui coûtent (ITC disponible + en redémarrage + en sortie d'effectif + KRH),
-            avec la maladie à part puisqu'elle ne coûte pas. Mis en avant au-dessus des autres tuiles. */}
-        <div onClick={() => toggleCategorie('__IMPRODUCTIFS__')}
+        {/* Total effectif -- isolé tout en haut, bien visible, pour rester lisible indépendamment du reste */}
+        <div onClick={() => setSelectedCategorie(null)}
           style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, padding: '18px 22px', borderRadius: 16, cursor: 'pointer',
-            border: '1.5px solid ' + (selectedCategorie === '__IMPRODUCTIFS__' ? '#9A3412' : '#FDBA74'),
-            background: selectedCategorie === '__IMPRODUCTIFS__' ? '#FFEDD5' : '#FFF7ED',
-            boxShadow: selectedCategorie === '__IMPRODUCTIFS__' ? '0 0 0 3px #9A341222' : '0 1px 2px rgba(0,0,0,0.03)' }}>
-          <div style={{ width: 46, height: 46, borderRadius: 13, background: '#FFEDD5', color: '#9A3412', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 }}>
-            <i className="ti ti-coin" aria-hidden="true"></i>
+            border: '1.5px solid ' + (selectedCategorie === null ? ACCENT : BORDER), background: '#fff',
+            boxShadow: selectedCategorie === null ? `0 0 0 3px ${ACCENT}22` : '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <div style={{ width: 46, height: 46, borderRadius: 13, background: ACCENT_SOFT, color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 }}>
+            <i className="ti ti-users" aria-hidden="true"></i>
           </div>
-          <div style={{ flex: 1 }}>
+          <div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 26, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{stats.improductifsTotal}</div>
-              <div style={{ fontSize: 13.5, fontWeight: 600, color: TITLE_COLOR }}>Improductifs (ITC + KRH + Maladie)</div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{stats.total}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: TITLE_COLOR }}>Total effectif</div>
             </div>
-            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
-              dont <strong style={{ color: '#9A3412' }}>{stats.improductifsCoute} qui coûtent</strong> (ITC disponible, en redémarrage, en sortie d'effectif, KRH) · {stats.improductifsNeCoutePas} en maladie (ne coûte pas)
-            </div>
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>dont {stats.totalSalarie} salarié{stats.totalSalarie > 1 ? 's' : ''} · {stats.totalSousTraitant} sous-traitant{stats.totalSousTraitant > 1 ? 's' : ''}</div>
           </div>
         </div>
 
-        {/* Bandeau de chiffres clés, pleine largeur, répartis uniformément -- cliquables pour filtrer la liste */}
+        {/* Improductifs : bandeau raccourci + les 4 tuiles concernées à sa suite (disponible, redémarrage, maladie, KRH) */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
-          <div onClick={() => setSelectedCategorie(null)}
-            style={{ flex: '1 1 180px', background: '#fff', border: '1.5px solid ' + (selectedCategorie === null ? ACCENT : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer' }}>
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: ACCENT_SOFT, color: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
-              <i className="ti ti-users" aria-hidden="true"></i>
+          <div onClick={() => toggleCategorie('__IMPRODUCTIFS__')}
+            style={{ flex: '1 1 280px', maxWidth: 340, display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px', borderRadius: 14, cursor: 'pointer',
+              border: '1.5px solid ' + (selectedCategorie === '__IMPRODUCTIFS__' ? '#9A3412' : '#FDBA74'),
+              background: selectedCategorie === '__IMPRODUCTIFS__' ? '#FFEDD5' : '#FFF7ED',
+              boxShadow: selectedCategorie === '__IMPRODUCTIFS__' ? '0 0 0 3px #9A341222' : '0 1px 2px rgba(0,0,0,0.03)' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: '#FFEDD5', color: '#9A3412', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+              <i className="ti ti-coin" aria-hidden="true"></i>
             </div>
             <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{stats.total}</div>
-              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Total effectif</div>
-              <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont {stats.totalSalarie} salarié{stats.totalSalarie > 1 ? 's' : ''} · {stats.totalSousTraitant} sous-traitant{stats.totalSousTraitant > 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{stats.improductifsTotal}</div>
+              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Improductifs (ITC + KRH + Maladie)</div>
+              <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont <strong style={{ color: '#9A3412' }}>{stats.improductifsCoute} coûtent</strong> · {stats.improductifsNeCoutePas} maladie</div>
             </div>
           </div>
-          {Object.entries(stats.byCategorie).filter(([cat]) => !CATEGORIES_HORS_EFFECTIF.includes(cat)).map(([cat, d]) => {
+
+          {TUILES_BANDEAU_IMPRODUCTIFS.map(cat => {
+            const d = stats.byCategorie[cat] || { count: 0, salarie: 0, sousTraitant: 0 }
+            const st = CATEGORIE_STYLE[cat] || DEFAULT_CAT_STYLE
+            const isSelected = selectedCategorie === cat
+            return (
+              <div key={cat} onClick={() => toggleCategorie(cat)}
+                style={{ flex: '1 1 150px', background: '#fff', border: '1.5px solid ' + (isSelected ? st.color : BORDER), borderRadius: 14, padding: '16px', display: 'flex', alignItems: 'center', gap: 11, boxShadow: isSelected ? `0 0 0 3px ${st.color}22` : '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer', transition: 'all 0.12s' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: st.bg, color: st.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                  <i className={`ti ${st.icon}`} aria-hidden="true"></i>
+                </div>
+                <div>
+                  <div style={{ fontSize: 21, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{d.count}</div>
+                  <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginTop: 2 }}>{cat}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Production : qui produit aujourd'hui (Prod + Prod forfait réunis), puis le détail */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 10 }}>
+          <div onClick={() => toggleCategorie('__PRODUCTION__')}
+            style={{ flex: '1 1 180px', background: '#fff', border: '1.5px solid ' + (selectedCategorie === '__PRODUCTION__' ? '#0F6E56' : BORDER), borderRadius: 14, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: selectedCategorie === '__PRODUCTION__' ? '0 0 0 3px #0F6E5622' : '0 1px 2px rgba(0,0,0,0.03)', cursor: 'pointer' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: '#E1F5EE', color: '#0F6E56', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+              <i className="ti ti-trending-up" aria-hidden="true"></i>
+            </div>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: TITLE_COLOR, lineHeight: 1.1 }}>{(stats.byCategorie['Prod']?.count || 0) + (stats.byCategorie['Prod forfait']?.count || 0)}</div>
+              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>Personnes qui produisent</div>
+              <div style={{ fontSize: 10.5, color: TEXT_SECONDARY, marginTop: 1 }}>dont {stats.byCategorie['Prod']?.count || 0} en régie/AT · {stats.byCategorie['Prod forfait']?.count || 0} au forfait</div>
+            </div>
+          </div>
+          {Object.entries(stats.byCategorie).filter(([cat]) => !CATEGORIES_HORS_EFFECTIF.includes(cat) && !TUILES_BANDEAU_IMPRODUCTIFS.includes(cat)).map(([cat, d]) => {
             const st = CATEGORIE_STYLE[cat] || DEFAULT_CAT_STYLE
             const isSelected = selectedCategorie === cat
             return (
@@ -500,7 +536,7 @@ export default function Prod2027() {
         <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
           <div style={{ padding: '16px 22px', borderBottom: '1px solid ' + BORDER, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: TITLE_COLOR }}>
-              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie === '__IMPRODUCTIFS__' ? 'Improductifs (ITC + KRH + Maladie)' : selectedCategorie}` : ''}{showAlertesOnly ? ` — fins de période ≤ ${alerteSeuil}j` : ''}
+              Collaborateurs au {formatDateFR(refDate)}{selectedCategorie ? ` — ${selectedCategorie === '__IMPRODUCTIFS__' ? 'Improductifs (ITC + KRH + Maladie)' : selectedCategorie === '__PRODUCTION__' ? 'Personnes qui produisent' : selectedCategorie}` : ''}{showAlertesOnly ? ` — fins de période ≤ ${alerteSeuil}j` : ''}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {(selectedCategorie || showAlertesOnly) && (
