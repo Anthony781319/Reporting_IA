@@ -72,6 +72,10 @@ export default function Prod2027() {
   const [selectedCategorie, setSelectedCategorie] = useState(null)
   const [alerteSeuil, setAlerteSeuil] = useState(30)
   const [showAlertesOnly, setShowAlertesOnly] = useState(false)
+  // Démarrages prévus (périodes futures déjà enregistrées, pas encore commencées) -- même fenêtre que les alertes de fin
+  const [demarragesPrevus, setDemarragesPrevus] = useState([])
+  const [loadingDemarrages, setLoadingDemarrages] = useState(false)
+  const [showDemarragesModal, setShowDemarragesModal] = useState(false)
   const [managingRow, setManagingRow] = useState(null)
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -108,8 +112,23 @@ export default function Prod2027() {
     setLoading(false)
   }
 
+  // Périodes déjà enregistrées qui commencent APRÈS la date affichée (pas encore actives) -- pour vérifier
+  // que les démarrages prévus (ex : fin d'ITC redémarrage -> reprise en Prod) se réalisent bien à la date prévue.
+  const loadDemarrages = async (date, seuilJours) => {
+    setLoadingDemarrages(true)
+    const dateLimite = addDaysISO(date, seuilJours)
+    const { data, error } = await supabase.from('periodes')
+      .select('*, collaborateur:collaborateurs(id,nom,prenom,type_contrat), statut:statuts(id,nom,categorie,date_fin_obligatoire), manager:managers(id,nom), client:clients(id,nom)')
+      .gt('date_debut', date)
+      .lte('date_debut', dateLimite)
+      .order('date_debut', { ascending: true })
+    if (!error) setDemarragesPrevus(data || [])
+    setLoadingDemarrages(false)
+  }
+
   useEffect(() => { loadRefData() }, [])
   useEffect(() => { loadPeriodes(refDate) }, [refDate])
+  useEffect(() => { loadDemarrages(refDate, alerteSeuil) }, [refDate, alerteSeuil])
 
   // Recherche globale sur TOUS les collaborateurs (actifs ou non à la date affichée), avec un petit délai
   useEffect(() => {
@@ -297,7 +316,7 @@ export default function Prod2027() {
         })
         if (insErr) throw insErr
       }
-      await loadPeriodes(refDate); closeModal()
+      await loadPeriodes(refDate); await loadDemarrages(refDate, alerteSeuil); closeModal()
     } catch (e) { setSaveMsg(`Erreur : ${e.message}`) }
     setSaving(false)
   }
@@ -325,7 +344,7 @@ export default function Prod2027() {
     try {
       const { error } = await supabase.from('periodes').delete().eq('id', managingRow.id)
       if (error) throw error
-      await loadPeriodes(refDate); closeModal()
+      await loadPeriodes(refDate); await loadDemarrages(refDate, alerteSeuil); closeModal()
     } catch (e) { setSaveMsg(`Erreur : ${e.message}`) }
     setSaving(false)
   }
@@ -340,7 +359,7 @@ export default function Prod2027() {
       if (delPeriodesErr) throw delPeriodesErr
       const { error: delCollabErr } = await supabase.from('collaborateurs').delete().eq('id', managingRow.collaborateur_id)
       if (delCollabErr) throw delCollabErr
-      await loadPeriodes(refDate); closeModal()
+      await loadPeriodes(refDate); await loadDemarrages(refDate, alerteSeuil); closeModal()
     } catch (e) { setSaveMsg(`Erreur : ${e.message}`) }
     setSaving(false)
   }
@@ -488,26 +507,11 @@ export default function Prod2027() {
           })}
         </div>
 
-        {/* Alerte fins de période proches -- bandeau visible, cliquable pour filtrer, avec seuil réglable */}
-        <div onClick={toggleAlertesOnly}
-          style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 14, padding: '14px 20px', borderRadius: 14, cursor: 'pointer',
-            border: '1.5px solid ' + (showAlertesOnly ? '#B45309' : (stats.alertesTotal > 0 ? '#FBD9A8' : BORDER)),
-            background: showAlertesOnly ? '#FEF3E2' : (stats.alertesTotal > 0 ? '#FFFAF0' : '#fff'),
-            boxShadow: showAlertesOnly ? '0 0 0 3px #B4530922' : '0 1px 2px rgba(0,0,0,0.03)' }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: stats.alertesUrgentes > 0 ? '#FCEBEB' : '#FEF3E2', color: stats.alertesUrgentes > 0 ? '#B91C1C' : '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
-            <i className="ti ti-alert-triangle" aria-hidden="true"></i>
-          </div>
-          <div style={{ flex: '1 1 220px' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: TITLE_COLOR }}>
-              {stats.alertesTotal} fin{stats.alertesTotal > 1 ? 's' : ''} de période à venir
-              {stats.alertesUrgentes > 0 && <span style={{ color: '#B91C1C' }}> — dont {stats.alertesUrgentes} à moins de 7 jours</span>}
-            </div>
-            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
-              {showAlertesOnly ? 'Clique pour revenir à la liste complète' : 'Clique pour voir uniquement ces collaborateurs'}
-            </div>
-          </div>
-          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: TEXT_SECONDARY }}>
-            Alerter si fin dans les
+        {/* Alertes de date : fins de période proches (moitié gauche) + démarrages prévus à vérifier (moitié droite),
+            avec un seul seuil réglable partagé par les deux */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 8 }}>
+            Fenêtre d'alerte :
             <select value={alerteSeuil} onChange={e => setAlerteSeuil(Number(e.target.value))}
               style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + BORDER, fontSize: 12.5, background: '#fff' }}>
               <option value={7}>7 jours</option>
@@ -516,6 +520,47 @@ export default function Prod2027() {
               <option value={60}>60 jours</option>
               <option value={90}>90 jours</option>
             </select>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+            {/* Fins de période proches */}
+            <div onClick={toggleAlertesOnly}
+              style={{ flex: '1 1 300px', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderRadius: 14, cursor: 'pointer',
+                border: '1.5px solid ' + (showAlertesOnly ? '#B45309' : (stats.alertesTotal > 0 ? '#FBD9A8' : BORDER)),
+                background: showAlertesOnly ? '#FEF3E2' : (stats.alertesTotal > 0 ? '#FFFAF0' : '#fff'),
+                boxShadow: showAlertesOnly ? '0 0 0 3px #B4530922' : '0 1px 2px rgba(0,0,0,0.03)' }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: stats.alertesUrgentes > 0 ? '#FCEBEB' : '#FEF3E2', color: stats.alertesUrgentes > 0 ? '#B91C1C' : '#B45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+                <i className="ti ti-alert-triangle" aria-hidden="true"></i>
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: TITLE_COLOR }}>
+                  {stats.alertesTotal} fin{stats.alertesTotal > 1 ? 's' : ''} de période à venir
+                  {stats.alertesUrgentes > 0 && <span style={{ color: '#B91C1C' }}> — dont {stats.alertesUrgentes} à moins de 7 jours</span>}
+                </div>
+                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
+                  {showAlertesOnly ? 'Clique pour revenir à la liste complète' : 'Clique pour voir uniquement ces collaborateurs'}
+                </div>
+              </div>
+            </div>
+
+            {/* Démarrages prévus -- périodes déjà enregistrées, pas encore commencées, à vérifier une fois la date passée */}
+            <div onClick={() => setShowDemarragesModal(true)}
+              style={{ flex: '1 1 300px', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', borderRadius: 14, cursor: 'pointer',
+                border: '1.5px solid ' + (demarragesPrevus.length > 0 ? '#93C5FD' : BORDER),
+                background: demarragesPrevus.length > 0 ? '#EFF6FF' : '#fff',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: '#DBEAFE', color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+                <i className="ti ti-player-play" aria-hidden="true"></i>
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: TITLE_COLOR }}>
+                  {demarragesPrevus.length} démarrage{demarragesPrevus.length > 1 ? 's' : ''} prévu{demarragesPrevus.length > 1 ? 's' : ''}
+                </div>
+                <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
+                  Clique pour voir le détail et vérifier qu'ils se sont bien réalisés
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -876,6 +921,50 @@ export default function Prod2027() {
                         {p.manager?.nom || '—'} · {p.client?.nom || '—'}
                       </div>
                       {p.commentaire && <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 4, fontStyle: 'italic' }}>{p.commentaire}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showDemarragesModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 18, padding: 28, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: TITLE_COLOR }}>Démarrages prévus</div>
+              <button onClick={() => setShowDemarragesModal(false)} style={{ background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
+            </div>
+            <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 20 }}>
+              Périodes déjà enregistrées qui commencent dans les {alerteSeuil} prochains jours (pas encore actives). Clique sur une ligne pour la vérifier ou l'ajuster.
+            </div>
+
+            {loadingDemarrages ? (
+              <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 30 }}>Chargement...</div>
+            ) : demarragesPrevus.length === 0 ? (
+              <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 30 }}>Aucun démarrage prévu dans cette fenêtre.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {demarragesPrevus.map(p => {
+                  const st = CATEGORIE_STYLE[p.statut?.categorie] || DEFAULT_CAT_STYLE
+                  return (
+                    <div key={p.id} onClick={() => { setShowDemarragesModal(false); openCloture(p) }}
+                      style={{ border: '1px solid ' + BORDER, borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = ACCENT_SOFT }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ fontWeight: 600, color: TITLE_COLOR }}>{p.collaborateur?.nom} {p.collaborateur?.prenom}</span>
+                        <span style={{ fontSize: 12.5, color: '#1D4ED8', fontWeight: 600 }}>Démarre le {formatDateFR(p.date_debut)}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: st.bg, color: st.color }}>
+                          {p.statut?.nom}
+                        </span>
+                        <span style={{ fontSize: 12.5, color: TEXT_SECONDARY }}>{p.manager?.nom || '—'} · {p.client?.nom || '—'}</span>
+                      </div>
+                      {p.commentaire && <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 6, fontStyle: 'italic' }}>{p.commentaire}</div>}
                     </div>
                   )
                 })}
