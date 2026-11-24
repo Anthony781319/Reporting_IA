@@ -3,7 +3,6 @@ import { supabase } from '../supabase'
 
 const SPACES = [
   { id: 'infra', icon: '🏠', label: 'INFRA',    desc: '', bg: '#EEEDFE', color: '#534AB7' },
-  { id: 'sol',   icon: '🏢', label: 'SOL (AS)', desc: '', bg: '#CFFAFE', color: '#0E7490' },
 ]
 
 const PORTALS = [
@@ -23,12 +22,6 @@ const MANAGER_OPTIONS = [
   { id: 'stephane', icon: '📈', label: 'Dashboard Stéphane', desc: 'Équipe Antoine, Nassim, Karim, Sarah',  bg: '#EDE9FE', color: '#6D28D9', darkColor: '#4C1D95' },
   { id: 'contacts', icon: '📇', label: 'Base Contacts',      desc: 'Répertoire clients & prospects',        bg: '#FCE7F3', color: '#BE185D', darkColor: '#831843' },
   { id: 'rh',       icon: '👥', label: 'Dashboard RH',       desc: 'Suivi recrutement & candidats',         bg: '#DCFCE7', color: '#16A34A', darkColor: '#14532D' },
-]
-
-const SOL_OPTIONS = [
-  { id: 'ia',        icon: '💼', label: 'Je suis IA',                       desc: 'Accès à mon espace reporting' },
-  { id: 'cr',        icon: '👥', label: 'Je suis chargé(e) de recrutement', desc: 'Accès à mon espace recrutement' },
-  { id: 'dashboard', icon: '📊', label: 'Dashboard Manager',                desc: 'Commerce + Recrutement réunis' },
 ]
 
 const CARD_COLORS = [
@@ -99,29 +92,26 @@ export default function Login({ onLogin }) {
   const [romainPassword, setRomainPassword] = useState('')
   const [stephanePassword, setStephanePassword] = useState('')
   const [contactsPassword, setContactsPassword] = useState('')
-  const [sandraPassword, setSandraPassword] = useState('')
   const [showRH, setShowRH] = useState(false)
   const [showRomain, setShowRomain] = useState(false)
   const [showStephane, setShowStephane] = useState(false)
   const [showContacts, setShowContacts] = useState(false)
-  const [solRole, setSolRole] = useState(null)
   const [error, setError] = useState('')
   const [rhError, setRhError] = useState('')
   const [romainError, setRomainError] = useState('')
   const [stephaneError, setStephaneError] = useState('')
   const [contactsError, setContactsError] = useState('')
-  const [sandraError, setSandraError] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement' || portal === 'challenge-itc' || space === 'sol') {
+    if (portal === 'ia' || portal === 'prospection' || portal === 'recrutement' || portal === 'challenge-itc') {
       setLoading(true)
       supabase.from('ia').select('*').order('nom').then(({ data }) => {
         setIaList(data || [])
         setLoading(false)
       })
     }
-  }, [portal, space])
+  }, [portal])
 
   const handleBack = () => {
     setPortal(null)
@@ -142,18 +132,15 @@ export default function Login({ onLogin }) {
   const handleBackToSpaces = () => {
     setSpace(null)
     setPortal(null)
-    setSolRole(null)
     setSelected(null)
     setPassword('')
     setRhPassword('')
     setRomainPassword('')
     setContactsPassword('')
-    setSandraPassword('')
     setError('')
     setRhError('')
     setRomainError('')
     setContactsError('')
-    setSandraError('')
     setShowRH(false)
     setShowRomain(false)
     setShowContacts(false)
@@ -196,13 +183,6 @@ export default function Login({ onLogin }) {
     if (!ok) setError('Mot de passe incorrect')
   }
 
-  const handleSubmitSolCR = () => {
-    if (!selected) return setError('Sélectionne ton prénom')
-    if (!password) return setError('Entre ton mot de passe')
-    const ok = onLogin({ nom: selected, type: 'cr', entite: 'sandra' }, password)
-    if (!ok) setError('Mot de passe incorrect')
-  }
-
   const handleRHLogin = () => {
     if (!rhPassword) return setRhError('Entre le mot de passe RH')
     const ok = onLogin({ nom: 'RH' }, rhPassword, 'manager-rh')
@@ -227,12 +207,6 @@ export default function Login({ onLogin }) {
     if (!contactsPassword) return setContactsError('Entre le mot de passe')
     const ok = onLogin({ nom: 'Contacts' }, contactsPassword, 'manager-contacts')
     if (!ok) setContactsError('Mot de passe incorrect')
-  }
-
-  const handleSandraLogin = () => {
-    if (!sandraPassword) return setSandraError('Entre le mot de passe')
-    const ok = onLogin({ nom: 'Sandra' }, sandraPassword, 'manager-sandra')
-    if (!ok) setSandraError('Mot de passe incorrect')
   }
 
   const handleManagerLogin = async () => {
@@ -570,120 +544,6 @@ export default function Login({ onLogin }) {
           <input type="password" value={password} onChange={e => { setPassword(e.target.value); setError('') }} onKeyDown={e => e.key === 'Enter' && handleProd2027Login()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
           {error && <ErrorMsg msg={error} />}
           <button onClick={handleProd2027Login} style={{ width: '100%', padding: 13, background: '#4338CA', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-            Se connecter
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  if (space === 'sol') {
-    const solIaList = iaList.filter(ia => ia.entite === 'sandra' && ia.type !== 'cr' && ia.statut !== 'ancien')
-    const solCrList = iaList.filter(ia => ia.entite === 'sandra' && ia.type === 'cr' && ia.statut !== 'ancien').map(ia => ia.nom)
-
-    const backToRoleChoice = () => { setSolRole(null); setSelected(null); setPassword(''); setError(''); setSandraPassword(''); setSandraError('') }
-
-    if (!solRole) {
-      return (
-        <div style={loginWrap}>
-          <BackButton onClick={handleBackToSpaces} />
-          <Header icon="🏢" title="SOL (AS)" />
-          <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {SOL_OPTIONS.map(opt => (
-              <div key={opt.id} onClick={() => setSolRole(opt.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', borderRadius: 14, cursor: 'pointer', border: '1.5px solid #0E749040', background: '#CFFAFE', transition: 'all 0.15s' }}>
-                <div style={{ fontSize: 22, width: 48, height: 48, borderRadius: 12, background: '#0E7490', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{opt.icon}</div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#0E7490' }}>{opt.label}</div>
-                  <div style={{ fontSize: 12, color: '#0E7490AA', marginTop: 2 }}>{opt.desc}</div>
-                </div>
-                <div style={{ marginLeft: 'auto', color: '#0E7490', fontSize: 18 }}>›</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    }
-
-    if (solRole === 'ia') {
-      return (
-        <div style={loginWrap}>
-          <BackButton onClick={backToRoleChoice} />
-          <Header icon="💼" title="SOL (AS) — Commerce" />
-          <div style={{ width: '100%', maxWidth: 400 }}>
-            <div style={labelStyle}>Je suis...</div>
-            {loading ? <Loader /> : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-                {solIaList.map((ia, i) => {
-                  const c = CARD_COLORS[i % CARD_COLORS.length]
-                  const isSelected = selected && selected.id === ia.id
-                  return (
-                    <div key={ia.id} onClick={() => { setSelected(ia); setError('') }}
-                      style={{ borderRadius: 12, padding: '16px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
-                      <div style={{ width: 40, height: 40, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600 }}>
-                        {ia.nom.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center', lineHeight: 1.2 }}>{ia.nom}</div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {!loading && solIaList.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune IA enregistrée pour le moment.</div>
-            )}
-            <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitIA} />
-            {error && <ErrorMsg msg={error} />}
-            <SubmitBtn disabled={!selected} onClick={handleSubmitIA} color={selected ? CARD_COLORS[solIaList.findIndex(ia => ia.id === (selected && selected.id)) % CARD_COLORS.length].border : undefined} />
-          </div>
-        </div>
-      )
-    }
-
-    if (solRole === 'cr') {
-      return (
-        <div style={loginWrap}>
-          <BackButton onClick={backToRoleChoice} />
-          <Header icon="👥" title="SOL (AS) — Recrutement" />
-          <div style={{ width: '100%', maxWidth: 360 }}>
-            <div style={labelStyle}>Je suis...</div>
-            {loading ? <Loader /> : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8, marginBottom: 16 }}>
-                {solCrList.map((cr, i) => {
-                  const c = CARD_COLORS[i % CARD_COLORS.length]
-                  const isSelected = selected === cr
-                  return (
-                    <div key={cr} onClick={() => { setSelected(cr); setError('') }}
-                      style={{ borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', background: c.bg, border: '1.5px solid ' + (isSelected ? c.border : c.bg), outline: isSelected ? '2.5px solid ' + c.border : 'none', transition: 'all 0.15s' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.avatarBg, color: c.avatarText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
-                        {cr.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: c.nameColor, textAlign: 'center' }}>{cr}</div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-            {!loading && solCrList.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16, textAlign: 'center' }}>Aucune CR enregistrée pour le moment.</div>
-            )}
-            <PasswordField show={!!selected} value={password} onChange={v => { setPassword(v); setError('') }} onEnter={handleSubmitSolCR} />
-            {error && <ErrorMsg msg={error} />}
-            <SubmitBtn disabled={!selected} onClick={handleSubmitSolCR} />
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div style={loginWrap}>
-        <BackButton onClick={backToRoleChoice} />
-        <Header icon="📊" title="Dashboard Manager" />
-        <div style={{ width: '100%', maxWidth: 360 }}>
-          <div style={labelStyle}>Mot de passe</div>
-          <input type="password" value={sandraPassword} onChange={e => { setSandraPassword(e.target.value); setSandraError('') }} onKeyDown={e => e.key === 'Enter' && handleSandraLogin()} placeholder="Entre ton mot de passe" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }} autoFocus />
-          {sandraError && <ErrorMsg msg={sandraError} />}
-          <button onClick={handleSandraLogin} style={{ width: '100%', padding: 13, background: '#0E7490', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
             Se connecter
           </button>
         </div>
