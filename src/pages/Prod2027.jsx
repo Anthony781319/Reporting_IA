@@ -81,6 +81,7 @@ export default function Prod2027() {
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [creatingClient, setCreatingClient] = useState(false)
+  const [creatingManager, setCreatingManager] = useState(false)
   const [historiqueFor, setHistoriqueFor] = useState(null)
   const [historiquePeriodes, setHistoriquePeriodes] = useState([])
   const [loadingHistorique, setLoadingHistorique] = useState(false)
@@ -335,6 +336,20 @@ export default function Prod2027() {
       else setForm(f => ({ ...f, new_client_id: data.id }))
     } catch (e) { setSaveMsg(`Erreur création client : ${e.message}`) }
     setCreatingClient(false)
+  }
+
+  const createManager = async (target) => { // target: 'edit' | 'nouveau' -- quel champ manager remplir une fois créé
+    const nom = window.prompt('Nom du nouveau manager :')
+    if (!nom || !nom.trim()) return
+    setCreatingManager(true); setSaveMsg('')
+    try {
+      const { data, error } = await supabase.from('managers').insert({ nom: nom.trim(), actif: true }).select().single()
+      if (error) throw error
+      setManagers(prev => [...prev, data].sort((a, b) => a.nom.localeCompare(b.nom)))
+      if (target === 'edit') setForm(f => ({ ...f, manager_id: data.id }))
+      else setForm(f => ({ ...f, new_manager_id: data.id }))
+    } catch (e) { setSaveMsg(`Erreur création manager : ${e.message}`) }
+    setCreatingManager(false)
   }
 
   const deletePeriode = async () => {
@@ -738,11 +753,17 @@ export default function Prod2027() {
                 <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Manager</div>
-                    <select value={form.manager_id} onChange={e => setForm({ ...form, manager_id: e.target.value })}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
-                      <option value="">—</option>
-                      {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
-                    </select>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select value={form.manager_id} onChange={e => setForm({ ...form, manager_id: e.target.value })}
+                        style={{ flex: 1, width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                        <option value="">—</option>
+                        {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                      </select>
+                      <button type="button" onClick={() => createManager('edit')} disabled={creatingManager} title="Créer un nouveau manager"
+                        style={{ padding: '0 12px', borderRadius: 9, border: '1px solid ' + BORDER, background: '#fff', color: ACCENT, fontSize: 16, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        +
+                      </button>
+                    </div>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Client</div>
@@ -809,11 +830,17 @@ export default function Prod2027() {
                 <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Manager</div>
-                    <select value={form.new_manager_id} onChange={e => setForm({ ...form, new_manager_id: e.target.value })}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
-                      <option value="">—</option>
-                      {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
-                    </select>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select value={form.new_manager_id} onChange={e => setForm({ ...form, new_manager_id: e.target.value })}
+                        style={{ flex: 1, width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid ' + BORDER }}>
+                        <option value="">—</option>
+                        {managers.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                      </select>
+                      <button type="button" onClick={() => createManager('nouveau')} disabled={creatingManager} title="Créer un nouveau manager"
+                        style={{ padding: '0 12px', borderRadius: 9, border: '1px solid ' + BORDER, background: '#fff', color: ACCENT, fontSize: 16, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        +
+                      </button>
+                    </div>
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6, fontWeight: 500 }}>Client</div>
