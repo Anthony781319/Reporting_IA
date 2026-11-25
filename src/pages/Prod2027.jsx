@@ -66,8 +66,11 @@ const lastDayOfMonthISO = (annee, mois) => new Date(annee, mois, 0).toISOString(
 const fmtNum = (v) => (v === null || v === undefined ? '—' : (Number.isInteger(v) ? v : v.toFixed(1)))
 
 // Une ligne du tableau Budget : un libellé à gauche (figé, colonne collante) + 12 cellules mensuelles.
-// `editable` + `onEditCell` permettent l'édition inline des deux lignes de budget.
-function BudgetRow({ label, values, bold, editable, editingMois, editValue, setEditValue, onStartEdit, onSaveEdit, cellColor, fige }) {
+// `editable` + `onStartEdit`/`onSaveEdit` gèrent l'édition inline des deux lignes de budget.
+// `lists` (un tableau de périodes par mois) + `onDrillDown` rendent la ligne cliquable pour voir le détail nominatif.
+// `warn` (un tableau de booléens par mois) signale une incohérence de calcul à vérifier (petit point rouge).
+function BudgetRow({ label, values, bold, editable, editingMois, editValue, setEditValue, onStartEdit, onSaveEdit, cellColor, fige, lists, onDrillDown, warn }) {
+  const clickable = editable || !!lists
   return (
     <tr style={{ borderTop: '1px solid ' + BORDER }}>
       <td style={{ padding: '9px 14px', fontSize: 12.5, fontWeight: bold ? 700 : 500, color: TITLE_COLOR, whiteSpace: 'nowrap', position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>
@@ -77,19 +80,64 @@ function BudgetRow({ label, values, bold, editable, editingMois, editValue, setE
         const mois = i + 1
         const isEditing = editable && editingMois === mois
         const color = cellColor ? cellColor(v) : (bold ? TITLE_COLOR : TEXT_SECONDARY)
+        const handleClick = () => {
+          if (editable && !fige) return onStartEdit(mois, v)
+          if (lists && onDrillDown) return onDrillDown(label, mois, lists[i] || [])
+        }
         return (
-          <td key={mois} onClick={() => editable && !fige && onStartEdit(mois, v)}
-            style={{ padding: '9px 8px', textAlign: 'center', fontSize: 12.5, fontWeight: bold ? 700 : 500, color,
-              cursor: editable && !fige ? 'pointer' : 'default', background: editable ? (fige ? '#F1EFE8' : ACCENT_SOFT) : 'transparent', minWidth: 46 }}>
+          <td key={mois} onClick={handleClick}
+            style={{ padding: '9px 8px', textAlign: 'center', fontSize: 12.5, fontWeight: bold ? 700 : 500, color, position: 'relative',
+              cursor: clickable && (!editable || !fige) ? 'pointer' : 'default',
+              background: editable ? (fige ? '#F1EFE8' : ACCENT_SOFT) : 'transparent', minWidth: 46 }}>
             {isEditing ? (
               <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={onSaveEdit}
                 onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
                 style={{ width: 44, padding: '2px 3px', borderRadius: 5, border: '1px solid ' + ACCENT, fontSize: 12.5, textAlign: 'center' }} />
-            ) : fmtNum(v)}
+            ) : (
+              <span style={{ textDecoration: lists && !editable ? 'underline' : 'none', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>
+                {fmtNum(v)}
+              </span>
+            )}
+            {warn && warn[i] && !isEditing && (
+              <span title="Incohérence détectée entre le calcul direct et l'effectif début + mouvements -- à vérifier"
+                style={{ position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: '50%', background: '#DC2626' }} />
+            )}
           </td>
         )
       })}
     </tr>
+  )
+}
+
+// Modale de détail nominatif : liste des collaborateurs qui composent un chiffre du tableau Budget.
+function DrillDownModal({ info, onClose }) {
+  if (!info) return null
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 18, padding: 26, width: '100%', maxWidth: 560, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: TITLE_COLOR }}>{info.titre}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
+        </div>
+        <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 16 }}>{info.liste.length} personne{info.liste.length > 1 ? 's' : ''}</div>
+        {info.liste.length === 0 ? (
+          <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 20 }}>Personne.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {info.liste.map((p, i) => (
+              <div key={i} style={{ border: '1px solid ' + BORDER, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                <span style={{ fontWeight: 600, color: TITLE_COLOR, fontSize: 13 }}>{p.collaborateur?.nom} {p.collaborateur?.prenom}</span>
+                <span style={{ fontSize: 12, color: TEXT_SECONDARY }}>
+                  {p.statut?.nom || '—'} · du {formatDateFR(p.date_debut)} {p.date_fin ? `au ${formatDateFR(p.date_fin)}` : '(en cours)'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -113,12 +161,15 @@ function BudgetTab() {
 
   const loadBudget = async (an) => {
     setLoading(true); setLoadError('')
+    // On élargit la borne basse d'un jour (31/12 de l'année précédente) : l'effectif
+    // "début de mois" de janvier se calcule désormais la veille (31/12 n-1), donc il faut
+    // que les périodes actives ce jour-là soient bien remontées par la requête.
     const [{ data: b, error: bErr }, { data: p, error: pErr }] = await Promise.all([
       supabase.from('budget_mensuel').select('*').eq('annee', an).order('mois'),
       supabase.from('periodes')
-        .select('date_debut,date_fin,statut:statuts(categorie),collaborateur:collaborateurs(type_contrat)')
+        .select('date_debut,date_fin,demarrage_technique,statut:statuts(categorie,nom),collaborateur:collaborateurs(nom,prenom,type_contrat)')
         .lte('date_debut', `${an}-12-31`)
-        .or(`date_fin.is.null,date_fin.gte.${an}-01-01`),
+        .or(`date_fin.is.null,date_fin.gte.${an - 1}-12-31`),
     ])
     if (bErr) { setLoadError(`Erreur de chargement du budget : ${bErr.message}`); setLoading(false); return }
     if (pErr) { setLoadError(`Erreur de chargement des périodes : ${pErr.message}`); setLoading(false); return }
@@ -145,42 +196,77 @@ function BudgetTab() {
 
     const rows = []
     for (let m = 1; m <= 12; m++) {
-      const debutISO = firstDayOfMonthISO(annee, m)
+      const debutMoisISO = firstDayOfMonthISO(annee, m) // 1er du mois -- sert à repérer les démarrages DU mois
       const finISO = lastDayOfMonthISO(annee, m)
+      // "Effectif début de mois" = effectif actif la veille du 1er -- pas le 1er lui-même.
+      // Ça évite de compter deux fois quelqu'un qui démarre le 1er (à la fois dans l'effectif
+      // début de mois ET dans les démarrages du mois). C'est mathématiquement équivalent à
+      // "l'effectif fin de mois" du mois précédent.
+      const veilleISO = m === 1 ? `${annee - 1}-12-31` : lastDayOfMonthISO(annee, m - 1)
+
       const estSortieDuMois = (p) => {
         if (!p.date_fin) return false
         const s = sortieMoisEffectif(p.date_fin)
         return s.annee === annee && s.mois === m
       }
+      // Un démarrage "technique" (ancrage 01/01/2026 au lancement de l'outil, ou ancrage
+      // 01/01/2027 pour l'intégration d'IMS) n'est pas un vrai démarrage du mois -- on l'exclut
+      // de ce comptage, mais la personne reste bien comptée dans l'effectif (début/fin de mois).
+      const estDemarrageDuMois = (p) => p.date_debut >= debutMoisISO && p.date_debut <= finISO && !p.demarrage_technique
 
-      const debutProd = prodPeriodes.filter(p => isActiveOn(p, debutISO)).length
-      const debutSTT = prodPeriodes.filter(p => isActiveOn(p, debutISO) && p.collaborateur?.type_contrat === 'Sous traitant').length
-      const demarrages = prodPeriodes.filter(p => p.date_debut >= debutISO && p.date_debut <= finISO).length
-      const sorties = prodPeriodes.filter(estSortieDuMois).length
-      const accroissement = demarrages - sorties
-      const finProd = debutProd + accroissement
+      const debutProdList = prodPeriodes.filter(p => isActiveOn(p, veilleISO))
+      const debutSTTList = debutProdList.filter(p => p.collaborateur?.type_contrat === 'Sous traitant')
+      const demarragesList = prodPeriodes.filter(estDemarrageDuMois)
+      const sortiesList = prodPeriodes.filter(estSortieDuMois)
+      const accroissement = demarragesList.length - sortiesList.length
+      const finProdList = prodPeriodes.filter(p => isActiveOn(p, finISO))
+      const finProd = finProdList.length
+      // Indicateur de cohérence : si un démarrage technique tombe dans le mois, l'effectif fin de
+      // mois (calcul direct) peut différer du "début + démarrages - sorties" (calcul par mouvements),
+      // puisque la personne compte dans l'effectif mais pas dans les démarrages -- c'est normal et
+      // attendu, le petit point rouge sert juste à le signaler pour vérification.
+      const warnFinProd = finProd !== (debutProdList.length + accroissement)
 
-      const itcDebut = itcPeriodes.filter(p => isActiveOn(p, debutISO)).length
-      const itcEnPlus = itcPeriodes.filter(p => p.date_debut >= debutISO && p.date_debut <= finISO).length
-      const itcEnMoins = itcPeriodes.filter(estSortieDuMois).length
-      const itcFin = itcDebut + itcEnPlus - itcEnMoins
+      const itcDebutList = itcPeriodes.filter(p => isActiveOn(p, veilleISO))
+      const itcEnPlusList = itcPeriodes.filter(estDemarrageDuMois)
+      const itcEnMoinsList = itcPeriodes.filter(estSortieDuMois)
+      const itcFinList = itcPeriodes.filter(p => isActiveOn(p, finISO))
+      const itcFin = itcFinList.length
+      const warnItcFin = itcFin !== (itcDebutList.length + itcEnPlusList.length - itcEnMoinsList.length)
 
-      const inactifDebut = inactifPeriodes.filter(p => isActiveOn(p, debutISO)).length
-      const inactifFin = inactifPeriodes.filter(p => isActiveOn(p, finISO)).length
+      const inactifDebutList = inactifPeriodes.filter(p => isActiveOn(p, veilleISO))
+      const inactifFinList = inactifPeriodes.filter(p => isActiveOn(p, finISO))
 
       const budgetRow = budgetRows.find(b => b.mois === m) || null
       const budgetProd = budgetRow ? budgetRow.budget_prod : null
       const budgetItc = budgetRow ? budgetRow.budget_itc : null
 
       rows.push({
-        mois: m, debutProd, debutSTT, demarrages, sorties, accroissement, finProd,
+        mois: m,
+        debutProd: debutProdList.length, debutProdList,
+        debutSTT: debutSTTList.length, debutSTTList,
+        demarrages: demarragesList.length, demarragesList,
+        sorties: sortiesList.length, sortiesList,
+        accroissement,
+        finProd, finProdList, warnFinProd,
         budgetProd, ecartProd: budgetProd != null ? finProd - budgetProd : null,
-        inactifDebut, itcDebut, itcEnPlus, itcEnMoins, itcFin, inactifFin,
+        inactifDebut: inactifDebutList.length, inactifDebutList,
+        itcDebut: itcDebutList.length, itcDebutList,
+        itcEnPlus: itcEnPlusList.length, itcEnPlusList,
+        itcEnMoins: itcEnMoinsList.length, itcEnMoinsList,
+        itcFin, itcFinList, warnItcFin,
+        inactifFin: inactifFinList.length, inactifFinList,
         budgetItc, ecartItc: budgetItc != null ? itcFin - budgetItc : null,
       })
     }
     return rows
   }, [periodes, budgetRows, annee])
+
+  const [drillDown, setDrillDown] = useState(null) // { titre, liste }
+  const openDrillDown = (label, mois, liste) => {
+    setDrillDown({ titre: `${label} -- ${MOIS_LABELS[mois - 1]} ${annee}`, liste })
+  }
+  const closeDrillDown = () => setDrillDown(null)
 
   const fige = !!budgetRows[0]?.fige
 
@@ -269,12 +355,12 @@ function BudgetTab() {
               </tr>
             </thead>
             <tbody>
-              <BudgetRow label="Effectif début de mois" values={monthly.map(m => m.debutProd)} />
-              <BudgetRow label="Dont sous-traitants" values={monthly.map(m => m.debutSTT)} />
-              <BudgetRow label="Démarrages du mois" values={monthly.map(m => m.demarrages)} />
-              <BudgetRow label="Fins de mission du mois" values={monthly.map(m => m.sorties)} />
+              <BudgetRow label="Effectif début de mois" values={monthly.map(m => m.debutProd)} lists={monthly.map(m => m.debutProdList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="Dont sous-traitants" values={monthly.map(m => m.debutSTT)} lists={monthly.map(m => m.debutSTTList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="Démarrages du mois" values={monthly.map(m => m.demarrages)} lists={monthly.map(m => m.demarragesList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="Fins de mission du mois" values={monthly.map(m => m.sorties)} lists={monthly.map(m => m.sortiesList)} onDrillDown={openDrillDown} />
               <BudgetRow label="Accroissement net" values={monthly.map(m => m.accroissement)} cellColor={ecartColor} />
-              <BudgetRow label="Effectif fin de mois" values={monthly.map(m => m.finProd)} bold />
+              <BudgetRow label="Effectif fin de mois" values={monthly.map(m => m.finProd)} bold lists={monthly.map(m => m.finProdList)} onDrillDown={openDrillDown} warn={monthly.map(m => m.warnFinProd)} />
               <BudgetRow label="Budget Prod" values={monthly.map(m => m.budgetProd)}
                 editable fige={fige} editingMois={editingCell?.champ === 'budget_prod' ? editingCell.mois : null} editValue={editValue}
                 setEditValue={setEditValue} onStartEdit={startEdit('budget_prod')} onSaveEdit={saveEdit} />
@@ -292,12 +378,12 @@ function BudgetTab() {
               </tr>
             </thead>
             <tbody>
-              <BudgetRow label="Total inactifs début de mois" values={monthly.map(m => m.inactifDebut)} />
-              <BudgetRow label="Dont ITC avec coûts début de mois" values={monthly.map(m => m.itcDebut)} />
-              <BudgetRow label="ITC avec coûts en +" values={monthly.map(m => m.itcEnPlus)} />
-              <BudgetRow label="ITC avec coûts en -" values={monthly.map(m => m.itcEnMoins)} />
-              <BudgetRow label="ITC avec coûts fin de mois" values={monthly.map(m => m.itcFin)} bold />
-              <BudgetRow label="Total inactifs fin de mois" values={monthly.map(m => m.inactifFin)} />
+              <BudgetRow label="Total inactifs début de mois" values={monthly.map(m => m.inactifDebut)} lists={monthly.map(m => m.inactifDebutList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="Dont ITC avec coûts début de mois" values={monthly.map(m => m.itcDebut)} lists={monthly.map(m => m.itcDebutList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="ITC avec coûts en +" values={monthly.map(m => m.itcEnPlus)} lists={monthly.map(m => m.itcEnPlusList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="ITC avec coûts en -" values={monthly.map(m => m.itcEnMoins)} lists={monthly.map(m => m.itcEnMoinsList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="ITC avec coûts fin de mois" values={monthly.map(m => m.itcFin)} bold lists={monthly.map(m => m.itcFinList)} onDrillDown={openDrillDown} warn={monthly.map(m => m.warnItcFin)} />
+              <BudgetRow label="Total inactifs fin de mois" values={monthly.map(m => m.inactifFin)} lists={monthly.map(m => m.inactifFinList)} onDrillDown={openDrillDown} />
               <BudgetRow label="Budget ITC (avec coûts)" values={monthly.map(m => m.budgetItc)}
                 editable fige={fige} editingMois={editingCell?.champ === 'budget_itc' ? editingCell.mois : null} editValue={editValue}
                 setEditValue={setEditValue} onStartEdit={startEdit('budget_itc')} onSaveEdit={saveEdit} />
@@ -306,6 +392,8 @@ function BudgetTab() {
           </table>
         </div>
       )}
+
+      <DrillDownModal info={drillDown} onClose={closeDrillDown} />
     </div>
   )
 }
