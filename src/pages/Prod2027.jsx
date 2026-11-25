@@ -196,45 +196,41 @@ function BudgetTab() {
 
     const rows = []
     for (let m = 1; m <= 12; m++) {
-      const debutMoisISO = firstDayOfMonthISO(annee, m) // 1er du mois -- sert à repérer les démarrages DU mois
+      const debutMoisISO = firstDayOfMonthISO(annee, m) // 1er du mois
       const finISO = lastDayOfMonthISO(annee, m)
-      // "Effectif début de mois" = effectif actif la veille du 1er -- pas le 1er lui-même.
-      // Ça évite de compter deux fois quelqu'un qui démarre le 1er (à la fois dans l'effectif
-      // début de mois ET dans les démarrages du mois). C'est mathématiquement équivalent à
-      // "l'effectif fin de mois" du mois précédent.
-      const veilleISO = m === 1 ? `${annee - 1}-12-31` : lastDayOfMonthISO(annee, m - 1)
 
       const estSortieDuMois = (p) => {
         if (!p.date_fin) return false
         const s = sortieMoisEffectif(p.date_fin)
         return s.annee === annee && s.mois === m
       }
-      // Un démarrage "technique" (ancrage 01/01/2026 au lancement de l'outil, ou ancrage
-      // 01/01/2027 pour l'intégration d'IMS) n'est pas un vrai démarrage du mois -- on l'exclut
-      // de ce comptage, mais la personne reste bien comptée dans l'effectif (début/fin de mois).
-      const estDemarrageDuMois = (p) => p.date_debut >= debutMoisISO && p.date_debut <= finISO && !p.demarrage_technique
+      // Règle (simplifiée, sans distinction au cas par cas "technique ou pas") :
+      // "Effectif début de mois" = tout le monde actif AU 1er du mois inclus -- qu'il s'agisse
+      // d'un vrai démarrage ce jour-là ou d'un simple ancrage technique (lancement de l'outil,
+      // bascule IMS). "Démarrages du mois" / "ITC en +" ne compte que les arrivées STRICTEMENT
+      // après le 1er (à partir du 2). Un même démarrage ne peut donc plus jamais être compté
+      // dans les deux à la fois, et on n'a plus besoin de qualifier chaque personne une par une.
+      const estDemarrageDuMois = (p) => p.date_debut > debutMoisISO && p.date_debut <= finISO
 
-      const debutProdList = prodPeriodes.filter(p => isActiveOn(p, veilleISO))
+      const debutProdList = prodPeriodes.filter(p => isActiveOn(p, debutMoisISO))
       const debutSTTList = debutProdList.filter(p => p.collaborateur?.type_contrat === 'Sous traitant')
       const demarragesList = prodPeriodes.filter(estDemarrageDuMois)
       const sortiesList = prodPeriodes.filter(estSortieDuMois)
       const accroissement = demarragesList.length - sortiesList.length
       const finProdList = prodPeriodes.filter(p => isActiveOn(p, finISO))
       const finProd = finProdList.length
-      // Indicateur de cohérence : si un démarrage technique tombe dans le mois, l'effectif fin de
-      // mois (calcul direct) peut différer du "début + démarrages - sorties" (calcul par mouvements),
-      // puisque la personne compte dans l'effectif mais pas dans les démarrages -- c'est normal et
-      // attendu, le petit point rouge sert juste à le signaler pour vérification.
+      // Indicateur de cohérence : ce total doit toujours coller à "début + démarrages - sorties" --
+      // le petit point rouge signale uniquement une vraie anomalie de données, à vérifier au cas par cas.
       const warnFinProd = finProd !== (debutProdList.length + accroissement)
 
-      const itcDebutList = itcPeriodes.filter(p => isActiveOn(p, veilleISO))
+      const itcDebutList = itcPeriodes.filter(p => isActiveOn(p, debutMoisISO))
       const itcEnPlusList = itcPeriodes.filter(estDemarrageDuMois)
       const itcEnMoinsList = itcPeriodes.filter(estSortieDuMois)
       const itcFinList = itcPeriodes.filter(p => isActiveOn(p, finISO))
       const itcFin = itcFinList.length
       const warnItcFin = itcFin !== (itcDebutList.length + itcEnPlusList.length - itcEnMoinsList.length)
 
-      const inactifDebutList = inactifPeriodes.filter(p => isActiveOn(p, veilleISO))
+      const inactifDebutList = inactifPeriodes.filter(p => isActiveOn(p, debutMoisISO))
       const inactifFinList = inactifPeriodes.filter(p => isActiveOn(p, finISO))
 
       const budgetRow = budgetRows.find(b => b.mois === m) || null
