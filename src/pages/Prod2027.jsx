@@ -60,7 +60,260 @@ const dateFinStyle = (joursRestants) => {
   return { color: '#6B6A66' }
 }
 
+const MOIS_LABELS = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc']
+const firstDayOfMonthISO = (annee, mois) => `${annee}-${String(mois).padStart(2, '0')}-01`
+const lastDayOfMonthISO = (annee, mois) => new Date(annee, mois, 0).toISOString().slice(0, 10) // jour 0 du mois suivant = dernier jour de ce mois
+const fmtNum = (v) => (v === null || v === undefined ? '—' : (Number.isInteger(v) ? v : v.toFixed(1)))
+
+// Une ligne du tableau Budget : un libellé à gauche (figé, colonne collante) + 12 cellules mensuelles.
+// `editable` + `onEditCell` permettent l'édition inline des deux lignes de budget.
+function BudgetRow({ label, values, bold, editable, editingMois, editValue, setEditValue, onStartEdit, onSaveEdit, cellColor, fige }) {
+  return (
+    <tr style={{ borderTop: '1px solid ' + BORDER }}>
+      <td style={{ padding: '9px 14px', fontSize: 12.5, fontWeight: bold ? 700 : 500, color: TITLE_COLOR, whiteSpace: 'nowrap', position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>
+        {label}
+      </td>
+      {values.map((v, i) => {
+        const mois = i + 1
+        const isEditing = editable && editingMois === mois
+        const color = cellColor ? cellColor(v) : (bold ? TITLE_COLOR : TEXT_SECONDARY)
+        return (
+          <td key={mois} onClick={() => editable && !fige && onStartEdit(mois, v)}
+            style={{ padding: '9px 8px', textAlign: 'center', fontSize: 12.5, fontWeight: bold ? 700 : 500, color,
+              cursor: editable && !fige ? 'pointer' : 'default', background: editable ? (fige ? '#F1EFE8' : ACCENT_SOFT) : 'transparent', minWidth: 46 }}>
+            {isEditing ? (
+              <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={onSaveEdit}
+                onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
+                style={{ width: 44, padding: '2px 3px', borderRadius: 5, border: '1px solid ' + ACCENT, fontSize: 12.5, textAlign: 'center' }} />
+            ) : fmtNum(v)}
+          </td>
+        )
+      })}
+    </tr>
+  )
+}
+
+function BudgetTab() {
+  const [annee, setAnnee] = useState(2026)
+  const [anneesDisponibles, setAnneesDisponibles] = useState([2026, 2027])
+  const [budgetRows, setBudgetRows] = useState([])
+  const [periodes, setPeriodes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [editingCell, setEditingCell] = useState(null) // { champ: 'budget_prod' | 'budget_itc', mois }
+  const [editValue, setEditValue] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    supabase.from('budget_mensuel').select('annee').then(({ data }) => {
+      const uniques = [...new Set((data || []).map(r => r.annee))].sort((a, b) => a - b)
+      if (uniques.length) setAnneesDisponibles(uniques)
+    })
+  }, [])
+
+  const loadBudget = async (an) => {
+    setLoading(true); setLoadError('')
+    const [{ data: b, error: bErr }, { data: p, error: pErr }] = await Promise.all([
+      supabase.from('budget_mensuel').select('*').eq('annee', an).order('mois'),
+      supabase.from('periodes')
+        .select('date_debut,date_fin,statut:statuts(categorie),collaborateur:collaborateurs(type_contrat)')
+        .lte('date_debut', `${an}-12-31`)
+        .or(`date_fin.is.null,date_fin.gte.${an}-01-01`),
+    ])
+    if (bErr) { setLoadError(`Erreur de chargement du budget : ${bErr.message}`); setLoading(false); return }
+    if (pErr) { setLoadError(`Erreur de chargement des périodes : ${pErr.message}`); setLoading(false); return }
+    setBudgetRows(b || [])
+    setPeriodes(p || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadBudget(annee) }, [annee])
+
+  const isActiveOn = (p, dateISO) => p.date_debut <= dateISO && (!p.date_fin || p.date_fin >= dateISO)
+  // Règle : une période qui se termine le dernier jour d'un mois est encore active ce jour-là ;
+  // la personne ne "sort" vraiment qu'à partir du lendemain -- donc la sortie est comptée sur le mois
+  // qui contient ce lendemain (le mois suivant, uniquement si la date de fin était le dernier jour du mois).
+  const sortieMoisEffectif = (dateFin) => {
+    const lendemain = addDaysISO(dateFin, 1)
+    return { annee: Number(lendemain.slice(0, 4)), mois: Number(lendemain.slice(5, 7)) }
+  }
+
+  const monthly = useMemo(() => {
+    const prodPeriodes = periodes.filter(p => p.statut?.categorie === 'Prod')
+    const itcPeriodes = periodes.filter(p => p.statut?.categorie === 'ITC')
+    const inactifPeriodes = periodes.filter(p => ['ITC', 'Maladie', 'Cas RH'].includes(p.statut?.categorie))
+
+    const rows = []
+    for (let m = 1; m <= 12; m++) {
+      const debutISO = firstDayOfMonthISO(annee, m)
+      const finISO = lastDayOfMonthISO(annee, m)
+      const estSortieDuMois = (p) => {
+        if (!p.date_fin) return false
+        const s = sortieMoisEffectif(p.date_fin)
+        return s.annee === annee && s.mois === m
+      }
+
+      const debutProd = prodPeriodes.filter(p => isActiveOn(p, debutISO)).length
+      const debutSTT = prodPeriodes.filter(p => isActiveOn(p, debutISO) && p.collaborateur?.type_contrat === 'Sous traitant').length
+      const demarrages = prodPeriodes.filter(p => p.date_debut >= debutISO && p.date_debut <= finISO).length
+      const sorties = prodPeriodes.filter(estSortieDuMois).length
+      const accroissement = demarrages - sorties
+      const finProd = debutProd + accroissement
+
+      const itcDebut = itcPeriodes.filter(p => isActiveOn(p, debutISO)).length
+      const itcEnPlus = itcPeriodes.filter(p => p.date_debut >= debutISO && p.date_debut <= finISO).length
+      const itcEnMoins = itcPeriodes.filter(estSortieDuMois).length
+      const itcFin = itcDebut + itcEnPlus - itcEnMoins
+
+      const inactifDebut = inactifPeriodes.filter(p => isActiveOn(p, debutISO)).length
+      const inactifFin = inactifPeriodes.filter(p => isActiveOn(p, finISO)).length
+
+      const budgetRow = budgetRows.find(b => b.mois === m) || null
+      const budgetProd = budgetRow ? budgetRow.budget_prod : null
+      const budgetItc = budgetRow ? budgetRow.budget_itc : null
+
+      rows.push({
+        mois: m, debutProd, debutSTT, demarrages, sorties, accroissement, finProd,
+        budgetProd, ecartProd: budgetProd != null ? finProd - budgetProd : null,
+        inactifDebut, itcDebut, itcEnPlus, itcEnMoins, itcFin, inactifFin,
+        budgetItc, ecartItc: budgetItc != null ? itcFin - budgetItc : null,
+      })
+    }
+    return rows
+  }, [periodes, budgetRows, annee])
+
+  const fige = !!budgetRows[0]?.fige
+
+  const startEdit = (champ) => (mois, valeurActuelle) => {
+    setEditingCell({ champ, mois })
+    setEditValue(valeurActuelle != null ? String(valeurActuelle) : '0')
+  }
+
+  const saveEdit = async () => {
+    if (!editingCell) return
+    const { mois, champ } = editingCell
+    setEditingCell(null)
+    const valeur = editValue.trim() === '' ? 0 : Number(editValue.replace(',', '.'))
+    if (Number.isNaN(valeur)) return
+    setSaving(true)
+    try {
+      const existing = budgetRows.find(b => b.mois === mois)
+      if (existing) {
+        const { error } = await supabase.from('budget_mensuel').update({ [champ]: valeur }).eq('id', existing.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('budget_mensuel').insert({ annee, mois, budget_prod: 0, budget_itc: 0, [champ]: valeur })
+        if (error) throw error
+      }
+      await loadBudget(annee)
+    } catch (e) { setLoadError(`Erreur d'enregistrement : ${e.message}`) }
+    setSaving(false)
+  }
+
+  const toggleFige = async () => {
+    const nouvelEtat = !fige
+    if (!window.confirm(nouvelEtat
+      ? `Figer le budget ${annee} ? Les chiffres ne seront plus modifiables depuis l'interface tant que tu ne les dé-figes pas.`
+      : `Dé-figer le budget ${annee} pour pouvoir le modifier à nouveau ?`)) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('budget_mensuel').update({ fige: nouvelEtat }).eq('annee', annee)
+      if (error) throw error
+      await loadBudget(annee)
+    } catch (e) { setLoadError(`Erreur : ${e.message}`) }
+    setSaving(false)
+  }
+
+  const ecartColor = (v) => (v === null || v === undefined ? TEXT_SECONDARY : v < 0 ? '#B91C1C' : v > 0 ? '#0F6E56' : TEXT_SECONDARY)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 18 }}>
+        <div style={{ flex: '1 1 260px' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: TITLE_COLOR }}>Budget vs réel</div>
+          <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Effectif Prod (AT) et Intercontrat (avec coûts), mois par mois -- même format que le suivi envoyé à la direction</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 4, background: '#F1EFE8', borderRadius: 9, padding: 3 }}>
+            {anneesDisponibles.map(a => (
+              <button key={a} onClick={() => setAnnee(a)}
+                style={{ padding: '7px 14px', borderRadius: 7, border: 'none', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                  background: annee === a ? '#fff' : 'transparent', color: annee === a ? TITLE_COLOR : TEXT_SECONDARY,
+                  boxShadow: annee === a ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
+                {a}
+              </button>
+            ))}
+          </div>
+          <button onClick={toggleFige} disabled={saving || budgetRows.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+              border: '1px solid ' + (fige ? '#FBD9A8' : BORDER), background: fige ? '#FFFAF0' : '#fff', color: fige ? '#B45309' : TEXT_SECONDARY }}>
+            <i className={`ti ${fige ? 'ti-lock' : 'ti-lock-open'}`} aria-hidden="true"></i>
+            {fige ? 'Budget figé -- cliquer pour modifier' : 'Figer ce budget'}
+          </button>
+        </div>
+      </div>
+
+      {loadError && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{loadError}</div>}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 50 }}>Chargement...</div>
+      ) : (
+        <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'auto', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, position: 'sticky', left: 0, background: ACCENT_SOFT, zIndex: 2 }}>Prod (AT)</th>
+                {MOIS_LABELS.map(l => (
+                  <th key={l} style={{ padding: '10px 8px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4 }}>{l}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <BudgetRow label="Effectif début de mois" values={monthly.map(m => m.debutProd)} />
+              <BudgetRow label="Dont sous-traitants" values={monthly.map(m => m.debutSTT)} />
+              <BudgetRow label="Démarrages du mois" values={monthly.map(m => m.demarrages)} />
+              <BudgetRow label="Fins de mission du mois" values={monthly.map(m => m.sorties)} />
+              <BudgetRow label="Accroissement net" values={monthly.map(m => m.accroissement)} cellColor={ecartColor} />
+              <BudgetRow label="Effectif fin de mois" values={monthly.map(m => m.finProd)} bold />
+              <BudgetRow label="Budget Prod" values={monthly.map(m => m.budgetProd)}
+                editable fige={fige} editingMois={editingCell?.champ === 'budget_prod' ? editingCell.mois : null} editValue={editValue}
+                setEditValue={setEditValue} onStartEdit={startEdit('budget_prod')} onSaveEdit={saveEdit} />
+              <BudgetRow label="Écart Prod vs Budget" values={monthly.map(m => m.ecartProd)} bold cellColor={ecartColor} />
+            </tbody>
+          </table>
+
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%', borderTop: '2px solid ' + BORDER }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, position: 'sticky', left: 0, background: '#FFF7ED', zIndex: 2 }}>Intercontrat</th>
+                {MOIS_LABELS.map(l => (
+                  <th key={l} style={{ padding: '10px 8px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#9A3412', background: '#FFF7ED', textTransform: 'uppercase', letterSpacing: 0.4 }}>{l}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <BudgetRow label="Total inactifs début de mois" values={monthly.map(m => m.inactifDebut)} />
+              <BudgetRow label="Dont ITC avec coûts début de mois" values={monthly.map(m => m.itcDebut)} />
+              <BudgetRow label="ITC avec coûts en +" values={monthly.map(m => m.itcEnPlus)} />
+              <BudgetRow label="ITC avec coûts en -" values={monthly.map(m => m.itcEnMoins)} />
+              <BudgetRow label="ITC avec coûts fin de mois" values={monthly.map(m => m.itcFin)} bold />
+              <BudgetRow label="Total inactifs fin de mois" values={monthly.map(m => m.inactifFin)} />
+              <BudgetRow label="Budget ITC (avec coûts)" values={monthly.map(m => m.budgetItc)}
+                editable fige={fige} editingMois={editingCell?.champ === 'budget_itc' ? editingCell.mois : null} editValue={editValue}
+                setEditValue={setEditValue} onStartEdit={startEdit('budget_itc')} onSaveEdit={saveEdit} />
+              <BudgetRow label="Écart ITC vs Budget" values={monthly.map(m => m.ecartItc)} bold cellColor={ecartColor} />
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Prod2027() {
+  // Onglets internes à la page (Prod = dashboard existant, Budget = nouvel onglet) --
+  // totalement indépendant du système de login/tabs de l'app, comme le reste de ce module.
+  const [activeTab, setActiveTab] = useState('prod')
   const [refDate, setRefDate] = useState(todayISO())
   const [rows, setRows] = useState([])
   const [statuts, setStatuts] = useState([])
@@ -385,6 +638,22 @@ export default function Prod2027() {
     <div style={{ width: '100%', minHeight: '100%', background: BG_PAGE, padding: '28px 36px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto' }}>
 
+        {/* Onglets internes à la page Prod 2027 (Prod / Budget) */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 22, borderBottom: '1px solid ' + BORDER }}>
+          {[{ id: 'prod', label: 'Prod', icon: 'ti-layout-columns' }, { id: 'budget', label: 'Budget', icon: 'ti-chart-line' }].map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: 'none', border: 'none',
+                borderBottom: '2.5px solid ' + (activeTab === t.id ? ACCENT : 'transparent'),
+                color: activeTab === t.id ? ACCENT : TEXT_SECONDARY, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', marginBottom: -1 }}>
+              <i className={`ti ${t.icon}`} aria-hidden="true"></i> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'budget' && <BudgetTab />}
+
+        {activeTab === 'prod' && (<>
+
         {/* Barre du haut : titre + recherche + date + bouton, tout sur une ligne */}
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
           <div style={{ flex: '1 1 260px' }}>
@@ -682,9 +951,11 @@ export default function Prod2027() {
             </table>
           )}
         </div>
+
+        </>)}
       </div>
 
-      {managingRow && form && (
+      {activeTab === 'prod' && managingRow && form && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ fontSize: 17, fontWeight: 700, color: TITLE_COLOR, marginBottom: 4 }}>
@@ -914,7 +1185,7 @@ export default function Prod2027() {
         </div>
       )}
 
-      {historiqueFor && (
+      {activeTab === 'prod' && historiqueFor && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 28, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -959,7 +1230,7 @@ export default function Prod2027() {
         </div>
       )}
 
-      {showDemarragesModal && (
+      {activeTab === 'prod' && showDemarragesModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 18, padding: 28, width: '100%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
