@@ -84,7 +84,6 @@ const dateFinStyle = (joursRestants) => {
 const MOIS_LABELS = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc']
 const firstDayOfMonthISO = (annee, mois) => `${annee}-${String(mois).padStart(2, '0')}-01`
 const lastDayOfMonthISO = (annee, mois) => new Date(Date.UTC(annee, mois, 0)).toISOString().slice(0, 10) // jour 0 du mois suivant = dernier jour de ce mois (UTC pur, pas d'heure locale)
-const premierJourMoisSuivantISO = (annee, mois) => mois === 12 ? firstDayOfMonthISO(annee + 1, 1) : firstDayOfMonthISO(annee, mois + 1)
 const fmtNum = (v) => (v === null || v === undefined ? '—' : (Number.isInteger(v) ? v : v.toFixed(1)))
 const isActiveOn = (p, dateISO) => p.date_debut <= dateISO && (!p.date_fin || p.date_fin >= dateISO)
 
@@ -232,15 +231,17 @@ function BudgetTab() {
     for (let m = 1; m <= 12; m++) {
       const debutMoisISO = firstDayOfMonthISO(annee, m) // 1er du mois
       const finISO = lastDayOfMonthISO(annee, m)
-      // "Effectif fin de mois" = effectif actif au 1er du mois SUIVANT -- équivalent à "le lendemain
-      // du dernier jour de ce mois", mais exprimé comme le "début de mois" du mois d'après, pour que
-      // les deux soient calculés exactement de la même façon (cohérence garantie par construction).
-      const premierJourMoisSuivant = premierJourMoisSuivantISO(annee, m)
 
       // Règle : une fin de mission est rattachée au mois qui contient sa date de fin elle-même --
       // le 31 décembre compte sur décembre, pas sur janvier -- même si la personne reste
       // techniquement active jusqu'à cette date incluse.
       const estSortieDuMois = (p) => p.date_fin && p.date_fin >= debutMoisISO && p.date_fin <= finISO
+      // Sous-ensemble des sorties du mois qui laissent VRAIMENT un poste vide dès le lendemain
+      // (date de fin strictement avant le dernier jour). Une personne qui termine le dernier jour
+      // du mois travaille encore ce jour-là : elle compte comme une sortie du mois (ci-dessus),
+      // mais reste dans l'effectif fin de mois (ci-dessous), donc elle ne doit pas être
+      // soustraite deux fois dans le contrôle de cohérence.
+      const estSortieAvantFinMois = (p) => p.date_fin && p.date_fin >= debutMoisISO && p.date_fin < finISO
       // "Effectif début de mois" = tout le monde actif AU 1er du mois inclus -- qu'il s'agisse
       // d'un vrai démarrage ce jour-là ou d'un simple ancrage technique (lancement de l'outil,
       // bascule IMS). "Démarrages du mois" / "ITC en +" ne compte que les arrivées STRICTEMENT
@@ -253,21 +254,27 @@ function BudgetTab() {
       const demarragesList = prodPeriodes.filter(estDemarrageDuMois)
       const sortiesList = prodPeriodes.filter(estSortieDuMois)
       const accroissement = demarragesList.length - sortiesList.length
-      const finProdList = prodPeriodes.filter(p => isActiveOn(p, premierJourMoisSuivant))
+      // "Effectif fin de mois" = actif le dernier jour du mois INCLUS -- une personne qui termine
+      // sa mission le 31 travaille encore ce jour-là, donc elle reste comptée ici.
+      const finProdList = prodPeriodes.filter(p => isActiveOn(p, finISO))
       const finProd = finProdList.length
-      // Indicateur de cohérence : ce total doit toujours coller à "début + démarrages - sorties" --
-      // le petit point rouge signale uniquement une vraie anomalie de données, à vérifier au cas par cas.
-      const warnFinProd = finProd !== (debutProdList.length + accroissement)
+      const sortiesAvantFinList = prodPeriodes.filter(estSortieAvantFinMois)
+      // Indicateur de cohérence : ce total doit toujours coller à "début + démarrages - sorties
+      // avant le dernier jour" (les sorties du dernier jour ne se soustraient pas, puisqu'elles
+      // restent dans l'effectif fin de mois) -- le petit point rouge signale une vraie anomalie
+      // de données, à vérifier au cas par cas.
+      const warnFinProd = finProd !== (debutProdList.length + demarragesList.length - sortiesAvantFinList.length)
 
       const itcDebutList = itcPeriodes.filter(p => isActiveOn(p, debutMoisISO))
       const itcEnPlusList = itcPeriodes.filter(estDemarrageDuMois)
       const itcEnMoinsList = itcPeriodes.filter(estSortieDuMois)
-      const itcFinList = itcPeriodes.filter(p => isActiveOn(p, premierJourMoisSuivant))
+      const itcEnMoinsAvantFinList = itcPeriodes.filter(estSortieAvantFinMois)
+      const itcFinList = itcPeriodes.filter(p => isActiveOn(p, finISO))
       const itcFin = itcFinList.length
-      const warnItcFin = itcFin !== (itcDebutList.length + itcEnPlusList.length - itcEnMoinsList.length)
+      const warnItcFin = itcFin !== (itcDebutList.length + itcEnPlusList.length - itcEnMoinsAvantFinList.length)
 
       const inactifDebutList = inactifPeriodes.filter(p => isActiveOn(p, debutMoisISO))
-      const inactifFinList = inactifPeriodes.filter(p => isActiveOn(p, premierJourMoisSuivant))
+      const inactifFinList = inactifPeriodes.filter(p => isActiveOn(p, finISO))
 
       const budgetRow = budgetRows.find(b => b.mois === m) || null
       const budgetProd = budgetRow ? budgetRow.budget_prod : null
@@ -476,7 +483,6 @@ function IaTab() {
 
   const debutAnneeISO = `${annee}-01-01`
   const finAnneeISO = `${annee}-12-31`
-  const premierJourAnneeSuivante = `${annee + 1}-01-01`
 
   const parIa = useMemo(() => {
     const noms = new Set(periodes.map(p => p.manager?.nom || 'Non renseigné'))
@@ -491,7 +497,9 @@ function IaTab() {
       // Une fin de mission compte sur l'année qui contient sa date de fin elle-même (le 31/12 compte
       // sur l'année en cours, pas sur la suivante) -- même règle que l'onglet Budget.
       const sortiesList = mine.filter(p => p.date_fin && p.date_fin >= debutAnneeISO && p.date_fin <= finAnneeISO)
-      const finList = mine.filter(p => isActiveOn(p, premierJourAnneeSuivante))
+      // "Effectif fin" = actif le 31/12 INCLUS -- une personne qui termine ce jour-là travaille
+      // encore, donc elle reste comptée ici (même si elle compte aussi comme une sortie ci-dessus).
+      const finList = mine.filter(p => isActiveOn(p, finAnneeISO))
       return { nom, debutList, demarragesList, sortiesList, finList }
     })
   }, [periodes, annee])
