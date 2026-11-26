@@ -64,6 +64,7 @@ const MOIS_LABELS = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Ao�
 const firstDayOfMonthISO = (annee, mois) => `${annee}-${String(mois).padStart(2, '0')}-01`
 const lastDayOfMonthISO = (annee, mois) => new Date(annee, mois, 0).toISOString().slice(0, 10) // jour 0 du mois suivant = dernier jour de ce mois
 const fmtNum = (v) => (v === null || v === undefined ? '—' : (Number.isInteger(v) ? v : v.toFixed(1)))
+const isActiveOn = (p, dateISO) => p.date_debut <= dateISO && (!p.date_fin || p.date_fin >= dateISO)
 
 // Une ligne du tableau Budget : un libellé à gauche (figé, colonne collante) + 12 cellules mensuelles.
 // `editable` + `onStartEdit`/`onSaveEdit` gèrent l'édition inline des deux lignes de budget.
@@ -180,7 +181,6 @@ function BudgetTab() {
 
   useEffect(() => { loadBudget(annee) }, [annee])
 
-  const isActiveOn = (p, dateISO) => p.date_debut <= dateISO && (!p.date_fin || p.date_fin >= dateISO)
   // Règle : une période qui se termine le dernier jour d'un mois est encore active ce jour-là ;
   // la personne ne "sort" vraiment qu'à partir du lendemain -- donc la sortie est comptée sur le mois
   // qui contient ce lendemain (le mois suivant, uniquement si la date de fin était le dernier jour du mois).
@@ -390,6 +390,260 @@ function BudgetTab() {
       )}
 
       <DrillDownModal info={drillDown} onClose={closeDrillDown} />
+    </div>
+  )
+}
+
+// Petit graphique en ligne, en SVG pur (pas de librairie à installer) -- utilisé pour l'évolution
+// mensuelle de l'effectif par client. `values` : tableau de nombres, dans l'ordre chronologique.
+function Sparkline({ values, width = 100, height = 28, color = ACCENT }) {
+  if (!values || values.length === 0) return null
+  const max = Math.max(...values, 1)
+  const min = Math.min(...values, 0)
+  const span = Math.max(max - min, 1)
+  const stepX = width / Math.max(values.length - 1, 1)
+  const points = values.map((v, i) => {
+    const x = i * stepX
+    const y = height - ((v - min) / span) * height
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  return (
+    <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+// Onglet "IA" -- performance de chaque Ingénieur d'Affaires (champ "manager" de l'outil) sur la
+// population Prod (AT) uniquement : effectif en début et fin d'année, démarrages et fins de
+// mission dans l'année. Même règle de comptage que l'onglet Budget (1er du mois/année inclus
+// dans "début", démarrages à partir du lendemain).
+function IaTab() {
+  const [annee, setAnnee] = useState(2026)
+  const [periodes, setPeriodes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [drillDown, setDrillDown] = useState(null)
+
+  const loadData = async (an) => {
+    setLoading(true); setLoadError('')
+    const { data, error } = await supabase.from('periodes')
+      .select('date_debut,date_fin,manager:managers(nom),statut:statuts(categorie),collaborateur:collaborateurs(nom,prenom)')
+      .lte('date_debut', `${an}-12-31`)
+      .or(`date_fin.is.null,date_fin.gte.${an}-01-01`)
+    if (error) { setLoadError(`Erreur de chargement : ${error.message}`); setLoading(false); return }
+    setPeriodes((data || []).filter(p => p.statut?.categorie === 'Prod'))
+    setLoading(false)
+  }
+
+  useEffect(() => { loadData(annee) }, [annee])
+
+  const debutAnneeISO = `${annee}-01-01`
+  const finAnneeISO = `${annee}-12-31`
+  // Même règle que l'onglet Budget, transposée à l'année : le lendemain du 31/12 détermine
+  // l'année d'imputation d'une fin de mission dont la date de fin est le dernier jour de l'année.
+  const sortieAnneeEffective = (dateFin) => Number(addDaysISO(dateFin, 1).slice(0, 4))
+
+  const parIa = useMemo(() => {
+    const noms = new Set(periodes.map(p => p.manager?.nom || 'Non renseigné'))
+    return [...noms].sort((a, b) => {
+      if (a === 'Non renseigné') return 1
+      if (b === 'Non renseigné') return -1
+      return a.localeCompare(b)
+    }).map(nom => {
+      const mine = periodes.filter(p => (p.manager?.nom || 'Non renseigné') === nom)
+      const debutList = mine.filter(p => isActiveOn(p, debutAnneeISO))
+      const demarragesList = mine.filter(p => p.date_debut > debutAnneeISO && p.date_debut <= finAnneeISO)
+      const sortiesList = mine.filter(p => p.date_fin && sortieAnneeEffective(p.date_fin) === annee)
+      const finList = mine.filter(p => isActiveOn(p, finAnneeISO))
+      return { nom, debutList, demarragesList, sortiesList, finList }
+    })
+  }, [periodes, annee])
+
+  const openDrillDown = (nomIa, label, liste) => setDrillDown({ titre: `${label} -- ${nomIa} (${annee})`, liste })
+
+  const Cell = ({ liste, onClick }) => (
+    <td onClick={onClick}
+      style={{ padding: '10px 10px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: TITLE_COLOR,
+        cursor: 'pointer', borderLeft: '1px solid ' + BORDER }}>
+      <span style={{ textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>{liste.length}</span>
+    </td>
+  )
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 18 }}>
+        <div style={{ flex: '1 1 260px' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: TITLE_COLOR }}>Performance par IA</div>
+          <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Prod (AT) uniquement -- clique sur un chiffre pour voir la liste des collaborateurs concernés</div>
+        </div>
+        <div style={{ display: 'flex', gap: 4, background: '#F1EFE8', borderRadius: 9, padding: 3 }}>
+          {[2026, 2027].map(a => (
+            <button key={a} onClick={() => setAnnee(a)}
+              style={{ padding: '7px 14px', borderRadius: 7, border: 'none', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                background: annee === a ? '#fff' : 'transparent', color: annee === a ? TITLE_COLOR : TEXT_SECONDARY,
+                boxShadow: annee === a ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loadError && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{loadError}</div>}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 50 }}>Chargement...</div>
+      ) : (
+        <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'auto', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, background: ACCENT_SOFT }}>IA</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Effectif début {annee}</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Démarrages</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Fins de mission</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Effectif fin {annee}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {parIa.map(ia => (
+                <tr key={ia.nom} style={{ borderTop: '1px solid ' + BORDER }}>
+                  <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: ia.nom === 'Non renseigné' ? '#B45309' : TITLE_COLOR, whiteSpace: 'nowrap' }}>{ia.nom}</td>
+                  <Cell liste={ia.debutList} onClick={() => openDrillDown(ia.nom, `Effectif début ${annee}`, ia.debutList)} />
+                  <Cell liste={ia.demarragesList} onClick={() => openDrillDown(ia.nom, 'Démarrages', ia.demarragesList)} />
+                  <Cell liste={ia.sortiesList} onClick={() => openDrillDown(ia.nom, 'Fins de mission', ia.sortiesList)} />
+                  <Cell liste={ia.finList} onClick={() => openDrillDown(ia.nom, `Effectif fin ${annee}`, ia.finList)} />
+                </tr>
+              ))}
+              {parIa.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>Aucune donnée Prod pour {annee}.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {parIa.some(ia => ia.nom === 'Non renseigné' && (ia.debutList.length || ia.demarragesList.length || ia.finList.length)) && (
+        <div style={{ fontSize: 12, color: '#B45309', marginTop: 10 }}>
+          "Non renseigné" regroupe les périodes sans IA rattachée en base -- probablement un trou de saisie sur d'anciennes données plutôt qu'une vraie absence de responsable.
+        </div>
+      )}
+
+      <DrillDownModal info={drillDown} onClose={() => setDrillDown(null)} />
+    </div>
+  )
+}
+
+// Onglet "Compte Client" -- effectif Prod (AT) par client, évolution mensuelle sur 2026-2027.
+function CompteClientTab() {
+  const [periodes, setPeriodes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [selected, setSelected] = useState(null)
+  const [drillDown, setDrillDown] = useState(null)
+
+  useEffect(() => {
+    setLoading(true); setLoadError('')
+    supabase.from('periodes')
+      .select('date_debut,date_fin,client:clients(nom),statut:statuts(categorie),collaborateur:collaborateurs(nom,prenom)')
+      .lte('date_debut', '2027-12-31')
+      .or('date_fin.is.null,date_fin.gte.2026-01-01')
+      .then(({ data, error }) => {
+        if (error) { setLoadError(`Erreur de chargement : ${error.message}`); setLoading(false); return }
+        setPeriodes((data || []).filter(p => p.statut?.categorie === 'Prod'))
+        setLoading(false)
+      })
+  }, [])
+
+  const mois24 = useMemo(() => [2026, 2027].flatMap(an => Array.from({ length: 12 }, (_, i) => ({ annee: an, mois: i + 1 }))), [])
+
+  const parClient = useMemo(() => {
+    const noms = new Set(periodes.map(p => p.client?.nom || 'Sans client'))
+    const today = todayISO()
+    const items = [...noms].map(nom => {
+      const mine = periodes.filter(p => (p.client?.nom || 'Sans client') === nom)
+      const listesParMois = mois24.map(({ annee, mois }) => mine.filter(p => isActiveOn(p, firstDayOfMonthISO(annee, mois))))
+      const serie = listesParMois.map(l => l.length)
+      const actuelList = mine.filter(p => isActiveOn(p, today))
+      return { nom, serie, listesParMois, actuel: actuelList.length, actuelList }
+    })
+    return items.sort((a, b) => b.actuel - a.actuel || a.nom.localeCompare(b.nom))
+  }, [periodes, mois24])
+
+  const clientSelectionne = parClient.find(c => c.nom === selected) || null
+  const openDrillDown = (label, liste) => setDrillDown({ titre: `${label}${selected ? ` -- ${selected}` : ''}`, liste })
+
+  return (
+    <div>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: TITLE_COLOR }}>Compte Client</div>
+        <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Effectif Prod (AT) par client -- évolution mensuelle 2026-2027. Clique sur un client pour le détail.</div>
+      </div>
+
+      {loadError && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{loadError}</div>}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 50 }}>Chargement...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'auto', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, background: ACCENT_SOFT }}>Client</th>
+                  <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Effectif actuel</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Évolution 2026-2027</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parClient.map(c => (
+                  <tr key={c.nom} onClick={() => setSelected(c.nom === selected ? null : c.nom)}
+                    style={{ borderTop: '1px solid ' + BORDER, cursor: 'pointer', background: selected === c.nom ? ACCENT_SOFT : 'transparent' }}>
+                    <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: c.nom === 'Sans client' ? '#B45309' : TITLE_COLOR, whiteSpace: 'nowrap' }}>{c.nom}</td>
+                    <td style={{ padding: '9px 10px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: TITLE_COLOR, borderLeft: '1px solid ' + BORDER }}>{c.actuel}</td>
+                    <td style={{ padding: '9px 14px', borderLeft: '1px solid ' + BORDER }}><Sparkline values={c.serie} /></td>
+                  </tr>
+                ))}
+                {parClient.length === 0 && (
+                  <tr><td colSpan={3} style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>Aucune donnée Prod.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {clientSelectionne && (
+            <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: TITLE_COLOR }}>{clientSelectionne.nom}</div>
+                <div onClick={() => openDrillDown('Effectif actuel', clientSelectionne.actuelList)}
+                  style={{ fontSize: 13, fontWeight: 700, color: ACCENT, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>
+                  {clientSelectionne.actuel} collaborateur{clientSelectionne.actuel > 1 ? 's' : ''} actuellement
+                </div>
+              </div>
+              {[2026, 2027].map(an => (
+                <div key={an} style={{ marginBottom: an === 2026 ? 14 : 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>{an}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 4 }}>
+                    {MOIS_LABELS.map((label, i) => {
+                      const idx = (an - 2026) * 12 + i
+                      return (
+                        <div key={label} onClick={() => openDrillDown(`${label} ${an}`, clientSelectionne.listesParMois[idx])}
+                          style={{ textAlign: 'center', padding: '8px 2px', borderRadius: 8, background: BG_PAGE, cursor: 'pointer' }}>
+                          <div style={{ fontSize: 10, color: TEXT_SECONDARY, textTransform: 'uppercase' }}>{label}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: TITLE_COLOR, textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>
+                            {clientSelectionne.serie[idx]}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <DrillDownModal info={drillDown} onClose={() => setDrillDown(null)} />
     </div>
   )
 }
@@ -722,9 +976,14 @@ export default function Prod2027() {
     <div style={{ width: '100%', minHeight: '100%', background: BG_PAGE, padding: '28px 36px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: 1600, margin: '0 auto' }}>
 
-        {/* Onglets internes à la page Prod 2027 (Prod / Budget) */}
+        {/* Onglets internes à la page Prod 2027 (Prod / Budget / IA / Compte Client) */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 22, borderBottom: '1px solid ' + BORDER }}>
-          {[{ id: 'prod', label: 'Prod', icon: 'ti-layout-columns' }, { id: 'budget', label: 'Budget', icon: 'ti-chart-line' }].map(t => (
+          {[
+            { id: 'prod', label: 'Prod', icon: 'ti-layout-columns' },
+            { id: 'budget', label: 'Budget', icon: 'ti-chart-line' },
+            { id: 'ia', label: 'IA', icon: 'ti-user-star' },
+            { id: 'client', label: 'Compte Client', icon: 'ti-building' },
+          ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', background: 'none', border: 'none',
                 borderBottom: '2.5px solid ' + (activeTab === t.id ? ACCENT : 'transparent'),
@@ -735,6 +994,8 @@ export default function Prod2027() {
         </div>
 
         {activeTab === 'budget' && <BudgetTab />}
+        {activeTab === 'ia' && <IaTab />}
+        {activeTab === 'client' && <CompteClientTab />}
 
         {activeTab === 'prod' && (<>
 
