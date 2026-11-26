@@ -57,6 +57,22 @@ const addDaysISO = (dateStr, n) => {
 const diffDaysISO = (fromISO, toISO) => Math.round((new Date(toISO + 'T00:00:00') - new Date(fromISO + 'T00:00:00')) / 86400000)
 const formatDateFR = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}` }
 const initials = (nom, prenom) => `${(nom || '?')[0] || ''}${(prenom || '')[0] || ''}`.toUpperCase()
+
+// Export CSV (ouvre nativement dans Excel, pas de librairie à installer) -- séparateur point-virgule
+// pour qu'Excel en version française découpe bien les colonnes automatiquement.
+const csvEscape = (v) => {
+  const s = v === null || v === undefined ? '' : String(v)
+  return /[";\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+const telechargerCSV = (nomFichier, entetes, lignes) => {
+  const corps = [entetes, ...lignes].map(ligne => ligne.map(csvEscape).join(';')).join('\r\n')
+  const blob = new Blob(['﻿' + corps], { type: 'text/csv;charset=utf-8;' }) // BOM -- accents correctement affichés dans Excel
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = nomFichier
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 // Couleur de la date de fin selon l'urgence (jours restants depuis la date de référence affichée)
 const dateFinStyle = (joursRestants) => {
   if (joursRestants === null) return { color: '#9CA3AF' }
@@ -119,6 +135,15 @@ function BudgetRow({ label, values, bold, editable, editingMois, editValue, setE
 // Modale de détail nominatif : liste des collaborateurs qui composent un chiffre du tableau Budget.
 function DrillDownModal({ info, onClose }) {
   if (!info) return null
+  const exporter = () => {
+    const entetes = ['Nom', 'Prénom', 'Statut', 'Date début', 'Date fin']
+    const lignes = info.liste.map(p => [
+      p.collaborateur?.nom, p.collaborateur?.prenom, p.statut?.nom || '',
+      formatDateFR(p.date_debut), p.date_fin ? formatDateFR(p.date_fin) : 'en cours',
+    ])
+    const nomFichier = info.titre.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '') + '.csv'
+    telechargerCSV(nomFichier, entetes, lignes)
+  }
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(20,18,15,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}
       onClick={onClose}>
@@ -128,7 +153,16 @@ function DrillDownModal({ info, onClose }) {
           <div style={{ fontSize: 16, fontWeight: 700, color: TITLE_COLOR }}>{info.titre}</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: TEXT_SECONDARY, cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
         </div>
-        <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginBottom: 16 }}>{info.liste.length} personne{info.liste.length > 1 ? 's' : ''}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, color: TEXT_SECONDARY }}>{info.liste.length} personne{info.liste.length > 1 ? 's' : ''}</div>
+          {info.liste.length > 0 && (
+            <button onClick={exporter}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                border: '1px solid ' + BORDER, background: '#fff', color: TITLE_COLOR }}>
+              <i className="ti ti-file-spreadsheet" aria-hidden="true"></i> Exporter (Excel)
+            </button>
+          )}
+        </div>
         {info.liste.length === 0 ? (
           <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 20 }}>Personne.</div>
         ) : (
@@ -800,6 +834,16 @@ export default function Prod2027() {
     })
   }, [rows, search, selectedCategorie, showAlertesOnly, alerteSeuil, refDate])
 
+  const exporterPopulation = () => {
+    const entetes = ['Nom', 'Prénom', 'Contrat', 'Statut', 'Catégorie', 'Manager', 'Client', 'Date début', 'Date fin', 'Commentaire']
+    const lignes = filteredRows.map(r => [
+      r.collaborateur?.nom, r.collaborateur?.prenom, r.collaborateur?.type_contrat,
+      r.statut?.nom, r.statut?.categorie, r.manager?.nom, r.client?.nom,
+      formatDateFR(r.date_debut), r.date_fin ? formatDateFR(r.date_fin) : 'en cours', r.commentaire,
+    ])
+    telechargerCSV(`collaborateurs_${refDate}.csv`, entetes, lignes)
+  }
+
   const toggleCategorie = (cat) => setSelectedCategorie(prev => (prev === cat ? null : cat))
   const toggleAlertesOnly = () => setShowAlertesOnly(prev => !prev)
 
@@ -1228,6 +1272,13 @@ export default function Prod2027() {
                 </button>
               )}
               <div style={{ fontSize: 12.5, color: TEXT_SECONDARY }}>{filteredRows.length} résultat{filteredRows.length > 1 ? 's' : ''}</div>
+              {filteredRows.length > 0 && (
+                <button onClick={exporterPopulation}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: '1px solid ' + BORDER, background: '#fff', color: TITLE_COLOR }}>
+                  <i className="ti ti-file-spreadsheet" aria-hidden="true"></i> Exporter (Excel)
+                </button>
+              )}
             </div>
           </div>
 
