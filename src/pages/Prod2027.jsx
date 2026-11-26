@@ -47,8 +47,13 @@ const TUILES_NE_COUTENT_PAS = ['Maladie']
 // Les 4 tuiles regroupées à la suite du bandeau "Improductifs", dans cet ordre précis
 const TUILES_BANDEAU_IMPRODUCTIFS = ['ITC disponible', 'ITC redémarrage', 'Maladie', 'Cas RH']
 
-const todayISO = () => new Date().toISOString().slice(0, 10)
-const addDaysISO = (dateStr, n) => { const d = new Date(dateStr + 'T00:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+// Toutes ces fonctions de date raisonnent en UTC pur (jamais via l'heure locale du navigateur +
+// toISOString, qui décale la date d'un jour dans un fuseau horaire en avance sur UTC comme la France).
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+const addDaysISO = (dateStr, n) => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
+}
 const diffDaysISO = (fromISO, toISO) => Math.round((new Date(toISO + 'T00:00:00') - new Date(fromISO + 'T00:00:00')) / 86400000)
 const formatDateFR = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}` }
 const initials = (nom, prenom) => `${(nom || '?')[0] || ''}${(prenom || '')[0] || ''}`.toUpperCase()
@@ -62,7 +67,7 @@ const dateFinStyle = (joursRestants) => {
 
 const MOIS_LABELS = ['Janv', 'Févr', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc']
 const firstDayOfMonthISO = (annee, mois) => `${annee}-${String(mois).padStart(2, '0')}-01`
-const lastDayOfMonthISO = (annee, mois) => new Date(annee, mois, 0).toISOString().slice(0, 10) // jour 0 du mois suivant = dernier jour de ce mois
+const lastDayOfMonthISO = (annee, mois) => new Date(Date.UTC(annee, mois, 0)).toISOString().slice(0, 10) // jour 0 du mois suivant = dernier jour de ce mois (UTC pur, pas d'heure locale)
 const fmtNum = (v) => (v === null || v === undefined ? '—' : (Number.isInteger(v) ? v : v.toFixed(1)))
 const isActiveOn = (p, dateISO) => p.date_debut <= dateISO && (!p.date_fin || p.date_fin >= dateISO)
 
@@ -191,7 +196,9 @@ function BudgetTab() {
 
   const monthly = useMemo(() => {
     const prodPeriodes = periodes.filter(p => p.statut?.categorie === 'Prod')
-    const itcPeriodes = periodes.filter(p => p.statut?.categorie === 'ITC')
+    // "ITC avec coûts" = les 3 sous-statuts ITC + Cas RH (KRH) -- tout ce qui "coûte" au sens du
+    // dashboard Prod existant (TUILES_QUI_COUTENT). Seule Maladie n'est pas comptée ici.
+    const itcPeriodes = periodes.filter(p => ['ITC', 'Cas RH'].includes(p.statut?.categorie))
     const inactifPeriodes = periodes.filter(p => ['ITC', 'Maladie', 'Cas RH'].includes(p.statut?.categorie))
 
     const rows = []
@@ -375,10 +382,10 @@ function BudgetTab() {
             </thead>
             <tbody>
               <BudgetRow label="Total inactifs début de mois" values={monthly.map(m => m.inactifDebut)} lists={monthly.map(m => m.inactifDebutList)} onDrillDown={openDrillDown} />
-              <BudgetRow label="Dont ITC avec coûts début de mois" values={monthly.map(m => m.itcDebut)} lists={monthly.map(m => m.itcDebutList)} onDrillDown={openDrillDown} />
-              <BudgetRow label="ITC avec coûts en +" values={monthly.map(m => m.itcEnPlus)} lists={monthly.map(m => m.itcEnPlusList)} onDrillDown={openDrillDown} />
-              <BudgetRow label="ITC avec coûts en -" values={monthly.map(m => m.itcEnMoins)} lists={monthly.map(m => m.itcEnMoinsList)} onDrillDown={openDrillDown} />
-              <BudgetRow label="ITC avec coûts fin de mois" values={monthly.map(m => m.itcFin)} bold lists={monthly.map(m => m.itcFinList)} onDrillDown={openDrillDown} warn={monthly.map(m => m.warnItcFin)} />
+              <BudgetRow label="Dont ITC + Cas RH avec coûts début de mois" values={monthly.map(m => m.itcDebut)} lists={monthly.map(m => m.itcDebutList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="ITC + Cas RH avec coûts en +" values={monthly.map(m => m.itcEnPlus)} lists={monthly.map(m => m.itcEnPlusList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="ITC + Cas RH avec coûts en -" values={monthly.map(m => m.itcEnMoins)} lists={monthly.map(m => m.itcEnMoinsList)} onDrillDown={openDrillDown} />
+              <BudgetRow label="ITC + Cas RH avec coûts fin de mois" values={monthly.map(m => m.itcFin)} bold lists={monthly.map(m => m.itcFinList)} onDrillDown={openDrillDown} warn={monthly.map(m => m.warnItcFin)} />
               <BudgetRow label="Total inactifs fin de mois" values={monthly.map(m => m.inactifFin)} lists={monthly.map(m => m.inactifFinList)} onDrillDown={openDrillDown} />
               <BudgetRow label="Budget ITC (avec coûts)" values={monthly.map(m => m.budgetItc)}
                 editable fige={fige} editingMois={editingCell?.champ === 'budget_itc' ? editingCell.mois : null} editValue={editValue}
