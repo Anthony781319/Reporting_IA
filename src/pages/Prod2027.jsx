@@ -557,10 +557,15 @@ function CompteClientTab() {
 
   useEffect(() => {
     setLoading(true); setLoadError('')
+    // Il faut couvrir à la fois "aujourd'hui" (effectif actuel) et le 1er janvier 2027 -- on prend
+    // donc comme borne basse la plus ancienne des deux dates de référence, pour ne jamais exclure
+    // par erreur quelqu'un d'actif à l'une ou l'autre (ex : une mission qui s'arrête fin 2026 mais
+    // encore active aujourd'hui).
+    const borneBasse = todayISO() < '2027-01-01' ? todayISO() : '2027-01-01'
     supabase.from('periodes')
       .select('date_debut,date_fin,client:clients(nom),statut:statuts(categorie),collaborateur:collaborateurs(nom,prenom)')
       .lte('date_debut', '2027-12-31')
-      .or('date_fin.is.null,date_fin.gte.2027-01-01')
+      .or(`date_fin.is.null,date_fin.gte.${borneBasse}`)
       .then(({ data, error }) => {
         if (error) { setLoadError(`Erreur de chargement : ${error.message}`); setLoading(false); return }
         setPeriodes((data || []).filter(p => p.statut?.categorie === 'Prod'))
