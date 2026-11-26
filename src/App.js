@@ -18,7 +18,7 @@ import Prod2027 from './pages/Prod2027'
 import './App.css'
 
 const ADMIN_PASSWORD = 'go'
-const PROD2027_PASSWORD = 'M02pass2mer2$1'
+const PROD2027_PASSWORD = 'Biz2027'
 const P1_PASSWORD = 'P1'
 const RH_PASSWORD = 'rh'
 const ROMAIN_MANAGER_PASSWORD = 'chervet'
