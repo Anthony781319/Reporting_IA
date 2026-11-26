@@ -437,32 +437,12 @@ function BudgetTab() {
   )
 }
 
-// Petit graphique en ligne, en SVG pur (pas de librairie à installer) -- utilisé pour l'évolution
-// mensuelle de l'effectif par client. `values` : tableau de nombres, dans l'ordre chronologique.
-function Sparkline({ values, width = 100, height = 28, color = ACCENT }) {
-  if (!values || values.length === 0) return null
-  const max = Math.max(...values, 1)
-  const min = Math.min(...values, 0)
-  const span = Math.max(max - min, 1)
-  const stepX = width / Math.max(values.length - 1, 1)
-  const points = values.map((v, i) => {
-    const x = i * stepX
-    const y = height - ((v - min) / span) * height
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  return (
-    <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
-      <polyline points={points} fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
 // Onglet "IA" -- performance de chaque Ingénieur d'Affaires (champ "manager" de l'outil) sur la
 // population Prod (AT) uniquement : effectif en début et fin d'année, démarrages et fins de
 // mission dans l'année. Même règle de comptage que l'onglet Budget (1er du mois/année inclus
 // dans "début", démarrages à partir du lendemain).
 function IaTab() {
-  const [annee, setAnnee] = useState(2026)
+  const annee = 2027
   const [periodes, setPeriodes] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -519,17 +499,7 @@ function IaTab() {
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 18 }}>
         <div style={{ flex: '1 1 260px' }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: TITLE_COLOR }}>Performance par IA</div>
-          <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Prod (AT) uniquement -- clique sur un chiffre pour voir la liste des collaborateurs concernés</div>
-        </div>
-        <div style={{ display: 'flex', gap: 4, background: '#F1EFE8', borderRadius: 9, padding: 3 }}>
-          {[2026, 2027].map(a => (
-            <button key={a} onClick={() => setAnnee(a)}
-              style={{ padding: '7px 14px', borderRadius: 7, border: 'none', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-                background: annee === a ? '#fff' : 'transparent', color: annee === a ? TITLE_COLOR : TEXT_SECONDARY,
-                boxShadow: annee === a ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
-              {a}
-            </button>
-          ))}
+          <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Prod (AT) uniquement, {annee} -- clique sur un chiffre pour voir la liste des collaborateurs concernés</div>
         </div>
       </div>
 
@@ -577,12 +547,12 @@ function IaTab() {
   )
 }
 
-// Onglet "Compte Client" -- effectif Prod (AT) par client, évolution mensuelle sur 2026-2027.
+// Onglet "Compte Client" -- effectif Prod (AT) par client : effectif actuel, et effectif
+// au 1er janvier 2027 pour se projeter sur le début de la période.
 function CompteClientTab() {
   const [periodes, setPeriodes] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [selected, setSelected] = useState(null)
   const [drillDown, setDrillDown] = useState(null)
 
   useEffect(() => {
@@ -590,7 +560,7 @@ function CompteClientTab() {
     supabase.from('periodes')
       .select('date_debut,date_fin,client:clients(nom),statut:statuts(categorie),collaborateur:collaborateurs(nom,prenom)')
       .lte('date_debut', '2027-12-31')
-      .or('date_fin.is.null,date_fin.gte.2026-01-01')
+      .or('date_fin.is.null,date_fin.gte.2027-01-01')
       .then(({ data, error }) => {
         if (error) { setLoadError(`Erreur de chargement : ${error.message}`); setLoading(false); return }
         setPeriodes((data || []).filter(p => p.statut?.categorie === 'Prod'))
@@ -598,29 +568,25 @@ function CompteClientTab() {
       })
   }, [])
 
-  const mois24 = useMemo(() => [2026, 2027].flatMap(an => Array.from({ length: 12 }, (_, i) => ({ annee: an, mois: i + 1 }))), [])
-
   const parClient = useMemo(() => {
     const noms = new Set(periodes.map(p => p.client?.nom || 'Sans client'))
     const today = todayISO()
     const items = [...noms].map(nom => {
       const mine = periodes.filter(p => (p.client?.nom || 'Sans client') === nom)
-      const listesParMois = mois24.map(({ annee, mois }) => mine.filter(p => isActiveOn(p, firstDayOfMonthISO(annee, mois))))
-      const serie = listesParMois.map(l => l.length)
       const actuelList = mine.filter(p => isActiveOn(p, today))
-      return { nom, serie, listesParMois, actuel: actuelList.length, actuelList }
+      const janvier2027List = mine.filter(p => isActiveOn(p, '2027-01-01'))
+      return { nom, actuel: actuelList.length, actuelList, janvier2027: janvier2027List.length, janvier2027List }
     })
     return items.sort((a, b) => b.actuel - a.actuel || a.nom.localeCompare(b.nom))
-  }, [periodes, mois24])
+  }, [periodes])
 
-  const clientSelectionne = parClient.find(c => c.nom === selected) || null
-  const openDrillDown = (label, liste) => setDrillDown({ titre: `${label}${selected ? ` -- ${selected}` : ''}`, liste })
+  const openDrillDown = (label, nomClient, liste) => setDrillDown({ titre: `${label} -- ${nomClient}`, liste })
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: TITLE_COLOR }}>Compte Client</div>
-        <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Effectif Prod (AT) par client -- évolution mensuelle 2026-2027. Clique sur un client pour le détail.</div>
+        <div style={{ fontSize: 12.5, color: TEXT_SECONDARY, marginTop: 2 }}>Effectif Prod (AT) par client -- clique sur un chiffre pour voir la liste des collaborateurs concernés</div>
       </div>
 
       {loadError && <div style={{ color: '#A32D2D', background: '#FCEBEB', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{loadError}</div>}
@@ -628,62 +594,34 @@ function CompteClientTab() {
       {loading ? (
         <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 50 }}>Chargement...</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'auto', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, background: ACCENT_SOFT }}>Client</th>
-                  <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Effectif actuel</th>
-                  <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Évolution 2026-2027</th>
+        <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, overflow: 'auto', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
+            <thead>
+              <tr>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, background: ACCENT_SOFT }}>Client</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Effectif actuel</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: ACCENT, background: ACCENT_SOFT, textTransform: 'uppercase', letterSpacing: 0.4, borderLeft: '1px solid ' + BORDER }}>Effectif au 1er janvier 2027</th>
+              </tr>
+            </thead>
+            <tbody>
+              {parClient.map(c => (
+                <tr key={c.nom} style={{ borderTop: '1px solid ' + BORDER }}>
+                  <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: c.nom === 'Sans client' ? '#B45309' : TITLE_COLOR, whiteSpace: 'nowrap' }}>{c.nom}</td>
+                  <td onClick={() => openDrillDown('Effectif actuel', c.nom, c.actuelList)}
+                    style={{ padding: '9px 10px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: TITLE_COLOR, borderLeft: '1px solid ' + BORDER, cursor: 'pointer' }}>
+                    <span style={{ textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>{c.actuel}</span>
+                  </td>
+                  <td onClick={() => openDrillDown('Effectif au 1er janvier 2027', c.nom, c.janvier2027List)}
+                    style={{ padding: '9px 10px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: TITLE_COLOR, borderLeft: '1px solid ' + BORDER, cursor: 'pointer' }}>
+                    <span style={{ textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>{c.janvier2027}</span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {parClient.map(c => (
-                  <tr key={c.nom} onClick={() => setSelected(c.nom === selected ? null : c.nom)}
-                    style={{ borderTop: '1px solid ' + BORDER, cursor: 'pointer', background: selected === c.nom ? ACCENT_SOFT : 'transparent' }}>
-                    <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 600, color: c.nom === 'Sans client' ? '#B45309' : TITLE_COLOR, whiteSpace: 'nowrap' }}>{c.nom}</td>
-                    <td style={{ padding: '9px 10px', textAlign: 'center', fontSize: 13, fontWeight: 700, color: TITLE_COLOR, borderLeft: '1px solid ' + BORDER }}>{c.actuel}</td>
-                    <td style={{ padding: '9px 14px', borderLeft: '1px solid ' + BORDER }}><Sparkline values={c.serie} /></td>
-                  </tr>
-                ))}
-                {parClient.length === 0 && (
-                  <tr><td colSpan={3} style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>Aucune donnée Prod.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {clientSelectionne && (
-            <div style={{ background: '#fff', border: '1px solid ' + BORDER, borderRadius: 16, padding: 20, boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: TITLE_COLOR }}>{clientSelectionne.nom}</div>
-                <div onClick={() => openDrillDown('Effectif actuel', clientSelectionne.actuelList)}
-                  style={{ fontSize: 13, fontWeight: 700, color: ACCENT, cursor: 'pointer', textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>
-                  {clientSelectionne.actuel} collaborateur{clientSelectionne.actuel > 1 ? 's' : ''} actuellement
-                </div>
-              </div>
-              {[2026, 2027].map(an => (
-                <div key={an} style={{ marginBottom: an === 2026 ? 14 : 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 }}>{an}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 4 }}>
-                    {MOIS_LABELS.map((label, i) => {
-                      const idx = (an - 2026) * 12 + i
-                      return (
-                        <div key={label} onClick={() => openDrillDown(`${label} ${an}`, clientSelectionne.listesParMois[idx])}
-                          style={{ textAlign: 'center', padding: '8px 2px', borderRadius: 8, background: BG_PAGE, cursor: 'pointer' }}>
-                          <div style={{ fontSize: 10, color: TEXT_SECONDARY, textTransform: 'uppercase' }}>{label}</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: TITLE_COLOR, textDecoration: 'underline', textDecorationColor: BORDER, textUnderlineOffset: 3 }}>
-                            {clientSelectionne.serie[idx]}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
               ))}
-            </div>
-          )}
+              {parClient.length === 0 && (
+                <tr><td colSpan={3} style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>Aucune donnée Prod.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
